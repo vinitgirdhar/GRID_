@@ -248,7 +248,7 @@ export default function App() {
       {userRole === 'driver' && (
         <main className="md:hidden flex-1 min-h-screen relative bg-[var(--background)] flex flex-col w-full h-full">
           {/* Floating Top Elements */}
-          <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-center z-40 pointer-events-none">
+          <div className="fixed top-0 left-0 right-0 p-6 flex justify-between items-center z-40 pointer-events-none">
             <div className="flex items-center gap-2 pointer-events-auto shadow-md bg-white rounded-full p-1 pl-4 pr-1">
               <span className="text-sm font-bold">12:30</span>
               <div className="w-8 h-8 rounded-full bg-[var(--primary)] flex items-center justify-center">
@@ -284,7 +284,7 @@ export default function App() {
           </div>
 
           {/* Floating Pill Bottom Navigation */}
-          <div className="absolute bottom-6 left-0 right-0 flex justify-center z-50 pointer-events-none">
+          <div className="fixed bottom-6 left-0 right-0 flex justify-center z-50 pointer-events-none">
             <div className="nav-pill pointer-events-auto">
               <div
                 className={cn("nav-pill-item", activePage === 'overview' && 'active')}
