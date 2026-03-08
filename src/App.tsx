@@ -94,7 +94,7 @@ export default function App() {
   };
 
   return (
-    <div className="flex min-h-screen bg-[var(--background)] text-[var(--text-primary)] overflow-hidden">
+    <div className="flex min-h-screen bg-[var(--background)] text-[var(--text-primary)] font-sans overflow-hidden relative">
       {/* Clean Background Pattern */}
       <div className="fixed inset-0 opacity-20 pointer-events-none">
         <div className="absolute inset-0" style={{
@@ -102,152 +102,216 @@ export default function App() {
                            radial-gradient(circle at 75% 75%, var(--secondary) 0%, transparent 50%)`
         }}></div>
       </div>
-      {/* Dark Sidebar */}
-      <motion.aside
-        initial={false}
-        animate={{ width: isSidebarCollapsed ? 70 : 250 }}
-        className="fixed left-0 top-0 h-full bg-[var(--accent)] border-r border-[var(--border)] z-50 flex flex-col shadow-lg"
-      >
-        <div className="p-5 flex items-center justify-between">
-          {!isSidebarCollapsed && (
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="flex items-center gap-3"
-            >
-              <div className="w-9 h-9 bg-[var(--primary)] rounded-xl flex items-center justify-center shadow-md">
-                <Navigation className="w-5 h-5 text-white" />
-              </div>
-              <div className="flex flex-col">
-                <span className="font-bold text-lg text-white">GRID</span>
-                <span className="text-[9px] text-[var(--text-muted)] uppercase tracking-wider font-medium">Cab Booking</span>
-              </div>
-            </motion.div>
-          )}
-          {isSidebarCollapsed && (
-            <div className="w-9 h-9 bg-[var(--primary)] rounded-xl flex items-center justify-center shadow-md mx-auto">
-              <Navigation className="w-5 h-5 text-white" />
-            </div>
-          )}
-          <button
-            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-            className="p-2 hover:bg-[var(--primary)]/10 rounded-lg transition-all duration-300 text-[var(--text-muted)] hover:text-white"
-          >
-            {isSidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
-          </button>
-        </div>
 
-        <nav className="flex-1 px-3 space-y-1 py-5">
-          {sidebarItems.map((item, index) => (
-            <motion.button
-              key={item.id}
-              onClick={() => setActivePage(item.id as Page)}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: index * 0.05 }}
-              className={cn(
-                "w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-300 group relative",
-                activePage === item.id
-                  ? "bg-[var(--primary)] text-[var(--accent)] border-l-3 border-[var(--primary)]"
-                  : "text-[var(--text-muted)] hover:bg-[var(--primary)]/10 hover:text-white"
-              )}
-            >
-              <item.icon size={18} className={cn(
-                "shrink-0 transition-colors duration-300",
-                activePage === item.id ? "text-[var(--accent)]" : "group-hover:text-white"
-              )} />
-              {!isSidebarCollapsed && (
-                <span className="font-medium text-sm">{item.label}</span>
-              )}
-            </motion.button>
-          ))}
-        </nav>
-
-        <div className="p-3">
-          <motion.div
-            whileHover={{ scale: 1.02 }}
-            className="flex items-center gap-3 p-2 rounded-lg hover:bg-[var(--primary)]/10 transition-all duration-300 cursor-pointer group"
-          >
-            <div className="w-8 h-8 rounded-lg bg-[var(--primary)] flex items-center justify-center shrink-0 shadow-md">
-              <User size={16} className="text-[var(--accent)]" />
-            </div>
+      {/* Desktop Layout */}
+      <div className={cn("w-full min-h-screen", userRole === 'driver' ? "hidden md:flex" : "flex")}>
+        {/* Light Sidebar */}
+        <motion.aside
+          initial={false}
+          animate={{ width: isSidebarCollapsed ? 80 : 260 }}
+          className="fixed left-0 top-0 h-full bg-[var(--surface)] border-r border-[var(--border)] z-50 flex flex-col shadow-sm"
+        >
+          <div className="p-6 flex items-center justify-between">
             {!isSidebarCollapsed && (
-              <div className="flex flex-col flex-1 overflow-hidden">
-                <span className="text-sm font-medium truncate text-white">{userRole === 'admin' ? 'Admin' : 'Driver'}</span>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 bg-[var(--success)] rounded-full"></span>
-                  <span className="text-[9px] text-[var(--text-muted)] uppercase font-medium">Active</span>
-                </div>
-              </div>
-            )}
-            {!isSidebarCollapsed && (
-              <motion.button
-                onClick={handleLogout}
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                className="p-1.5 hover:bg-[var(--danger)]/10 text-[var(--text-muted)] hover:text-[var(--danger)] rounded-lg transition-all duration-300"
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="flex items-center gap-3"
               >
-                <LogOut size={14} />
-              </motion.button>
+                <div className="w-10 h-10 bg-[var(--primary)] rounded-full flex items-center justify-center shadow-sm">
+                  <Navigation className="w-5 h-5 text-[var(--accent)]" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="font-bold text-xl text-[var(--text-primary)]">GRID</span>
+                </div>
+              </motion.div>
             )}
-          </motion.div>
-        </div>
-      </motion.aside>
-
-      {/* Main Content */}
-      <main
-        className={cn(
-          "flex-1 transition-all duration-300 min-h-screen flex flex-col relative",
-          isSidebarCollapsed ? "ml-[70px]" : "ml-[250px]"
-        )}
-      >
-        {/* Clean Header */}
-        <header className="h-16 border-b border-[var(--border)] flex items-center justify-between px-6 sticky top-0 bg-white/95 backdrop-blur-md z-40">
-          <div className="flex items-center gap-4 flex-1">
-            <div className="relative max-w-md w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] w-4 h-4" />
-              <input
-                type="text"
-                placeholder="Search rides, drivers, locations..."
-                className="input-clean w-full pl-10 pr-4"
-              />
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="p-2 hover:bg-[var(--primary)]/10 rounded-lg relative text-[var(--text-secondary)] hover:text-[var(--primary)] transition-all duration-300"
+            {isSidebarCollapsed && (
+              <div className="w-10 h-10 bg-[var(--primary)] rounded-full flex items-center justify-center shadow-sm mx-auto">
+                <Navigation className="w-5 h-5 text-[var(--accent)]" />
+              </div>
+            )}
+            <button
+              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+              className="p-2 hover:bg-[var(--secondary)] rounded-full transition-all duration-300 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             >
-              <Bell size={18} />
-              <span className="absolute top-2 right-2 w-2 h-2 bg-[var(--danger)] rounded-full border-2 border-white"></span>
-            </motion.button>
-            <div className="h-6 w-[1px] bg-[var(--border)]"></div>
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--success)]/10 border border-[var(--success)]/20">
-              <span className="w-1.5 h-1.5 bg-[var(--success)] rounded-full"></span>
-              <span className="text-xs text-[var(--success)] font-medium">
-                {userRole === 'admin' ? 'Online' : 'Available'}
-              </span>
-            </div>
+              {isSidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+            </button>
           </div>
-        </header>
 
-        {/* Spacious Page Content */}
-        <div className="p-6 max-w-7xl mx-auto w-full flex-1">
-          <AnimatePresence mode="wait">
+          <nav className="flex-1 px-4 space-y-2 py-6">
+            {sidebarItems.map((item, index) => (
+              <motion.button
+                key={item.id}
+                onClick={() => setActivePage(item.id as Page)}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.05 }}
+                className={cn(
+                  "w-full flex items-center gap-4 px-4 py-3.5 rounded-[20px] transition-all duration-300 group",
+                  activePage === item.id
+                    ? "bg-[var(--primary)] text-[var(--accent)] shadow-md"
+                    : "text-[var(--text-secondary)] hover:bg-[var(--secondary)] hover:text-[var(--text-primary)]"
+                )}
+              >
+                <item.icon size={20} className={cn(
+                  "shrink-0 transition-colors duration-300",
+                  activePage === item.id ? "text-[var(--accent)]" : "group-hover:text-[var(--text-primary)]"
+                )} />
+                {!isSidebarCollapsed && (
+                  <span className="font-semibold text-sm">{item.label}</span>
+                )}
+              </motion.button>
+            ))}
+          </nav>
+
+          <div className="p-4 border-t border-[var(--border)]">
             <motion.div
-              key={`${userRole}-${activePage}`}
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
-              transition={{ duration: 0.25 }}
-              className="h-full"
+              whileHover={{ scale: 1.02 }}
+              className="flex items-center gap-3 p-3 rounded-[20px] hover:bg-[var(--secondary)] transition-all duration-300 cursor-pointer group"
             >
-              {renderPage()}
+              <div className="w-10 h-10 rounded-full bg-[var(--primary)]/20 flex items-center justify-center shrink-0">
+                <User size={18} className="text-[var(--accent)]" />
+              </div>
+              {!isSidebarCollapsed && (
+                <div className="flex flex-col flex-1 overflow-hidden">
+                  <span className="text-sm font-bold truncate text-[var(--text-primary)] capitalize">{userRole}</span>
+                  <span className="text-xs text-[var(--success)] font-medium">Online</span>
+                </div>
+              )}
+              {!isSidebarCollapsed && (
+                <motion.button
+                  onClick={handleLogout}
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  className="p-2 hover:bg-[var(--danger)]/10 text-[var(--text-muted)] hover:text-[var(--danger)] rounded-full transition-all duration-300"
+                >
+                  <LogOut size={16} />
+                </motion.button>
+              )}
             </motion.div>
-          </AnimatePresence>
-        </div>
-      </main>
+          </div>
+        </motion.aside>
+
+        {/* Desktop Main Content */}
+        <main
+          className={cn(
+            "flex-1 transition-all duration-300 min-h-screen flex flex-col relative",
+            isSidebarCollapsed ? "ml-[80px]" : "ml-[260px]"
+          )}
+        >
+          <header className="h-20 border-b border-[var(--border)] flex items-center justify-between px-8 sticky top-0 bg-[var(--background)]/80 backdrop-blur-xl z-40">
+            <div className="flex items-center gap-4 w-full max-w-lg">
+              <div className="relative w-full">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)] w-5 h-5" />
+                <input
+                  type="text"
+                  placeholder="Search anything..."
+                  className="input-clean w-full pl-12 rounded-full shadow-sm bg-white"
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="p-3 bg-white shadow-sm hover:shadow-md rounded-full relative text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all duration-300"
+              >
+                <Bell size={20} />
+                <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-[var(--danger)] rounded-full border-2 border-white"></span>
+              </motion.button>
+              <div className="h-8 w-[1px] bg-[var(--border)]"></div>
+              <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center">
+                <span className="w-3 h-3 bg-[var(--success)] rounded-full border-2 border-white"></span>
+              </div>
+            </div>
+          </header>
+
+          <div className="p-8 max-w-7xl mx-auto w-full flex-1">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={`${userRole}-${activePage}`}
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                transition={{ duration: 0.25 }}
+                className="h-full"
+              >
+                {renderPage()}
+              </motion.div>
+            </AnimatePresence>
+          </div>
+        </main>
+      </div>
+
+      {/* Driver Mobile-First UI (Reference Image Style) */}
+      {userRole === 'driver' && (
+        <main className="md:hidden flex-1 min-h-screen relative bg-[var(--background)] flex flex-col w-full h-full">
+          {/* Floating Top Elements */}
+          <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-center z-40 pointer-events-none">
+            <div className="flex items-center gap-2 pointer-events-auto shadow-md bg-white rounded-full p-1 pl-4 pr-1">
+              <span className="text-sm font-bold">12:30</span>
+              <div className="w-8 h-8 rounded-full bg-[var(--primary)] flex items-center justify-center">
+                <Search size={16} className="text-[var(--accent)]" />
+              </div>
+            </div>
+            <div className="flex items-center gap-3 bg-white p-2 px-4 rounded-full shadow-md pointer-events-auto">
+              <div className="flex items-center gap-1">
+                <div className="w-4 h-4 rounded-full bg-[var(--primary)] flex items-center justify-center"><Navigation size={10} className="text-white" /></div>
+                <span className="text-xs font-bold text-[var(--text-primary)]">120</span>
+              </div>
+              <div className="w-px h-4 bg-[var(--border)]"></div>
+              <div className="flex items-center gap-1">
+                <div className="w-4 h-4 rounded-full bg-[var(--success)] flex items-center justify-center"><Activity size={10} className="text-white" /></div>
+                <span className="text-xs font-bold text-[var(--text-primary)]">98%</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex-1 w-full h-full pt-20 pb-28 overflow-y-auto px-4 z-10 relative">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={`${userRole}-${activePage}`}
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.98 }}
+                transition={{ duration: 0.25 }}
+                className="h-full"
+              >
+                {renderPage()}
+              </motion.div>
+            </AnimatePresence>
+          </div>
+
+          {/* Floating Pill Bottom Navigation */}
+          <div className="absolute bottom-6 left-0 right-0 flex justify-center z-50 pointer-events-none">
+            <div className="nav-pill pointer-events-auto">
+              <div
+                className={cn("nav-pill-item", activePage === 'overview' && 'active')}
+                onClick={() => setActivePage('overview')}
+              >
+                <MapIcon size={20} fill={activePage === 'overview' ? 'var(--accent)' : 'transparent'} strokeWidth={activePage === 'overview' ? 1.5 : 2} />
+              </div>
+              <div
+                className={cn("nav-pill-item", activePage === 'go-for-ride' && 'active')}
+                onClick={() => setActivePage('go-for-ride')}
+              >
+                <Users size={20} fill={activePage === 'go-for-ride' ? 'var(--accent)' : 'transparent'} strokeWidth={activePage === 'go-for-ride' ? 1.5 : 2} />
+              </div>
+              <div
+                className={cn("nav-pill-item", activePage === 'driver-performance' && 'active')}
+                onClick={() => setActivePage('driver-performance')}
+              >
+                <Bell size={20} fill={activePage === 'driver-performance' ? 'var(--accent)' : 'transparent'} strokeWidth={activePage === 'driver-performance' ? 1.5 : 2} />
+              </div>
+
+              <div className="w-10 h-10 ml-2 rounded-full border-2 border-[var(--primary)] overflow-hidden cursor-pointer" onClick={handleLogout}>
+                <img src="https://picsum.photos/seed/driver/100/100" alt="Profile" className="w-full h-full object-cover" />
+              </div>
+            </div>
+          </div>
+        </main>
+      )}
     </div>
   );
 }

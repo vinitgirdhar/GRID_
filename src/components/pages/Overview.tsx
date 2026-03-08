@@ -12,7 +12,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     return (
       <div className="glass-card p-4 rounded-xl shadow-2xl border border-[var(--primary)]/20">
         <p className="text-xs text-[var(--text-muted)] mb-2 font-semibold uppercase tracking-wider">{label}</p>
-        <p className="text-sm font-bold text-[var(--primary)]">
+        <p className="text-sm font-bold text-[var(--text-primary)]">
           {payload[0].value.toLocaleString()} Rides
         </p>
       </div>
@@ -181,8 +181,8 @@ export default function Overview() {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 className={`px-3 py-1.5 text-xs rounded-lg font-semibold transition-all duration-200 ${t === '6M'
-                    ? 'bg-[var(--primary)] text-white shadow-sm'
-                    : 'bg-[var(--surface)] hover:bg-[var(--primary)]/10 text-[var(--text-secondary)] hover:text-[var(--primary)] border border-[var(--border)] hover:border-[var(--primary)]/20'
+                  ? 'bg-[var(--text-primary)] text-[var(--surface)] shadow-sm'
+                  : 'bg-[var(--surface)] hover:bg-[var(--text-primary)]/10 text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border)] hover:border-[var(--text-primary)]/20'
                   }`}
               >
                 {t}
@@ -195,8 +195,8 @@ export default function Overview() {
             <AreaChart data={DEMAND_OVER_TIME}>
               <defs>
                 <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#F4B000" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#F4B000" stopOpacity={0.05} />
+                  <stop offset="5%" stopColor="#F8FAFC" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#F8FAFC" stopOpacity={0.05} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" opacity={0.5} />
@@ -216,7 +216,7 @@ export default function Overview() {
               <Area
                 type="monotone"
                 dataKey="value"
-                stroke="#F4B000"
+                stroke="#F8FAFC"
                 strokeWidth={2}
                 fillOpacity={1}
                 fill="url(#colorValue)"
@@ -259,7 +259,7 @@ export default function Overview() {
                 <Tooltip content={<CustomTooltip />} />
                 <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={20}>
                   {BOROUGH_DEMAND.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={index === 0 ? '#F4B000' : '#F4B00040'} stroke={index === 0 ? 'none' : '#F4B000'} strokeWidth={index === 0 ? 0 : 1} />
+                    <Cell key={`cell-${index}`} fill={index === 0 ? '#F8FAFC' : '#94A3B840'} stroke={index === 0 ? 'none' : '#94A3B8'} strokeWidth={index === 0 ? 0 : 1} />
                   ))}
                 </Bar>
               </BarChart>
@@ -298,10 +298,10 @@ export default function Overview() {
                 <Line
                   type="monotone"
                   dataKey="value"
-                  stroke="#F4B000"
+                  stroke="#F8FAFC"
                   strokeWidth={2}
                   dot={false}
-                  activeDot={{ r: 5, fill: '#F4B000', stroke: 'var(--surface)', strokeWidth: 2 }}
+                  activeDot={{ r: 5, fill: '#F8FAFC', stroke: 'var(--surface)', strokeWidth: 2 }}
                 />
               </LineChart>
             </ResponsiveContainer>

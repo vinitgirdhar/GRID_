@@ -50,19 +50,19 @@ export default function DriverOverview() {
     <div className="space-y-8">
       <div className="flex justify-between items-end">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-[var(--text-primary)]">Operational Intelligence</h1>
-          <p className="text-[var(--text-secondary)] mt-1">Real-time urban demand and environmental awareness.</p>
+          <h1 className="text-3xl font-black tracking-tight text-[var(--accent)]">Intelligence</h1>
+          <p className="text-[var(--text-secondary)] mt-1 font-medium">Urban demand & awareness.</p>
         </div>
         <div className="flex items-center gap-2 text-xs font-bold text-success bg-success/10 px-3 py-1.5 rounded-full">
-          <span className="w-2 h-2 bg-success rounded-full animate-pulse"></span>
-          LIVE UPDATES ACTIVE
+          <span className="w-2 h-2 bg-success rounded-full animate-pulse-soft"></span>
+          LIVE
         </div>
       </div>
 
       {/* KPI Section */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {DRIVER_KPIS.map((kpi, idx) => (
-          <div key={idx} className="glass-card p-6 flex flex-col justify-between">
+          <div key={idx} className="kpi-card">
             <div className="flex items-center justify-between mb-4">
               <div className="p-2 bg-primary/10 rounded-lg">
                 {idx === 0 && <DollarSign className="text-primary w-5 h-5" />}
@@ -76,8 +76,8 @@ export default function DriverOverview() {
               </div>
             </div>
             <div>
-              <p className="text-xs text-[var(--text-secondary)] font-bold uppercase tracking-wider">{kpi.label}</p>
-              <p className="text-2xl font-black mt-1 text-[var(--text-primary)]">{kpi.value}</p>
+              <p className="kpi-label">{kpi.label}</p>
+              <p className="kpi-value">{kpi.value}</p>
             </div>
           </div>
         ))}
@@ -122,16 +122,16 @@ export default function DriverOverview() {
                 <AreaChart data={data.threeHourTrend}>
                   <defs>
                     <linearGradient id="colorDemand" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#F4B000" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#F4B000" stopOpacity={0} />
+                      <stop offset="5%" stopColor="#FFD13B" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#FFD13B" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <Area type="monotone" dataKey="value" stroke="#F4B000" fillOpacity={1} fill="url(#colorDemand)" strokeWidth={2} />
+                  <Area type="monotone" dataKey="value" stroke="#FFD13B" fillOpacity={1} fill="url(#colorDemand)" strokeWidth={3} />
                   <XAxis dataKey="name" hide />
                   <YAxis hide domain={['dataMin - 500', 'dataMax + 500']} />
                   <Tooltip
-                    contentStyle={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '10px' }}
-                    labelStyle={{ display: 'none' }}
+                    contentStyle={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '16px', fontSize: '10px', boxShadow: '0 8px 30px rgba(0,0,0,0.06)' }}
+                    itemStyle={{ color: '#0F172A', fontWeight: 'bold' }}
                   />
                 </AreaChart>
               </ResponsiveContainer>
