@@ -15,6 +15,15 @@ import {
 } from 'lucide-react';
 import { RIDE_REQUESTS } from '../../constants';
 import { cn } from '../../lib/utils';
+import MapComponent, { MapRoute, MapRidePin } from '../MapComponent';
+
+const BOROUGH_COORDS: Record<string, [number, number]> = {
+  'manhattan': [40.7580, -73.9855],
+  'brooklyn': [40.6829, -73.9752],
+  'queens': [40.6413, -73.7781],
+  'bronx': [40.8448, -73.8648],
+  'staten island': [40.5795, -74.1502],
+};
 
 export default function GoForRide() {
   const [destinationModeActive, setDestinationModeActive] = useState(false);
@@ -33,6 +42,42 @@ export default function GoForRide() {
       ride.borough.toLowerCase().includes(search)
     );
   });
+
+  // Construct map data
+  let mapRoute: MapRoute | undefined;
+  let ridePins: MapRidePin[] = [];
+
+  if (destinationModeActive) {
+    const driverStart: [number, number] = [40.7580, -73.9855]; // Mock driver in Manhattan
+
+    // Find destination coords
+    let search = destination.toLowerCase();
+    if (search === 'home') search = 'brooklyn';
+    if (search === 'jfk' || search === 'airport') search = 'queens';
+
+    // Default to Brooklyn if no match to make the demo look good
+    const destCoords = BOROUGH_COORDS[search] || BOROUGH_COORDS['brooklyn'];
+
+    mapRoute = {
+      start: driverStart,
+      end: destCoords,
+    };
+
+    ridePins = filteredRides.map((ride, idx) => {
+      const b = ride.borough.toLowerCase();
+      const baseCoords = BOROUGH_COORDS[b] || BOROUGH_COORDS['brooklyn'];
+      // Add slight offset so pins don't overlap completely
+      const offsetLat = baseCoords[0] + (Math.random() - 0.5) * 0.02;
+      const offsetLng = baseCoords[1] + (Math.random() - 0.5) * 0.02;
+
+      return {
+        id: ride.id,
+        position: [offsetLat, offsetLng],
+        label: ride.drop,
+        fare: ride.fare
+      };
+    });
+  }
 
   return (
     <div className="space-y-8">
@@ -132,8 +177,31 @@ export default function GoForRide() {
           </div>
         </div>
 
-        {/* Ride Requests Feed */}
-        <div className="lg:col-span-8 space-y-4">
+        {/* Ride Requests Feed & Map */}
+        <div className="lg:col-span-8 space-y-6">
+          <AnimatePresence>
+            {destinationModeActive && (
+              <motion.div
+                initial={{ opacity: 0, height: 0, y: -20 }}
+                animate={{ opacity: 1, height: 'auto', y: 0 }}
+                exit={{ opacity: 0, height: 0, y: -20 }}
+                className="w-full bg-[var(--card)] p-2 rounded-2xl shadow-xl border border-[var(--border)] overflow-hidden"
+              >
+                <div className="flex items-center gap-2 px-4 py-3 mb-2 border-b border-[var(--border)]">
+                  <div className="w-2 h-2 rounded-full bg-[#facc15] animate-pulse" />
+                  <h3 className="font-bold text-[var(--text-primary)]">Live Route Tracking</h3>
+                </div>
+                <MapComponent
+                  theme="light"
+                  height="350px"
+                  simplified={false}
+                  route={mapRoute}
+                  ridePins={ridePins}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <AnimatePresence mode="popLayout">
             {filteredRides.length > 0 ? (
               filteredRides.map((ride, idx) => (
