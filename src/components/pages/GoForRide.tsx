@@ -17,20 +17,21 @@ import { RIDE_REQUESTS } from '../../constants';
 import { cn } from '../../lib/utils';
 
 export default function GoForRide() {
-  const [filter, setFilter] = useState({
-    direction: 'All',
-    borough: 'All',
-    minFare: 0,
-    maxDistance: 50
-  });
+  const [destinationModeActive, setDestinationModeActive] = useState(false);
+  const [destination, setDestination] = useState('');
 
   const filteredRides = RIDE_REQUESTS.filter(ride => {
-    if (filter.direction !== 'All' && ride.direction !== filter.direction) return false;
-    if (filter.borough !== 'All' && ride.borough !== filter.borough) return false;
-    if (ride.fare < filter.minFare) return false;
-    const dist = parseFloat(ride.distance);
-    if (dist > filter.maxDistance) return false;
-    return true;
+    if (!destinationModeActive || !destination.trim()) return true;
+
+    // Map common terms to boroughs for demo purposes
+    let search = destination.toLowerCase();
+    if (search === 'home') search = 'brooklyn';
+    if (search === 'jfk' || search === 'airport') search = 'queens';
+
+    return (
+      ride.drop.toLowerCase().includes(search) ||
+      ride.borough.toLowerCase().includes(search)
+    );
   });
 
   return (
@@ -47,89 +48,87 @@ export default function GoForRide() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Filters Panel */}
+        {/* Destination Mode Panel */}
         <div className="lg:col-span-4">
-          <div className="glass-card p-6 sticky top-24 space-y-6">
-            <div className="flex items-center gap-2 mb-2">
-              <Filter className="text-primary w-5 h-5" />
-              <h2 className="text-xl font-bold text-[var(--text-primary)]">Route Filters</h2>
+          <div className={cn(
+            "p-6 rounded-2xl border transition-all duration-300 sticky top-24",
+            destinationModeActive
+              ? "bg-[var(--primary)]/10 border-[var(--primary)]/30 shadow-[0_0_30px_rgba(250,204,21,0.1)]"
+              : "glass-card hover:border-[var(--primary)]/20"
+          )}>
+            <div className="flex items-start gap-4 mb-6">
+              <div className={cn(
+                "p-3 rounded-xl transition-colors",
+                destinationModeActive ? "bg-[var(--primary)] text-[#0f172a]" : "bg-[var(--surface)] border border-[var(--border)] text-[var(--text-secondary)]"
+              )}>
+                <Compass size={24} />
+              </div>
+              <div className="flex-1">
+                <h2 className="text-xl font-bold text-[var(--text-primary)]">Destination Mode</h2>
+                <p className="text-sm text-[var(--text-secondary)] leading-tight mt-1">
+                  Only receive requests heading towards your destination or along the same route.
+                </p>
+              </div>
             </div>
 
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">Preferred Direction</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {['All', 'North', 'South', 'East', 'West'].map(dir => (
+            <div className="space-y-5">
+              <div className="space-y-3 relative">
+                <label className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider pl-1">Set Destination</label>
+                <div className="relative">
+                  <MapPin size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+                  <input
+                    type="text"
+                    placeholder="e.g. Home, Brooklyn..."
+                    value={destination}
+                    onChange={(e) => setDestination(e.target.value)}
+                    disabled={destinationModeActive}
+                    className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-3 pl-10 pr-4 text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--primary)]/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  />
+                </div>
+
+                {/* Quick Destinations */}
+                {!destinationModeActive && (
+                  <div className="flex gap-2 pt-1">
                     <button
-                      key={dir}
-                      onClick={() => setFilter({ ...filter, direction: dir })}
-                      className={cn(
-                        "px-3 py-2 rounded-lg text-xs font-bold transition-all border",
-                        filter.direction === dir
-                          ? "bg-primary text-white border-primary"
-                          : "bg-[var(--background)] text-[var(--text-secondary)] border-[var(--border)] hover:border-primary/50"
-                      )}
+                      onClick={() => setDestination('Home')}
+                      className="px-3 py-1.5 text-xs font-bold rounded-lg border border-[var(--border)] bg-[var(--background)] text-[var(--text-secondary)] hover:text-primary hover:border-primary/50 transition-colors"
                     >
-                      {dir}
+                      Home
                     </button>
-                  ))}
-                </div>
+                    <button
+                      onClick={() => setDestination('Airport')}
+                      className="px-3 py-1.5 text-xs font-bold rounded-lg border border-[var(--border)] bg-[var(--background)] text-[var(--text-secondary)] hover:text-primary hover:border-primary/50 transition-colors"
+                    >
+                      Airport
+                    </button>
+                    <button
+                      onClick={() => setDestination('Manhattan')}
+                      className="px-3 py-1.5 text-xs font-bold rounded-lg border border-[var(--border)] bg-[var(--background)] text-[var(--text-secondary)] hover:text-primary hover:border-primary/50 transition-colors"
+                    >
+                      Downtown
+                    </button>
+                  </div>
+                )}
               </div>
 
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">Preferred Borough</label>
-                <select
-                  value={filter.borough}
-                  onChange={(e) => setFilter({ ...filter, borough: e.target.value })}
-                  className="w-full bg-[var(--background)] border border-[var(--border)] rounded-lg py-2 px-3 text-sm text-[var(--text-primary)] focus:outline-none focus:border-primary/50"
-                >
-                  <option>All</option>
-                  <option>Manhattan</option>
-                  <option>Brooklyn</option>
-                  <option>Queens</option>
-                  <option>Bronx</option>
-                  <option>Staten Island</option>
-                </select>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <label className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">Min Fare</label>
-                  <span className="text-xs font-bold text-primary">${filter.minFare}</span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  step="5"
-                  value={filter.minFare}
-                  onChange={(e) => setFilter({ ...filter, minFare: parseInt(e.target.value) })}
-                  className="w-full h-1.5 bg-[var(--border)] rounded-full appearance-none cursor-pointer accent-primary"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <label className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">Max Distance</label>
-                  <span className="text-xs font-bold text-primary">{filter.maxDistance} mi</span>
-                </div>
-                <input
-                  type="range"
-                  min="1"
-                  max="50"
-                  value={filter.maxDistance}
-                  onChange={(e) => setFilter({ ...filter, maxDistance: parseInt(e.target.value) })}
-                  className="w-full h-1.5 bg-[var(--border)] rounded-full appearance-none cursor-pointer accent-primary"
-                />
-              </div>
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setDestinationModeActive(!destinationModeActive)}
+                className={cn(
+                  "w-full py-3 rounded-xl font-bold text-sm transition-all shadow-lg flex items-center justify-center gap-2",
+                  destinationModeActive
+                    ? "bg-danger hover:bg-danger/90 text-white shadow-danger/20"
+                    : "bg-[var(--text-primary)] hover:bg-[var(--text-primary)]/90 text-[var(--background)] shadow-[var(--border)]"
+                )}
+              >
+                {destinationModeActive ? (
+                  <>Stop Destination Mode</>
+                ) : (
+                  <>Activate Destination Mode <ArrowRight size={16} /></>
+                )}
+              </motion.button>
             </div>
-
-            <button
-              onClick={() => setFilter({ direction: 'All', borough: 'All', minFare: 0, maxDistance: 50 })}
-              className="w-full py-3 text-xs font-bold text-[var(--text-secondary)] hover:text-primary transition-colors"
-            >
-              Reset All Filters
-            </button>
           </div>
         </div>
 
@@ -228,13 +227,13 @@ export default function GoForRide() {
                 <div className="w-16 h-16 bg-[var(--background)] rounded-full flex items-center justify-center mx-auto">
                   <Filter className="text-[var(--text-secondary)] opacity-30" size={32} />
                 </div>
-                <h3 className="text-lg font-bold text-[var(--text-primary)]">No rides match your filters</h3>
-                <p className="text-sm text-[var(--text-secondary)] max-w-xs mx-auto">Try adjusting your direction or minimum fare to see more requests.</p>
+                <h3 className="text-lg font-bold text-[var(--text-primary)]">No rides heading there just yet</h3>
+                <p className="text-sm text-[var(--text-secondary)] max-w-xs mx-auto">We'll alert you the moment a ride request matches your destination area.</p>
                 <button
-                  onClick={() => setFilter({ direction: 'All', borough: 'All', minFare: 0, maxDistance: 50 })}
+                  onClick={() => setDestinationModeActive(false)}
                   className="text-primary font-bold text-sm hover:underline"
                 >
-                  Clear all filters
+                  Cancel Destination Mode
                 </button>
               </div>
             )}

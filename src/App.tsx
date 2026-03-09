@@ -27,7 +27,6 @@ import Overview from './components/pages/Overview';
 import DataInsights from './components/pages/DataInsights';
 import WeatherInsights from './components/pages/WeatherInsights';
 import DemandPrediction from './components/pages/DemandPrediction';
-import HotspotMap from './components/pages/HotspotMap';
 import ModelPerformance from './components/pages/ModelPerformance';
 import Drivers from './components/pages/Drivers';
 import DriverOverview from './components/pages/DriverOverview';
@@ -39,8 +38,6 @@ const ADMIN_ITEMS = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
   { id: 'data-insights', label: 'Data Insights', icon: BarChart3 },
   { id: 'weather-insights', label: 'Weather Insights', icon: CloudSun },
-  { id: 'prediction', label: 'Demand Prediction', icon: BrainCircuit },
-  { id: 'hotspot-map', label: 'Hotspot Map', icon: MapIcon },
   { id: 'performance', label: 'Model Performance', icon: Activity },
   { id: 'drivers', label: 'Drivers', icon: Users },
 ] as const;
@@ -48,6 +45,7 @@ const ADMIN_ITEMS = [
 const DRIVER_ITEMS = [
   { id: 'overview', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'go-for-ride', label: 'Go For Ride', icon: Navigation },
+  { id: 'where-next', label: 'Where should I go next', icon: BrainCircuit },
   { id: 'driver-performance', label: 'Performance', icon: LineChartIcon },
 ] as const;
 
@@ -77,8 +75,6 @@ export default function App() {
         case 'overview': return <Overview />;
         case 'data-insights': return <DataInsights />;
         case 'weather-insights': return <WeatherInsights />;
-        case 'prediction': return <DemandPrediction />;
-        case 'hotspot-map': return <HotspotMap />;
         case 'performance': return <ModelPerformance />;
         case 'drivers': return <Drivers />;
         default: return <Overview />;
@@ -87,6 +83,7 @@ export default function App() {
       switch (activePage) {
         case 'overview': return <DriverOverview />;
         case 'go-for-ride': return <GoForRide />;
+        case 'where-next': return <DemandPrediction />;
         case 'driver-performance': return <DriverPerformance />;
         default: return <DriverOverview />;
       }

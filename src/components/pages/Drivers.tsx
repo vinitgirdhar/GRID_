@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Search, Star, MapPin, TrendingUp, ShieldCheck, ShieldAlert, Shield } from 'lucide-react';
-import { motion } from 'motion/react';
+import { Search, Star, MapPin, TrendingUp, ShieldCheck, ShieldAlert, Shield, Trophy } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../../lib/utils';
 
 type DriverStatus = 'online' | 'driving' | 'offline';
@@ -164,6 +164,66 @@ export default function Drivers() {
         </div>
       </div>
 
+      {/* Top Drivers Podium */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {[...MOCK_DRIVERS]
+          .sort((a, b) => b.earnings - a.earnings)
+          .slice(0, 3)
+          .map((driver, index) => (
+            <motion.div
+              key={`top-${driver.id}`}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+              className={cn(
+                "relative overflow-hidden rounded-2xl p-6 border transition-all hover:-translate-y-1",
+                index === 0 ? "bg-gradient-to-br from-[#facc15]/20 to-[#eab308]/5 border-[#facc15]/30 shadow-[0_8px_30px_rgba(250,204,21,0.15)]" : "glass-card hover:border-primary/20",
+                index === 1 ? "md:mt-4" : "",
+                index === 2 ? "md:mt-8" : ""
+              )}
+            >
+              {index === 0 && (
+                <div className="absolute top-0 right-0 w-32 h-32 bg-[#facc15]/10 rounded-full blur-2xl -mr-10 -mt-10" />
+              )}
+
+              <div className="flex items-start justify-between mb-4 relative z-10">
+                <div className={cn(
+                  "w-10 h-10 rounded-xl flex items-center justify-center font-black text-lg",
+                  index === 0 ? "bg-[#facc15] text-white shadow-lg shadow-[#facc15]/40" :
+                    index === 1 ? "bg-slate-300 text-slate-700 shadow-md shadow-slate-300/40" :
+                      "bg-orange-300 text-orange-900 shadow-md shadow-orange-300/40"
+                )}>
+                  {index === 0 ? <Trophy size={20} /> : `#${index + 1}`}
+                </div>
+                {getTierBadge(driver.tier)}
+              </div>
+
+              <div className="flex items-center gap-4 mb-6 relative z-10">
+                <img src={driver.avatar} alt={driver.name} className="w-16 h-16 rounded-full border-4 border-[var(--background)] shadow-lg" referrerPolicy="no-referrer" />
+                <div>
+                  <h3 className="text-lg font-bold text-[var(--text-primary)] leading-tight">{driver.name}</h3>
+                  <p className="text-xs font-medium text-[var(--text-secondary)] flex items-center gap-1 mt-1">
+                    <MapPin size={12} /> {driver.borough}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 relative z-10">
+                <div className="bg-[var(--background)]/50 p-3 rounded-xl border border-[var(--border)]">
+                  <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1">Ratings</p>
+                  <p className="text-sm font-black text-[var(--text-primary)] flex items-center gap-1">
+                    {driver.rating} <Star size={12} className="text-[#facc15] fill-[#facc15]" />
+                  </p>
+                </div>
+                <div className="bg-[var(--background)]/50 p-3 rounded-xl border border-[var(--border)]">
+                  <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1">Earnings</p>
+                  <p className="text-sm font-black text-[#eab308]">${driver.earnings.toLocaleString()}</p>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+      </div>
+
       <div className="glass-card overflow-hidden flex flex-col">
         <div className="p-4 border-b border-[var(--border)] bg-[var(--card)]/50">
           <div className="relative max-w-md">
@@ -191,60 +251,65 @@ export default function Drivers() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border)]">
-              {filteredDrivers.map((driver) => (
-                <motion.tr
-                  layout
-                  key={driver.id}
-                  className="hover:bg-primary/5 transition-colors group"
-                >
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="relative">
-                        <img
-                          src={driver.avatar}
-                          alt={driver.name}
-                          className="w-10 h-10 rounded-full border-2 border-[var(--border)] group-hover:border-primary/30 transition-colors"
-                          referrerPolicy="no-referrer"
-                        />
-                        <span className={cn(
-                          "absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-[var(--card)]",
-                          getStatusColor(driver.status)
-                        )}></span>
+              <AnimatePresence>
+                {filteredDrivers.map((driver) => (
+                  <motion.tr
+                    layout
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    key={driver.id}
+                    className="hover:bg-primary/5 transition-colors group"
+                  >
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="relative">
+                          <img
+                            src={driver.avatar}
+                            alt={driver.name}
+                            className="w-10 h-10 rounded-full border-2 border-[var(--border)] group-hover:border-primary/30 transition-colors"
+                            referrerPolicy="no-referrer"
+                          />
+                          <span className={cn(
+                            "absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-[var(--card)]",
+                            getStatusColor(driver.status)
+                          )}></span>
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-[var(--text-primary)]">{driver.name}</p>
+                          <p className="text-[10px] text-[var(--text-secondary)] uppercase font-bold tracking-tighter">{driver.status}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-bold text-[var(--text-primary)]">{driver.name}</p>
-                        <p className="text-[10px] text-[var(--text-secondary)] uppercase font-bold tracking-tighter">{driver.status}</p>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-1.5 text-[var(--text-secondary)]">
+                        <MapPin size={14} className="text-primary" />
+                        <span className="text-sm font-medium">{driver.borough}</span>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-1.5 text-[var(--text-secondary)]">
-                      <MapPin size={14} className="text-primary" />
-                      <span className="text-sm font-medium">{driver.borough}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-1">
-                      <Star size={14} className="text-warning fill-warning" />
-                      <span className="text-sm font-bold text-[var(--text-primary)]">{driver.rating}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="text-sm font-bold text-[var(--text-primary)]">{driver.trips.toLocaleString()}</span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-1.5">
-                      <TrendingUp size={14} className="text-success" />
-                      <span className="text-sm font-bold text-[var(--text-primary)]">${driver.earnings.toLocaleString()}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex justify-end">
-                      {getTierBadge(driver.tier)}
-                    </div>
-                  </td>
-                </motion.tr>
-              ))}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-1">
+                        <Star size={14} className="text-warning fill-warning" />
+                        <span className="text-sm font-bold text-[var(--text-primary)]">{driver.rating}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-sm font-bold text-[var(--text-primary)]">{driver.trips.toLocaleString()}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-1.5">
+                        <TrendingUp size={14} className="text-success" />
+                        <span className="text-sm font-bold text-[var(--text-primary)]">${driver.earnings.toLocaleString()}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex justify-end">
+                        {getTierBadge(driver.tier)}
+                      </div>
+                    </td>
+                  </motion.tr>
+                ))}
+              </AnimatePresence>
             </tbody>
           </table>
         </div>

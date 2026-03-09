@@ -94,11 +94,12 @@ export const DEMAND_OVER_TIME: ChartData[] = [
 ];
 
 export const BOROUGH_DEMAND: ChartData[] = [
-  { name: 'Manhattan', value: 8500 },
-  { name: 'Brooklyn', value: 4200 },
-  { name: 'Queens', value: 3100 },
-  { name: 'Bronx', value: 1200 },
-  { name: 'Staten Is', value: 400 },
+  { name: 'Manhattan', value: 5800 },
+  { name: 'Brooklyn', value: 3200 },
+  { name: 'Queens', value: 2600 },
+  { name: 'Bronx', value: 1460 },
+  { name: 'Staten Island', value: 420 },
+  { name: 'JFK/LGA', value: 1100 },
 ];
 
 export const HOURLY_DEMAND: ChartData[] = Array.from({ length: 24 }, (_, i) => ({

@@ -7,13 +7,23 @@ import {
 } from 'recharts';
 import { KPIS, DEMAND_OVER_TIME, BOROUGH_DEMAND, HOURLY_DEMAND } from '../../constants';
 
+/* Yellow-gold gradient colors: brightest for highest, darkest for lowest */
+const BAR_COLORS = [
+  '#facc15',  // Bright yellow
+  '#eab308',  // Yellow
+  '#d4a017',  // Deeper gold
+  '#b8860b',  // Dark goldenrod
+  '#8b6914',  // Dark gold
+  '#6b5310',  // Deepest gold
+];
+
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="glass-card p-4 rounded-xl shadow-2xl border border-[var(--primary)]/20">
-        <p className="text-xs text-[var(--primary-dark)] mb-2 font-bold uppercase tracking-wider">{label}</p>
-        <p className="text-sm font-black text-[var(--text-primary)]">
-          {payload[0].value.toLocaleString()} Rides
+      <div className="bg-white px-5 py-4 rounded-2xl shadow-xl border border-gray-100">
+        <p className="text-sm font-bold text-gray-800 mb-1">{label}</p>
+        <p className="text-sm text-gray-600">
+          Rides : <span className="font-bold text-gray-900">{payload[0].value.toLocaleString()}</span>
         </p>
       </div>
     );
@@ -195,32 +205,32 @@ export default function Overview() {
             <AreaChart data={DEMAND_OVER_TIME} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.4} />
-                  <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
+                  <stop offset="5%" stopColor="#facc15" stopOpacity={0.35} />
+                  <stop offset="95%" stopColor="#facc15" stopOpacity={0.02} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" opacity={0.4} />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" opacity={0.5} />
               <XAxis
                 dataKey="name"
                 axisLine={false}
                 tickLine={false}
-                tick={{ fill: 'var(--text-muted)', fontSize: 12 }}
+                tick={{ fill: '#9ca3af', fontSize: 12, fontWeight: 500 }}
                 dy={10}
               />
               <YAxis
                 axisLine={false}
                 tickLine={false}
-                tick={{ fill: 'var(--text-muted)', fontSize: 12 }}
+                tick={{ fill: '#9ca3af', fontSize: 12, fontWeight: 500 }}
               />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#facc15', strokeWidth: 1, strokeDasharray: '4 4' }} />
               <Area
                 type="basis"
                 dataKey="value"
-                stroke="var(--primary-dark)"
+                stroke="#eab308"
                 strokeWidth={3}
                 fillOpacity={1}
                 fill="url(#colorValue)"
-                activeDot={{ r: 6, fill: "var(--primary)", stroke: "var(--surface)", strokeWidth: 2 }}
+                activeDot={{ r: 6, fill: '#facc15', stroke: '#fff', strokeWidth: 3 }}
               />
             </AreaChart>
           </ResponsiveContainer>
@@ -237,8 +247,8 @@ export default function Overview() {
         >
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-base font-bold text-[var(--text-primary)]">Borough Analytics</h2>
-              <p className="text-sm text-[var(--text-muted)] mt-1">Demand by area</p>
+              <h2 className="text-base font-bold text-[var(--text-primary)]">Zone Distribution</h2>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Rides by area</p>
             </div>
             <div className="p-2 rounded-lg bg-[var(--primary)]/10 border border-[var(--primary)]/20">
               <Target size={14} className="text-[var(--primary)]" />
@@ -246,21 +256,21 @@ export default function Overview() {
           </div>
           <div className="h-[280px] w-full mt-4">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={BOROUGH_DEMAND} layout="vertical" margin={{ top: 0, right: 20, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" opacity={0.4} />
-                <XAxis type="number" hide />
+              <BarChart data={BOROUGH_DEMAND} layout="vertical" margin={{ top: 0, right: 20, left: 10, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e5e7eb" opacity={0.3} />
+                <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: '#9ca3af', fontSize: 11, fontWeight: 500 }} />
                 <YAxis
                   dataKey="name"
                   type="category"
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fill: 'var(--text-muted)', fontSize: 12 }}
-                  width={80}
+                  tick={{ fill: '#374151', fontSize: 13, fontWeight: 600 }}
+                  width={90}
                 />
-                <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={24}>
-                  {BOROUGH_DEMAND.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={index === 0 ? 'var(--primary)' : 'var(--secondary)'} />
+                <Tooltip content={<CustomTooltip />} cursor={{ fill: '#f3f4f6', radius: 8 }} />
+                <Bar dataKey="value" radius={[0, 10, 10, 0]} barSize={28}>
+                  {BOROUGH_DEMAND.map((_entry, index) => (
+                    <Cell key={`cell-${index}`} fill={BAR_COLORS[index % BAR_COLORS.length]} />
                   ))}
                 </Bar>
               </BarChart>
@@ -286,23 +296,29 @@ export default function Overview() {
           <div className="h-[280px] w-full mt-4">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={HOURLY_DEMAND} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" opacity={0.4} />
+                <defs>
+                  <linearGradient id="lineGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#eab308" stopOpacity={0.15} />
+                    <stop offset="95%" stopColor="#eab308" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" opacity={0.5} />
                 <XAxis
                   dataKey="name"
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
+                  tick={{ fill: '#9ca3af', fontSize: 10, fontWeight: 500 }}
                   interval={3}
                 />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-muted)', fontSize: 12 }} />
-                <Tooltip content={<CustomTooltip />} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#9ca3af', fontSize: 12, fontWeight: 500 }} />
+                <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#facc15', strokeWidth: 1, strokeDasharray: '4 4' }} />
                 <Line
                   type="basis"
                   dataKey="value"
-                  stroke="var(--accent)"
+                  stroke="#eab308"
                   strokeWidth={3}
                   dot={false}
-                  activeDot={{ r: 6, fill: 'var(--accent)', stroke: 'var(--surface)', strokeWidth: 2 }}
+                  activeDot={{ r: 6, fill: '#facc15', stroke: '#fff', strokeWidth: 3 }}
                 />
               </LineChart>
             </ResponsiveContainer>
