@@ -148,43 +148,59 @@ export default function App() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.05 }}
                 className={cn(
-                  "w-full flex items-center gap-4 px-4 py-3.5 rounded-[20px] transition-all duration-300 group",
+                  "w-full flex items-center gap-4 px-4 py-3 rounded-[16px] transition-all duration-300 group",
                   activePage === item.id
-                    ? "bg-[var(--primary)] text-[var(--accent)] shadow-md"
+                    ? "bg-[var(--primary)] text-[var(--text-primary)] shadow-sm font-semibold"
                     : "text-[var(--text-secondary)] hover:bg-[var(--secondary)] hover:text-[var(--text-primary)]"
                 )}
               >
                 <item.icon size={20} className={cn(
                   "shrink-0 transition-colors duration-300",
-                  activePage === item.id ? "text-[var(--accent)]" : "group-hover:text-[var(--text-primary)]"
+                  activePage === item.id ? "text-[var(--text-primary)]" : "group-hover:text-[var(--text-primary)]"
                 )} />
                 {!isSidebarCollapsed && (
-                  <span className="font-semibold text-sm">{item.label}</span>
+                  <span className="font-medium text-sm">{item.label}</span>
                 )}
               </motion.button>
             ))}
           </nav>
 
-          <div className="p-4 border-t border-[var(--border)]">
+          <div className="p-4 border-t border-[var(--border)] flex flex-col gap-3">
+            {!isSidebarCollapsed && (
+              <div className="flex items-center justify-between px-2">
+                <span className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">System</span>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="w-8 h-8 flex items-center justify-center bg-[var(--surface)] shadow-sm hover:shadow-md border border-[var(--border)] rounded-full relative text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all duration-300"
+                >
+                  <Bell size={14} />
+                  <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-[var(--danger)] rounded-full border border-[var(--surface)]"></span>
+                </motion.button>
+              </div>
+            )}
+
             <motion.div
               whileHover={{ scale: 1.02 }}
-              className="flex items-center gap-3 p-3 rounded-[20px] hover:bg-[var(--secondary)] transition-all duration-300 cursor-pointer group"
+              className="flex items-center gap-3 p-3 rounded-[16px] bg-[var(--surface)] border border-[var(--border)] shadow-sm hover:shadow-md hover:border-[var(--primary)]/30 transition-all duration-300 cursor-pointer group relative"
             >
-              <div className="w-10 h-10 rounded-full bg-[var(--primary)]/20 flex items-center justify-center shrink-0">
-                <User size={18} className="text-[var(--accent)]" />
+              <div className="w-10 h-10 rounded-full bg-[var(--primary)]/20 flex items-center justify-center shrink-0 border border-[var(--primary)]/30">
+                <User size={18} className="text-[var(--primary-dark)]" />
               </div>
               {!isSidebarCollapsed && (
                 <div className="flex flex-col flex-1 overflow-hidden">
                   <span className="text-sm font-bold truncate text-[var(--text-primary)] capitalize">{userRole}</span>
-                  <span className="text-xs text-[var(--success)] font-medium">Online</span>
+                  <span className="text-xs text-[var(--success)] font-semibold flex items-center gap-1.5 mt-0.5">
+                    <span className="w-1.5 h-1.5 bg-[var(--success)] rounded-full"></span> Online
+                  </span>
                 </div>
               )}
               {!isSidebarCollapsed && (
                 <motion.button
                   onClick={handleLogout}
-                  whileHover={{ scale: 1.1 }}
+                  whileHover={{ scale: 1.1, backgroundColor: 'var(--danger)', color: 'white' }}
                   whileTap={{ scale: 0.9 }}
-                  className="p-2 hover:bg-[var(--danger)]/10 text-[var(--text-muted)] hover:text-[var(--danger)] rounded-full transition-all duration-300"
+                  className="p-2 text-[var(--text-muted)] hover:text-white rounded-full transition-all duration-300 ml-auto"
                 >
                   <LogOut size={16} />
                 </motion.button>
@@ -200,34 +216,7 @@ export default function App() {
             isSidebarCollapsed ? "ml-[80px]" : "ml-[260px]"
           )}
         >
-          <header className="h-20 border-b border-[var(--border)] flex items-center justify-between px-8 sticky top-0 bg-[var(--background)]/80 backdrop-blur-xl z-40">
-            <div className="flex items-center gap-4 w-full max-w-lg">
-              <div className="relative w-full">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)] w-5 h-5" />
-                <input
-                  type="text"
-                  placeholder="Search anything..."
-                  className="input-clean w-full pl-12 rounded-full shadow-sm bg-white"
-                />
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="p-3 bg-white shadow-sm hover:shadow-md rounded-full relative text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all duration-300"
-              >
-                <Bell size={20} />
-                <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-[var(--danger)] rounded-full border-2 border-white"></span>
-              </motion.button>
-              <div className="h-8 w-[1px] bg-[var(--border)]"></div>
-              <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center">
-                <span className="w-3 h-3 bg-[var(--success)] rounded-full border-2 border-white"></span>
-              </div>
-            </div>
-          </header>
-
-          <div className="p-8 max-w-7xl mx-auto w-full flex-1">
+          <div className="p-8 max-w-7xl mx-auto w-full flex-1 pt-12">
             <AnimatePresence mode="wait">
               <motion.div
                 key={`${userRole}-${activePage}`}

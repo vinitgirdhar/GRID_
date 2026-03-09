@@ -53,8 +53,8 @@ export default function DriverOverview() {
           <h1 className="text-3xl font-black tracking-tight text-[var(--accent)]">Intelligence</h1>
           <p className="text-[var(--text-secondary)] mt-1 font-medium">Urban demand & awareness.</p>
         </div>
-        <div className="flex items-center gap-2 text-xs font-bold text-success bg-success/10 px-3 py-1.5 rounded-full">
-          <span className="w-2 h-2 bg-success rounded-full animate-pulse-soft"></span>
+        <div className="flex items-center gap-2 text-xs font-bold text-[var(--success)] bg-[var(--success)]/10 px-3 py-1.5 rounded-full border border-[var(--success)]/20 shadow-sm">
+          <span className="w-2 h-2 bg-[var(--success)] rounded-full animate-pulse-soft"></span>
           LIVE
         </div>
       </div>
@@ -83,9 +83,9 @@ export default function DriverOverview() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
         {/* 1️⃣ Demand Intelligence Section */}
-        <div className="glass-card p-6 flex flex-col hover:translate-y-[-4px] transition-all duration-300">
+        <div className="glass-card p-6 flex flex-col hover:translate-y-[-4px] transition-all duration-300 h-full">
           <div className="flex items-center gap-2 mb-6">
             <div className="p-2 bg-primary/10 rounded-lg">
               <TrendingUp className="text-primary w-5 h-5" />
@@ -95,9 +95,9 @@ export default function DriverOverview() {
 
           <div className="flex-1 space-y-6">
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <p className="text-lg font-black text-danger">High Demand Expected</p>
-                <span className="px-2 py-1 bg-danger/10 text-danger text-[10px] font-black rounded uppercase">Critical</span>
+              <div className="flex items-start justify-between">
+                <p className="text-lg font-black text-[var(--danger)] leading-tight">High Demand Expected</p>
+                <span className="px-2 py-1 bg-[var(--danger)]/10 text-[var(--danger)] text-[10px] font-black rounded uppercase border border-[var(--danger)]/20">Critical</span>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -116,40 +116,49 @@ export default function DriverOverview() {
               </div>
             </div>
 
-            <div className="h-[100px] w-full">
+            <div className="h-[100px] w-full mt-4">
               <p className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-widest mb-2">3 Hour Trend</p>
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={data.threeHourTrend}>
+                <AreaChart data={data.threeHourTrend} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorDemand" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#FFD13B" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#FFD13B" stopOpacity={0} />
+                      <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.6} />
+                      <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <Area type="monotone" dataKey="value" stroke="#FFD13B" fillOpacity={1} fill="url(#colorDemand)" strokeWidth={3} />
+                  <Area
+                    type="basis"
+                    dataKey="value"
+                    stroke="var(--primary-dark)"
+                    fillOpacity={1}
+                    fill="url(#colorDemand)"
+                    strokeWidth={3}
+                    activeDot={{ r: 4, fill: "var(--primary)", stroke: "var(--surface)", strokeWidth: 2 }}
+                  />
                   <XAxis dataKey="name" hide />
                   <YAxis hide domain={['dataMin - 500', 'dataMax + 500']} />
                   <Tooltip
-                    contentStyle={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '16px', fontSize: '10px', boxShadow: '0 8px 30px rgba(0,0,0,0.06)' }}
-                    itemStyle={{ color: '#0F172A', fontWeight: 'bold' }}
+                    contentStyle={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', fontSize: '11px', boxShadow: 'var(--shadow-md)' }}
+                    itemStyle={{ color: 'var(--text-primary)', fontWeight: 'bold' }}
+                    cursor={{ stroke: 'var(--border)', strokeWidth: 1, strokeDasharray: '3 3' }}
                   />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
           </div>
 
-          <div className="mt-6 pt-4 border-t border-[var(--border)]">
+          <div className="mt-6 pt-4 border-t border-[var(--border)] mt-auto">
             <div className="flex items-start gap-2">
-              <Zap size={14} className="text-primary mt-0.5 shrink-0" />
+              <Zap size={14} className="text-[var(--primary-dark)] mt-0.5 shrink-0" />
               <p className="text-xs text-[var(--text-secondary)] leading-relaxed italic">
-                <span className="font-bold text-primary not-italic">Tip:</span> “Position near Midtown between 6–7 PM to maximize surge fares.”
+                <span className="font-bold text-[var(--primary-dark)] not-italic">Tip:</span> “Position near Midtown between 6–7 PM to maximize surge fares.”
               </p>
             </div>
           </div>
         </div>
 
         {/* 2️⃣ Weather Intelligence Section */}
-        <div className="glass-card p-6 flex flex-col hover:translate-y-[-4px] transition-all duration-300">
+        <div className="glass-card p-6 flex flex-col hover:translate-y-[-4px] transition-all duration-300 h-full">
           <div className="flex items-center gap-2 mb-6">
             <div className="p-2 bg-secondary/10 rounded-lg">
               <CloudRain className="text-secondary w-5 h-5" />
@@ -159,9 +168,9 @@ export default function DriverOverview() {
 
           <div className="flex-1 space-y-6">
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <p className="text-lg font-black text-secondary">Rain Expected</p>
-                <span className="px-2 py-1 bg-secondary/10 text-secondary text-[10px] font-black rounded uppercase">Active Alert</span>
+              <div className="flex items-start justify-between">
+                <p className="text-lg font-black text-[var(--secondary)] text-slate-700 leading-tight">Rain Expected</p>
+                <span className="px-2 py-1 bg-slate-100 text-slate-600 text-[10px] font-black rounded uppercase border border-slate-200">Active Alert</span>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -184,26 +193,26 @@ export default function DriverOverview() {
               </div>
             </div>
 
-            <div className="p-4 rounded-2xl bg-secondary/5 border border-secondary/10">
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
               <p className="text-xs font-bold text-[var(--text-primary)] mb-1">Impact Analysis</p>
-              <p className="text-[10px] text-[var(--text-secondary)] leading-relaxed">
-                Rain likely to increase ride demand by <span className="text-secondary font-bold">15%</span> in affected zones.
+              <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
+                Rain likely to increase ride demand by <span className="text-slate-700 font-bold">15%</span> in affected zones.
               </p>
             </div>
           </div>
 
-          <div className="mt-6 pt-4 border-t border-[var(--border)]">
+          <div className="mt-6 pt-4 border-t border-[var(--border)] mt-auto">
             <div className="flex items-start gap-2">
-              <Zap size={14} className="text-secondary mt-0.5 shrink-0" />
+              <Zap size={14} className="text-slate-600 mt-0.5 shrink-0" />
               <p className="text-xs text-[var(--text-secondary)] leading-relaxed italic">
-                <span className="font-bold text-secondary not-italic">Tip:</span> “Move toward Downtown Brooklyn before rainfall begins.”
+                <span className="font-bold text-slate-600 not-italic">Tip:</span> “Move toward Downtown Brooklyn before rainfall begins.”
               </p>
             </div>
           </div>
         </div>
 
         {/* 3️⃣ Event Intelligence Section */}
-        <div className="glass-card p-6 flex flex-col hover:translate-y-[-4px] transition-all duration-300">
+        <div className="glass-card p-6 flex flex-col hover:translate-y-[-4px] transition-all duration-300 h-full">
           <div className="flex items-center gap-2 mb-6">
             <div className="p-2 bg-warning/10 rounded-lg">
               <Calendar className="text-warning w-5 h-5" />
@@ -213,9 +222,9 @@ export default function DriverOverview() {
 
           <div className="flex-1 space-y-6">
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <p className="text-lg font-black text-warning">Concert Ending Soon</p>
-                <span className="px-2 py-1 bg-warning/10 text-warning text-[10px] font-black rounded uppercase">Surge Risk</span>
+              <div className="flex items-start justify-between">
+                <p className="text-lg font-black text-[var(--warning)] leading-tight">Concert Ending Soon</p>
+                <span className="px-2 py-1 bg-[var(--warning)]/10 text-[var(--warning)] text-[10px] font-black rounded uppercase border border-[var(--warning)]/20">Surge Risk</span>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -234,19 +243,19 @@ export default function DriverOverview() {
               </div>
             </div>
 
-            <div className="p-4 rounded-2xl bg-warning/5 border border-warning/10">
+            <div className="p-4 rounded-xl bg-[var(--warning)]/5 border border-[var(--warning)]/20">
               <p className="text-xs font-bold text-[var(--text-primary)] mb-1">Impact Analysis</p>
-              <p className="text-[10px] text-[var(--text-secondary)] leading-relaxed">
+              <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
                 Large crowd dispersal expected. Traffic congestion likely on 7th and 8th Avenues.
               </p>
             </div>
           </div>
 
-          <div className="mt-6 pt-4 border-t border-[var(--border)]">
+          <div className="mt-6 pt-4 border-t border-[var(--border)] mt-auto">
             <div className="flex items-start gap-2">
-              <Zap size={14} className="text-warning mt-0.5 shrink-0" />
+              <Zap size={14} className="text-[var(--warning)] mt-0.5 shrink-0" />
               <p className="text-xs text-[var(--text-secondary)] leading-relaxed italic">
-                <span className="font-bold text-warning not-italic">Tip:</span> “Arrive near venue exit 15 minutes before event ends.”
+                <span className="font-bold text-[var(--warning)] not-italic">Tip:</span> “Arrive near venue exit 15 minutes before event ends.”
               </p>
             </div>
           </div>
