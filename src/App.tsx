@@ -272,24 +272,20 @@ export default function App() {
           {/* Floating Pill Bottom Navigation */}
           <div className="fixed bottom-6 left-0 right-0 flex justify-center z-50 pointer-events-none">
             <div className="nav-pill pointer-events-auto">
-              <div
-                className={cn("nav-pill-item", activePage === 'overview' && 'active')}
-                onClick={() => setActivePage('overview')}
-              >
-                <MapIcon size={20} fill={activePage === 'overview' ? 'var(--accent)' : 'transparent'} strokeWidth={activePage === 'overview' ? 1.5 : 2} />
-              </div>
-              <div
-                className={cn("nav-pill-item", activePage === 'go-for-ride' && 'active')}
-                onClick={() => setActivePage('go-for-ride')}
-              >
-                <Users size={20} fill={activePage === 'go-for-ride' ? 'var(--accent)' : 'transparent'} strokeWidth={activePage === 'go-for-ride' ? 1.5 : 2} />
-              </div>
-              <div
-                className={cn("nav-pill-item", activePage === 'driver-performance' && 'active')}
-                onClick={() => setActivePage('driver-performance')}
-              >
-                <Bell size={20} fill={activePage === 'driver-performance' ? 'var(--accent)' : 'transparent'} strokeWidth={activePage === 'driver-performance' ? 1.5 : 2} />
-              </div>
+              {DRIVER_ITEMS.map((item) => (
+                <div
+                  key={item.id}
+                  className={cn("nav-pill-item text-[var(--text-secondary)]", activePage === item.id && 'active text-white bg-[var(--primary)]')}
+                  onClick={() => setActivePage(item.id)}
+                  title={item.label}
+                >
+                  <item.icon
+                    size={20}
+                    strokeWidth={activePage === item.id ? 2.5 : 2}
+                    className="transition-all"
+                  />
+                </div>
+              ))}
 
               <div className="w-10 h-10 ml-2 rounded-full border-2 border-[var(--primary)] overflow-hidden cursor-pointer" onClick={handleLogout}>
                 <img src="https://picsum.photos/seed/driver/100/100" alt="Profile" className="w-full h-full object-cover" />
