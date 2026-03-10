@@ -6,3 +6,8 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# ML data & model files (too large for GitHub)
+grid_ml/data/
+grid_ml/models/*.pkl
+grid_ml/notebooks/.ipynb_checkpoints/

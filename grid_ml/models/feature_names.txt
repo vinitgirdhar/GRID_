@@ -1,0 +1,17 @@
+hour
+day_of_week
+day_of_month
+month
+is_weekend
+is_morning_rush
+is_evening_rush
+is_night
+is_business_hours
+demand_lag_1h
+demand_lag_24h
+demand_lag_168h
+demand_rolling_mean_3h
+demand_rolling_max_6h
+demand_rolling_std_6h
+avg_distance
+avg_fare
