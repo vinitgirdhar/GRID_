@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   TrendingUp,
-  TrendingDown,
   DollarSign,
   CheckCircle,
   Percent,
@@ -11,26 +10,61 @@ import {
   Wind,
   Calendar,
   MapPin,
-  Clock,
-  AlertTriangle
+  Clock
 } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { DRIVER_KPIS } from '../../constants';
-import { getPredictionData } from '../../services/predictionService';
-import { PredictionState, Theme } from '../../types';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { getActiveHotspotPeriod, getForecast, getHotspots } from '../../services/apiService';
+import { ForecastResponse, HotspotsResponse, Theme, ZoneDemand } from '../../types';
 import MapComponent from '../MapComponent';
 
+const REFRESH_INTERVAL_MS = 20000;
+
+function getWeatherFactor(condition?: string) {
+  const normalized = (condition ?? '').toLowerCase();
+  if (normalized.includes('rain')) return 1.12;
+  if (normalized.includes('storm')) return 1.2;
+  if (normalized.includes('snow')) return 1.18;
+  if (normalized.includes('cloud')) return 1.05;
+  return 1.0;
+}
+
+function getEventFactor(level?: string) {
+  if (level === 'High') return 1.15;
+  if (level === 'Medium') return 1.08;
+  return 1.0;
+}
+
 export default function DriverOverview() {
-  const [data, setData] = useState<PredictionState | null>(null);
+  const [forecast, setForecast] = useState<ForecastResponse | null>(null);
+  const [hotspots, setHotspots] = useState<HotspotsResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [theme, setTheme] = useState<Theme>('dark');
 
   useEffect(() => {
-    setData(getPredictionData());
-    // Detect theme from document class
+    let cancelled = false;
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
+    const loadDriverData = async () => {
+      try {
+        const [forecastResponse, hotspotResponse] = await Promise.all([getForecast(), getHotspots()]);
+        if (!cancelled) {
+          setForecast(forecastResponse);
+          setHotspots(hotspotResponse);
+          setError(null);
+        }
+      } catch {
+        if (!cancelled) {
+          setError('Unable to load the driver dashboard from the backend API. Start FastAPI on port 8000 and refresh.');
+        }
+      }
+    };
+
+    loadDriverData();
+    intervalId = setInterval(loadDriverData, REFRESH_INTERVAL_MS);
+
     const isDark = document.documentElement.classList.contains('dark');
     setTheme(isDark ? 'dark' : 'light');
 
-    // Listen for theme changes
     const observer = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
         if (mutation.attributeName === 'class') {
@@ -41,10 +75,75 @@ export default function DriverOverview() {
     });
 
     observer.observe(document.documentElement, { attributes: true });
-    return () => observer.disconnect();
+    return () => {
+      cancelled = true;
+      observer.disconnect();
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
   }, []);
 
-  if (!data) return null;
+  const activePeriod = hotspots ? getActiveHotspotPeriod(hotspots) : null;
+  const primaryZone = activePeriod?.zones[0];
+  const trendData = forecast?.forecast.slice(0, 4).map((point, index) => ({
+    name: index === 0 ? 'Now' : `+${index}h`,
+    value: point.total_predicted_demand,
+  })) ?? [];
+
+  const liveKpis = [
+    {
+      label: 'Peak Zone Demand',
+      value: primaryZone ? `${primaryZone.predicted_demand.toFixed(1)}` : '--',
+      change: primaryZone?.zone_name ?? '--',
+      icon: DollarSign,
+    },
+    {
+      label: 'Recommended Zones',
+      value: String(activePeriod?.recommended_zones.length ?? 0),
+      change: activePeriod?.target_time ?? '--',
+      icon: CheckCircle,
+    },
+    {
+      label: 'Active Forecast Hour',
+      value: forecast ? `${forecast.summary.peak_hour}:00` : '--',
+      change: forecast?.summary.peak_zone_name ?? '--',
+      icon: Percent,
+    },
+    {
+      label: 'Weather Signal',
+      value: primaryZone?.weather_condition ?? '--',
+      change: primaryZone?.borough ?? '--',
+      icon: Zap,
+    },
+  ];
+
+  const mapZones: ZoneDemand[] = activePeriod?.zones.map((zone) => ({
+    id: zone.zone_id,
+    name: zone.zone_name,
+    lat: zone.lat,
+    lng: zone.lng,
+    demand: zone.predicted_demand,
+    demandLevel: zone.demand_level,
+    eventIntensity: zone.event_intensity,
+    weatherCondition: zone.weather_condition,
+  })) ?? [];
+
+  const baseDemand = primaryZone?.predicted_demand ?? 0;
+  const hourlyForecast = trendData[1]?.value ?? trendData[0]?.value ?? 0;
+  const weatherFactor = getWeatherFactor(primaryZone?.weather_condition);
+  const eventFactor = getEventFactor(primaryZone?.event_intensity);
+  const weatherLift = baseDemand * (weatherFactor - 1);
+  const eventLift = baseDemand * (eventFactor - 1);
+  const horizonLift = hourlyForecast * 0.18;
+  const formulaPrediction = baseDemand + weatherLift + eventLift + horizonLift;
+
+  const formulaData = [
+    { name: 'Base Zone', value: Number(baseDemand.toFixed(2)) },
+    { name: 'Weather Lift', value: Number(weatherLift.toFixed(2)) },
+    { name: 'Event Lift', value: Number(eventLift.toFixed(2)) },
+    { name: 'Horizon Lift', value: Number(horizonLift.toFixed(2)) },
+  ];
 
   return (
     <div className="space-y-8">
@@ -59,10 +158,15 @@ export default function DriverOverview() {
         </div>
       </div>
 
-      {/* KPI Section */}
+      {error && (
+        <div className="glass-card p-6 border border-danger/20 text-danger">
+          {error}
+        </div>
+      )}
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {DRIVER_KPIS.map((kpi, idx) => (
-          <div key={idx} className="kpi-card">
+        {liveKpis.map((kpi, idx) => (
+          <div key={kpi.label} className="kpi-card">
             <div className="flex items-center justify-between mb-4">
               <div className="p-2 bg-primary/10 rounded-lg">
                 {idx === 0 && <DollarSign className="text-primary w-5 h-5" />}
@@ -70,8 +174,8 @@ export default function DriverOverview() {
                 {idx === 2 && <Percent className="text-warning w-5 h-5" />}
                 {idx === 3 && <Zap className="text-secondary w-5 h-5" />}
               </div>
-              <div className={`flex items-center gap-1 text-xs font-medium ${kpi.trend === 'up' ? 'text-success' : 'text-danger'}`}>
-                {kpi.trend === 'up' ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+              <div className="flex items-center gap-1 text-xs font-medium text-success">
+                <TrendingUp size={14} />
                 {kpi.change}
               </div>
             </div>
@@ -84,7 +188,6 @@ export default function DriverOverview() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
-        {/* 1️⃣ Demand Intelligence Section */}
         <div className="glass-card p-6 flex flex-col hover:translate-y-[-4px] transition-all duration-300 h-full">
           <div className="flex items-center gap-2 mb-6">
             <div className="p-2 bg-primary/10 rounded-lg">
@@ -103,15 +206,15 @@ export default function DriverOverview() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <p className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-widest">Area</p>
-                  <p className="text-sm font-bold text-[var(--text-primary)]">Manhattan – Midtown</p>
+                  <p className="text-sm font-bold text-[var(--text-primary)]">{primaryZone ? `${primaryZone.borough} - ${primaryZone.zone_name}` : '--'}</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-widest">Time Window</p>
-                  <p className="text-sm font-bold text-[var(--text-primary)]">6:00 PM – 8:00 PM</p>
+                  <p className="text-sm font-bold text-[var(--text-primary)]">{activePeriod?.target_time ?? '--'}</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-widest">Predicted Rides</p>
-                  <p className="text-sm font-bold text-[var(--text-primary)]">5,200</p>
+                  <p className="text-sm font-bold text-[var(--text-primary)]">{primaryZone ? primaryZone.predicted_demand.toFixed(1) : '--'}</p>
                 </div>
               </div>
             </div>
@@ -119,7 +222,7 @@ export default function DriverOverview() {
             <div className="h-[100px] w-full mt-4">
               <p className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-widest mb-2">3 Hour Trend</p>
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={data.threeHourTrend} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
+                <AreaChart data={trendData} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorDemand" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.6} />
@@ -151,13 +254,12 @@ export default function DriverOverview() {
             <div className="flex items-start gap-2">
               <Zap size={14} className="text-[var(--primary-dark)] mt-0.5 shrink-0" />
               <p className="text-xs text-[var(--text-secondary)] leading-relaxed italic">
-                <span className="font-bold text-[var(--primary-dark)] not-italic">Tip:</span> “Position near Midtown between 6–7 PM to maximize surge fares.”
+                <span className="font-bold text-[var(--primary-dark)] not-italic">Tip:</span> “Position near {primaryZone?.zone_name ?? 'the top zone'} during the active hotspot window.”
               </p>
             </div>
           </div>
         </div>
 
-        {/* 2️⃣ Weather Intelligence Section */}
         <div className="glass-card p-6 flex flex-col hover:translate-y-[-4px] transition-all duration-300 h-full">
           <div className="flex items-center gap-2 mb-6">
             <div className="p-2 bg-secondary/10 rounded-lg">
@@ -169,26 +271,26 @@ export default function DriverOverview() {
           <div className="flex-1 space-y-6">
             <div className="space-y-4">
               <div className="flex items-start justify-between">
-                <p className="text-lg font-black text-[var(--secondary)] text-slate-700 leading-tight">Rain Expected</p>
+                <p className="text-lg font-black text-[var(--secondary)] text-slate-700 leading-tight">Weather-Adjusted Demand</p>
                 <span className="px-2 py-1 bg-slate-100 text-slate-600 text-[10px] font-black rounded uppercase border border-slate-200">Active Alert</span>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <p className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-widest">Area</p>
-                  <p className="text-sm font-bold text-[var(--text-primary)]">Brooklyn – Downtown</p>
+                  <p className="text-sm font-bold text-[var(--text-primary)]">{primaryZone?.borough ?? '--'}</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-widest">Time Window</p>
-                  <p className="text-sm font-bold text-[var(--text-primary)]">In 30 minutes</p>
+                  <p className="text-sm font-bold text-[var(--text-primary)]">{activePeriod?.label ?? '--'}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <Thermometer size={14} className="text-[var(--text-secondary)]" />
-                  <p className="text-sm font-bold text-[var(--text-primary)]">{data.weather.temp}°F</p>
+                  <p className="text-sm font-bold text-[var(--text-primary)]">68°F</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <Wind size={14} className="text-[var(--text-secondary)]" />
-                  <p className="text-sm font-bold text-[var(--text-primary)]">{data.weather.windSpeed} mph</p>
+                  <p className="text-sm font-bold text-[var(--text-primary)]">12 mph</p>
                 </div>
               </div>
             </div>
@@ -196,7 +298,7 @@ export default function DriverOverview() {
             <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
               <p className="text-xs font-bold text-[var(--text-primary)] mb-1">Impact Analysis</p>
               <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
-                Rain likely to increase ride demand by <span className="text-slate-700 font-bold">15%</span> in affected zones.
+                Current hotspot feed is marked <span className="text-slate-700 font-bold">{primaryZone?.weather_condition ?? 'Cloudy'}</span>, and demand remains concentrated in the top live zones.
               </p>
             </div>
           </div>
@@ -205,13 +307,12 @@ export default function DriverOverview() {
             <div className="flex items-start gap-2">
               <Zap size={14} className="text-slate-600 mt-0.5 shrink-0" />
               <p className="text-xs text-[var(--text-secondary)] leading-relaxed italic">
-                <span className="font-bold text-slate-600 not-italic">Tip:</span> “Move toward Downtown Brooklyn before rainfall begins.”
+                <span className="font-bold text-slate-600 not-italic">Tip:</span> “Use weather as confirmation, but follow the hotspot ranking first.”
               </p>
             </div>
           </div>
         </div>
 
-        {/* 3️⃣ Event Intelligence Section */}
         <div className="glass-card p-6 flex flex-col hover:translate-y-[-4px] transition-all duration-300 h-full">
           <div className="flex items-center gap-2 mb-6">
             <div className="p-2 bg-warning/10 rounded-lg">
@@ -223,22 +324,22 @@ export default function DriverOverview() {
           <div className="flex-1 space-y-6">
             <div className="space-y-4">
               <div className="flex items-start justify-between">
-                <p className="text-lg font-black text-[var(--warning)] leading-tight">Concert Ending Soon</p>
+                <p className="text-lg font-black text-[var(--warning)] leading-tight">Positioning Recommendations</p>
                 <span className="px-2 py-1 bg-[var(--warning)]/10 text-[var(--warning)] text-[10px] font-black rounded uppercase border border-[var(--warning)]/20">Surge Risk</span>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <p className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-widest">Area</p>
-                  <p className="text-sm font-bold text-[var(--text-primary)]">Madison Square Garden – Manhattan</p>
+                  <p className="text-sm font-bold text-[var(--text-primary)]">{activePeriod?.recommended_zones[0]?.zone_name ?? '--'}</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-widest">Time Window</p>
-                  <p className="text-sm font-bold text-[var(--text-primary)]">10:30 PM</p>
+                  <p className="text-sm font-bold text-[var(--text-primary)]">{activePeriod?.target_time ?? '--'}</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-widest">Expected Surge</p>
-                  <p className="text-sm font-bold text-warning">High (1.8x - 2.4x)</p>
+                  <p className="text-sm font-bold text-warning">{primaryZone?.demand_level ?? '--'}</p>
                 </div>
               </div>
             </div>
@@ -246,7 +347,7 @@ export default function DriverOverview() {
             <div className="p-4 rounded-xl bg-[var(--warning)]/5 border border-[var(--warning)]/20">
               <p className="text-xs font-bold text-[var(--text-primary)] mb-1">Impact Analysis</p>
               <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
-                Large crowd dispersal expected. Traffic congestion likely on 7th and 8th Avenues.
+                Focus on the top recommended zone and avoid low-yield zones: {activePeriod?.avoid_zones.map((zone) => zone.zone_id).join(', ') || '--'}.
               </p>
             </div>
           </div>
@@ -255,14 +356,13 @@ export default function DriverOverview() {
             <div className="flex items-start gap-2">
               <Zap size={14} className="text-[var(--warning)] mt-0.5 shrink-0" />
               <p className="text-xs text-[var(--text-secondary)] leading-relaxed italic">
-                <span className="font-bold text-[var(--warning)] not-italic">Tip:</span> “Arrive near venue exit 15 minutes before event ends.”
+                <span className="font-bold text-[var(--warning)] not-italic">Tip:</span> “Cycle toward the highest-ranked zone before the peak forecast hour.”
               </p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* 4️⃣ Functional Hotspot Map (Driver View) */}
       <div className="glass-card p-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
@@ -287,7 +387,37 @@ export default function DriverOverview() {
           </div>
         </div>
 
-        <MapComponent zones={data.zones} theme={theme} height="450px" simplified={true} />
+        <MapComponent zones={mapZones} theme={theme} height="450px" simplified={true} />
+      </div>
+
+      <div className="glass-card p-6">
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h3 className="font-bold text-[var(--text-primary)]">Prediction Formula Breakdown</h3>
+            <p className="text-sm text-[var(--text-secondary)] mt-1">
+              Formula: Base demand + weather lift + event lift + short-horizon forecast lift.
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-xs uppercase tracking-wider text-[var(--text-secondary)]">Estimated Next-Hour Demand</p>
+            <p className="text-2xl font-bold text-[var(--primary)]">{formulaPrediction.toFixed(1)}</p>
+          </div>
+        </div>
+
+        <div className="h-[250px] w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={formulaData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
+              <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
+              <Tooltip
+                contentStyle={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '8px' }}
+                formatter={(value: number) => [value.toFixed(2), 'Contribution']}
+              />
+              <Bar dataKey="value" fill="var(--primary)" radius={[6, 6, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       </div>
     </div>
   );

@@ -1,21 +1,21 @@
-import React, { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   MapPin,
   Navigation,
-  DollarSign,
-  Clock,
   CloudRain,
   Zap,
   Filter,
-  ChevronRight,
   Compass,
   ArrowRight,
   Info
 } from 'lucide-react';
-import { RIDE_REQUESTS } from '../../constants';
 import { cn } from '../../lib/utils';
 import MapComponent, { MapRoute, MapRidePin } from '../MapComponent';
+import { getActiveHotspotPeriod, getHotspots } from '../../services/apiService';
+import { HotspotsResponse, HotspotZone, RideRequest } from '../../types';
+
+const DRIVER_START: [number, number] = [40.7580, -73.9855];
 
 const BOROUGH_COORDS: Record<string, [number, number]> = {
   'manhattan': [40.7580, -73.9855],
@@ -25,14 +25,87 @@ const BOROUGH_COORDS: Record<string, [number, number]> = {
   'staten island': [40.5795, -74.1502],
 };
 
+const DESTINATION_BY_BOROUGH: Record<string, string> = {
+  manhattan: 'Midtown Manhattan',
+  brooklyn: 'Downtown Brooklyn',
+  queens: 'Long Island City',
+  bronx: 'South Bronx',
+  'staten island': 'St. George',
+};
+
+function getDirection(start: [number, number], end: [number, number]): RideRequest['direction'] {
+  const latDelta = end[0] - start[0];
+  const lngDelta = end[1] - start[1];
+
+  if (Math.abs(lngDelta) > Math.abs(latDelta)) {
+    return lngDelta >= 0 ? 'East' : 'West';
+  }
+
+  return latDelta >= 0 ? 'North' : 'South';
+}
+
+function getApproxDistance(start: [number, number], end: [number, number]) {
+  const latMiles = (end[0] - start[0]) * 69;
+  const lngMiles = (end[1] - start[1]) * 53;
+  return Math.sqrt((latMiles ** 2) + (lngMiles ** 2));
+}
+
+function buildRideRequests(zones: HotspotZone[]): RideRequest[] {
+  return zones.slice(0, 6).map((zone) => {
+    const position: [number, number] = [zone.lat, zone.lng];
+    const distance = getApproxDistance(DRIVER_START, position);
+    const recommendation: RideRequest['recommendation'] =
+      zone.demand_level === 'High' ? 'ACCEPT' : zone.demand_level === 'Medium' ? 'CONSIDER' : 'REJECT';
+
+    return {
+      id: zone.zone_id,
+      pickup: zone.zone_name,
+      drop: DESTINATION_BY_BOROUGH[zone.borough.toLowerCase()] ?? `${zone.borough} Core`,
+      distance: `${distance.toFixed(1)} miles`,
+      fare: Number((12 + (zone.predicted_demand * 0.12)).toFixed(2)),
+      traffic: zone.demand_level === 'High' ? 'High' : zone.demand_level === 'Medium' ? 'Moderate' : 'Low',
+      weather: zone.weather_condition,
+      eventScore: Math.round(zone.predicted_demand),
+      recommendation,
+      reasoning: `${zone.zone_name} is currently scoring ${zone.predicted_demand.toFixed(1)} predicted trips/hour in the active hotspot window.`,
+      borough: zone.borough,
+      direction: getDirection(DRIVER_START, position),
+    };
+  });
+}
+
 export default function GoForRide() {
   const [destinationModeActive, setDestinationModeActive] = useState(false);
   const [destination, setDestination] = useState('');
+  const [hotspots, setHotspots] = useState<HotspotsResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const filteredRides = RIDE_REQUESTS.filter(ride => {
+  useEffect(() => {
+    let cancelled = false;
+
+    getHotspots()
+      .then((response) => {
+        if (!cancelled) {
+          setHotspots(response);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setError('Unable to load live hotspot rides. Start the FastAPI backend on port 8000 and refresh.');
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const activeZones = hotspots ? getActiveHotspotPeriod(hotspots).zones : [];
+  const rideRequests = buildRideRequests(activeZones);
+
+  const filteredRides = rideRequests.filter(ride => {
     if (!destinationModeActive || !destination.trim()) return true;
 
-    // Map common terms to boroughs for demo purposes
     let search = destination.toLowerCase();
     if (search === 'home') search = 'brooklyn';
     if (search === 'jfk' || search === 'airport') search = 'queens';
@@ -43,37 +116,29 @@ export default function GoForRide() {
     );
   });
 
-  // Construct map data
+  const zoneById = Object.fromEntries(activeZones.map((zone) => [zone.zone_id, zone]));
+
   let mapRoute: MapRoute | undefined;
   let ridePins: MapRidePin[] = [];
 
   if (destinationModeActive) {
-    const driverStart: [number, number] = [40.7580, -73.9855]; // Mock driver in Manhattan
-
-    // Find destination coords
     let search = destination.toLowerCase();
     if (search === 'home') search = 'brooklyn';
     if (search === 'jfk' || search === 'airport') search = 'queens';
 
-    // Default to Brooklyn if no match to make the demo look good
     const destCoords = BOROUGH_COORDS[search] || BOROUGH_COORDS['brooklyn'];
 
     mapRoute = {
-      start: driverStart,
+      start: DRIVER_START,
       end: destCoords,
     };
 
-    ridePins = filteredRides.map((ride, idx) => {
-      const b = ride.borough.toLowerCase();
-      const baseCoords = BOROUGH_COORDS[b] || BOROUGH_COORDS['brooklyn'];
-      // Add slight offset so pins don't overlap completely
-      const offsetLat = baseCoords[0] + (Math.random() - 0.5) * 0.02;
-      const offsetLng = baseCoords[1] + (Math.random() - 0.5) * 0.02;
-
+    ridePins = filteredRides.map((ride) => {
+      const zone = zoneById[ride.id];
       return {
         id: ride.id,
-        position: [offsetLat, offsetLng],
-        label: ride.drop,
+        position: [zone.lat, zone.lng],
+        label: ride.pickup,
         fare: ride.fare
       };
     });
@@ -84,13 +149,19 @@ export default function GoForRide() {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-[var(--text-primary)]">Go For Ride</h1>
-          <p className="text-[var(--text-secondary)] mt-1">Available ride requests tailored to your preferences.</p>
+          <p className="text-[var(--text-secondary)] mt-1">Live ride opportunities generated from the current hotspot feed.</p>
         </div>
         <div className="flex items-center gap-2 text-sm font-medium text-success bg-success/10 px-4 py-2 rounded-full">
           <span className="w-2 h-2 bg-success rounded-full animate-pulse"></span>
-          Live Feed Active
+          {hotspots ? `Live ${hotspots.active_period} feed` : 'Waiting for live feed'}
         </div>
       </div>
+
+      {error && (
+        <div className="glass-card p-6 border border-danger/20 text-danger">
+          {error}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Destination Mode Panel */}
@@ -111,7 +182,7 @@ export default function GoForRide() {
               <div className="flex-1">
                 <h2 className="text-xl font-bold text-[var(--text-primary)]">Destination Mode</h2>
                 <p className="text-sm text-[var(--text-secondary)] leading-tight mt-1">
-                  Only receive requests heading towards your destination or along the same route.
+                  Filter live hotspot rides to routes heading toward the same borough corridor.
                 </p>
               </div>
             </div>
@@ -296,7 +367,7 @@ export default function GoForRide() {
                   <Filter className="text-[var(--text-secondary)] opacity-30" size={32} />
                 </div>
                 <h3 className="text-lg font-bold text-[var(--text-primary)]">No rides heading there just yet</h3>
-                <p className="text-sm text-[var(--text-secondary)] max-w-xs mx-auto">We'll alert you the moment a ride request matches your destination area.</p>
+                <p className="text-sm text-[var(--text-secondary)] max-w-xs mx-auto">We&apos;ll refresh the hotspot-backed opportunities as soon as a matching route appears.</p>
                 <button
                   onClick={() => setDestinationModeActive(false)}
                   className="text-primary font-bold text-sm hover:underline"

@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+pandas
+xgboost
+psycopg2
+sqlalchemy
+geoalchemy2
+pydantic
+pydantic-settings

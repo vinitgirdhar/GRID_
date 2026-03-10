@@ -1,79 +1,87 @@
-import React, { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
-import { HOURLY_DEMAND, BOROUGH_DEMAND, EVENT_DISTRIBUTION } from '../../constants';
-import { Theme } from '../../types';
 import { Activity, Info } from 'lucide-react';
-
-const FEATURES = [
-  'ride_count',
-  'event_intensity',
-  'rain',
-  'temperature',
-  'wind_speed',
-  'hour',
-  'is_weekend'
-];
-
-const CORRELATION_DATA = [
-  [1.00, 0.78, 0.64, 0.12, 0.05, 0.45, 0.22],
-  [0.78, 1.00, 0.15, 0.08, 0.02, 0.35, 0.18],
-  [0.64, 0.15, 1.00, -0.12, 0.25, 0.12, -0.05],
-  [0.12, 0.08, -0.12, 1.00, -0.15, 0.05, 0.12],
-  [0.05, 0.02, 0.25, -0.15, 1.00, 0.02, -0.08],
-  [0.45, 0.35, 0.12, 0.05, 0.02, 1.00, -0.15],
-  [0.22, 0.18, -0.05, 0.12, -0.08, -0.15, 1.00],
-];
-
-const getCorrelationColor = (val: number) => {
-  if (val > 0) return `rgba(239, 68, 68, ${val})`; // Red for positive
-  if (val < 0) return `rgba(59, 130, 246, ${Math.abs(val)})`; // Blue for negative
-  return 'transparent';
-};
+import { getActiveHotspotPeriod, getForecast, getHotspots } from '../../services/apiService';
+import { ForecastResponse, HotspotsResponse } from '../../types';
 
 const COLORS = ['#F4B000', '#F59E0B', '#2F9E6E', '#3B82F6', '#DC2626'];
 
-const EVENT_COMPARISON = [
-  { name: 'Event Days', value: 9200 },
-  { name: 'Non-Event Days', value: 7400 },
-];
-
 export default function DataInsights() {
-  const [theme, setTheme] = useState<Theme>('dark');
+  const [forecast, setForecast] = useState<ForecastResponse | null>(null);
+  const [hotspots, setHotspots] = useState<HotspotsResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const isDark = document.documentElement.classList.contains('dark');
-    setTheme(isDark ? 'dark' : 'light');
+    let cancelled = false;
 
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.attributeName === 'class') {
-          const isDarkNow = document.documentElement.classList.contains('dark');
-          setTheme(isDarkNow ? 'dark' : 'light');
+    Promise.all([getForecast(), getHotspots()])
+      .then(([forecastResponse, hotspotsResponse]) => {
+        if (!cancelled) {
+          setForecast(forecastResponse);
+          setHotspots(hotspotsResponse);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setError('Unable to load live forecast and hotspot data. Start the FastAPI backend on port 8000 and refresh.');
         }
       });
-    });
 
-    observer.observe(document.documentElement, { attributes: true });
-    return () => observer.disconnect();
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  const activePeriod = hotspots ? getActiveHotspotPeriod(hotspots) : null;
+
+  const hourlyDemand = forecast?.forecast.map((point) => ({
+    name: `${point.hour}:00`,
+    value: Number(point.total_predicted_demand.toFixed(0)),
+  })) ?? [];
+
+  const topZones = activePeriod?.zones.map((zone) => ({
+    name: zone.zone_name,
+    value: Number(zone.predicted_demand.toFixed(0)),
+  })) ?? [];
+
+  const hotspotShare = activePeriod?.zones.slice(0, 5).map((zone) => ({
+    name: zone.zone_name,
+    value: Number(zone.predicted_demand.toFixed(0)),
+  })) ?? [];
+
+  const periodComparison = hotspots ? [
+    {
+      name: 'Morning',
+      value: Number(hotspots.morning.zones.reduce((sum, zone) => sum + zone.predicted_demand, 0).toFixed(0)),
+    },
+    {
+      name: 'Evening',
+      value: Number(hotspots.evening.zones.reduce((sum, zone) => sum + zone.predicted_demand, 0).toFixed(0)),
+    },
+  ] : [];
 
   return (
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold tracking-tight text-[var(--text-primary)]">Data Insights</h1>
-        <p className="text-[var(--text-secondary)] mt-1">Deep dive into historical ride patterns and event impacts</p>
+        <p className="text-[var(--text-secondary)] mt-1">24-hour forecast and hotspot positioning streamed from the backend API</p>
       </div>
 
-      {/* Section 1: Demand by Hour & Borough */}
+      {error && (
+        <div className="glass-card p-6 border border-danger/20 text-danger">
+          {error}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="glass-card p-6">
-          <h2 className="text-lg font-semibold mb-6 text-[var(--text-primary)]">Demand by Hour</h2>
+          <h2 className="text-lg font-semibold mb-6 text-[var(--text-primary)]">24-Hour Demand Forecast</h2>
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={HOURLY_DEMAND}>
+              <LineChart data={hourlyDemand}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 10 }} interval={3} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
@@ -87,32 +95,31 @@ export default function DataInsights() {
           </div>
         </div>
         <div className="glass-card p-6">
-          <h2 className="text-lg font-semibold mb-6 text-[var(--text-primary)]">Demand by Borough</h2>
+          <h2 className="text-lg font-semibold mb-6 text-[var(--text-primary)]">Active Hotspots</h2>
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={BOROUGH_DEMAND}>
+              <BarChart data={topZones}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 11 }} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
                 <Tooltip
                   contentStyle={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)' }}
                 />
-                <Bar dataKey="value" fill="#F4B000" radius={[4, 4, 0, 0]} barSize={40} />
+                <Bar dataKey="value" fill="#F4B000" radius={[4, 4, 0, 0]} barSize={34} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
       </div>
 
-      {/* Section 2: Event vs Non-Event */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="glass-card p-6">
-          <h2 className="text-lg font-semibold mb-6 text-[var(--text-primary)]">Event Type Distribution</h2>
+          <h2 className="text-lg font-semibold mb-6 text-[var(--text-primary)]">Top-Zone Demand Share</h2>
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={EVENT_DISTRIBUTION}
+                  data={hotspotShare}
                   cx="50%"
                   cy="50%"
                   innerRadius={60}
@@ -120,8 +127,8 @@ export default function DataInsights() {
                   paddingAngle={5}
                   dataKey="value"
                 >
-                  {EVENT_DISTRIBUTION.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  {hotspotShare.map((entry, index) => (
+                    <Cell key={entry.name} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
                 <Tooltip
@@ -133,19 +140,19 @@ export default function DataInsights() {
           </div>
         </div>
         <div className="glass-card p-6">
-          <h2 className="text-lg font-semibold mb-6 text-[var(--text-primary)]">Demand: Event vs Non-Event</h2>
+          <h2 className="text-lg font-semibold mb-6 text-[var(--text-primary)]">Morning vs Evening Intensity</h2>
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={EVENT_COMPARISON}>
+              <BarChart data={periodComparison}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} domain={[0, 10000]} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
                 <Tooltip
                   contentStyle={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)' }}
                 />
                 <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={60}>
-                  {EVENT_COMPARISON.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={index === 0 ? '#F4B000' : '#F4B00040'} stroke={index === 0 ? 'none' : '#F4B000'} strokeWidth={1} />
+                  {periodComparison.map((entry, index) => (
+                    <Cell key={entry.name} fill={index === 0 ? '#F4B000' : '#2F9E6E'} />
                   ))}
                 </Bar>
               </BarChart>
@@ -154,82 +161,47 @@ export default function DataInsights() {
         </div>
       </div>
 
-      {/* Section 3: Correlation Heatmap */}
       <div className="glass-card p-8">
         <div className="flex items-center gap-2 mb-6">
           <div className="p-2 bg-primary/10 rounded-lg">
             <Activity className="text-primary w-5 h-5" />
           </div>
-          <h2 className="text-lg font-semibold text-[var(--text-primary)]">Feature Correlation Matrix</h2>
+          <h2 className="text-lg font-semibold text-[var(--text-primary)]">Positioning Guidance</h2>
         </div>
 
-        <div className="overflow-x-auto">
-          <div className="min-w-[600px]">
-            {/* Heatmap Grid */}
-            <div className="grid grid-cols-[120px_repeat(7,1fr)] gap-1">
-              {/* Header Row */}
-              <div className="h-10"></div>
-              {FEATURES.map(f => (
-                <div key={f} className="h-10 flex items-center justify-center text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-tighter text-center px-1">
-                  {f.replace('_', ' ')}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+          <div>
+            <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-3">Recommended Zones</p>
+            <div className="space-y-3">
+              {activePeriod?.recommended_zones.slice(0, 5).map((zone) => (
+                <div key={zone.zone_id} className="p-4 rounded-2xl bg-primary/5 border border-primary/10 flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-semibold text-[var(--text-primary)]">{zone.zone_name}</p>
+                    <p className="text-xs text-[var(--text-secondary)]">Zone {zone.zone_id}</p>
+                  </div>
+                  <p className="text-sm font-bold text-primary">{zone.expected_trips_per_hour.toFixed(1)} trips/hr</p>
                 </div>
               ))}
-
-              {/* Data Rows */}
-              {FEATURES.map((rowFeature, i) => (
-                <React.Fragment key={rowFeature}>
-                  <div className="h-12 flex items-center pr-4 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-tighter text-right">
-                    {rowFeature.replace('_', ' ')}
-                  </div>
-                  {FEATURES.map((colFeature, j) => {
-                    const val = CORRELATION_DATA[i][j];
-                    return (
-                      <div
-                        key={`${i}-${j}`}
-                        className="h-12 rounded-md flex items-center justify-center text-[11px] font-black transition-transform hover:scale-105 cursor-default"
-                        style={{
-                          backgroundColor: getCorrelationColor(val),
-                          color: Math.abs(val) > 0.5 ? 'white' : 'var(--text-primary)',
-                          border: '1px solid var(--border)'
-                        }}
-                        title={`${rowFeature} vs ${colFeature}: ${val}`}
-                      >
-                        {val > 0 ? `+${val.toFixed(2)}` : val.toFixed(2)}
-                      </div>
-                    );
-                  })}
-                </React.Fragment>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Legend & Interpretation */}
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-          <div>
-            <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-3">Correlation Scale</p>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold text-primary">-1.0</span>
-              <div className="flex-1 h-3 rounded-full bg-gradient-to-r from-primary via-[var(--background)] to-danger border border-[var(--border)]"></div>
-              <span className="text-[10px] font-bold text-danger">+1.0</span>
-            </div>
-            <div className="flex justify-between mt-1 px-1">
-              <span className="text-[9px] text-[var(--text-secondary)]">Strong Negative</span>
-              <span className="text-[9px] text-[var(--text-secondary)]">Neutral</span>
-              <span className="text-[9px] text-[var(--text-secondary)]">Strong Positive</span>
             </div>
           </div>
 
           <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10">
-            <h4 className="text-xs font-bold text-[var(--text-primary)] mb-2 flex items-center gap-2">
+            <h4 className="text-xs font-bold text-[var(--text-primary)] mb-3 flex items-center gap-2">
               <Info size={14} className="text-primary" />
-              Interpretation
+              Current Snapshot
             </h4>
-            <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
-              Event intensity shows <span className="text-danger font-bold">strong positive correlation (0.78)</span> with ride demand.
-              Rainfall has <span className="text-danger font-bold">moderate correlation (0.64)</span>, indicating weather influences taxi usage.
-              No severe multicollinearity detected among independent variables.
-            </p>
+            <div className="space-y-3 text-[11px] text-[var(--text-secondary)] leading-relaxed">
+              <p>
+                Peak forecast hour: <span className="text-[var(--text-primary)] font-bold">{forecast?.summary.peak_hour ?? '--'}:00</span>
+                {' '}with top-zone focus on <span className="text-[var(--text-primary)] font-bold">{forecast?.summary.peak_zone_name ?? '--'}</span>.
+              </p>
+              <p>
+                Active positioning window: <span className="text-[var(--text-primary)] font-bold">{activePeriod?.target_time ?? '--'}</span>.
+              </p>
+              <p>
+                Avoid zones: <span className="text-danger font-bold">{activePeriod?.avoid_zones.map((zone) => zone.zone_id).join(', ') || '--'}</span>
+              </p>
+            </div>
           </div>
         </div>
       </div>

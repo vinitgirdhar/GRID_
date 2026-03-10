@@ -68,3 +68,107 @@ export interface PredictionState {
   events: EventInfo[];
   zones: ZoneDemand[];
 }
+
+export interface ModelVariantMetric {
+  key: string;
+  label: string;
+  model_type: string;
+  training_date?: string | null;
+  test_rmse: number;
+  test_r2: number;
+  train_rmse?: number | null;
+  train_r2?: number | null;
+  feature_count: number;
+}
+
+export interface FeatureImportancePoint {
+  name: string;
+  value: number;
+}
+
+export interface MetricsResponse {
+  generated_at: string;
+  current_model_key: string;
+  current_model_label: string;
+  model_variants: ModelVariantMetric[];
+  feature_importance: FeatureImportancePoint[];
+}
+
+export interface ForecastPoint {
+  hour: number;
+  datetime: string;
+  total_predicted_demand: number;
+  top_zone_id: string;
+  top_zone_name: string;
+  top_zone_demand: number;
+}
+
+export interface ForecastSummary {
+  total_horizon_demand: number;
+  peak_hour: number;
+  peak_datetime: string;
+  peak_zone_id: string;
+  peak_zone_name: string;
+  peak_zone_demand: number;
+}
+
+export interface ForecastResponse {
+  generated_at: string;
+  forecast: ForecastPoint[];
+  summary: ForecastSummary;
+}
+
+export interface RecommendedZone {
+  zone_id: string;
+  zone_name: string;
+  rank: number;
+  expected_trips_per_hour: number;
+}
+
+export interface AvoidZone {
+  zone_id: string;
+  expected_trips_per_hour: number;
+}
+
+export interface HotspotZone {
+  zone_id: string;
+  zone_name: string;
+  borough: string;
+  lat: number;
+  lng: number;
+  predicted_demand: number;
+  demand_level: DemandLevel;
+  event_intensity: 'High' | 'Medium' | 'Low';
+  weather_condition: string;
+}
+
+export interface HotspotPeriod {
+  label: string;
+  target_time: string;
+  zones: HotspotZone[];
+  recommended_zones: RecommendedZone[];
+  avoid_zones: AvoidZone[];
+}
+
+export interface HotspotsResponse {
+  generated_at: string;
+  active_period: 'morning' | 'evening';
+  morning: HotspotPeriod;
+  evening: HotspotPeriod;
+}
+
+export interface PredictionResponse {
+  requested_at: string;
+  prediction_time: string;
+  zone_id: string;
+  zone_name: string;
+  borough: string;
+  lat: number;
+  lng: number;
+  predicted_demand: number;
+  demand_level: DemandLevel;
+  confidence: number;
+  active_period: 'morning' | 'evening';
+  model_key: string;
+  model_label: string;
+}

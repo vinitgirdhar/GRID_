@@ -1,0 +1,47 @@
+from functools import lru_cache
+from pathlib import Path
+
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+ROOT_DIR = Path(__file__).resolve().parent.parent
+GRID_ML_DIR = ROOT_DIR / "grid_ml"
+
+
+class Settings(BaseSettings):
+    app_name: str = "GRID ML API"
+    api_prefix: str = "/api"
+    app_host: str = "0.0.0.0"
+    app_port: int = 8000
+    database_url: str = Field(
+        default="postgresql+psycopg2://postgres:postgres@localhost:5432/grid",
+        alias="DATABASE_URL",
+    )
+    allowed_origins: list[str] = Field(
+        default_factory=lambda: [
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+        ]
+    )
+    grid_ml_root: Path = GRID_ML_DIR
+
+    model_config = SettingsConfigDict(
+        env_file=str(ROOT_DIR / ".env"),
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=False,
+    )
+
+    @property
+    def models_dir(self) -> Path:
+        return self.grid_ml_root / "models"
+
+    @property
+    def outputs_dir(self) -> Path:
+        return self.grid_ml_root / "outputs" / "reports"
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()
