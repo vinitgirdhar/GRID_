@@ -12,6 +12,7 @@ import pandas as pd
 import xgboost as xgb
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 
 from .config import get_settings
 from .schemas import (
@@ -426,6 +427,83 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.get("/", response_class=HTMLResponse)
+def home() -> str:
+    api = settings.api_prefix
+    return f"""
+<!doctype html>
+<html lang=\"en\">
+<head>
+    <meta charset=\"utf-8\" />
+    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />
+    <title>{settings.app_name}</title>
+    <style>
+        :root {{
+            color-scheme: light;
+            --bg: #f4f7fb;
+            --card: #ffffff;
+            --text: #1f2a37;
+            --muted: #5b6470;
+            --accent: #0f62fe;
+            --accent-hover: #0043ce;
+            --border: #dfe6ef;
+        }}
+        * {{ box-sizing: border-box; }}
+        body {{
+            margin: 0;
+            font-family: Segoe UI, Tahoma, sans-serif;
+            background: radial-gradient(1200px 700px at 10% -10%, #dbe8ff 0%, var(--bg) 45%) no-repeat;
+            color: var(--text);
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            padding: 24px;
+        }}
+        .card {{
+            width: min(780px, 100%);
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            box-shadow: 0 12px 34px rgba(17, 24, 39, 0.08);
+            padding: 28px;
+        }}
+        h1 {{ margin: 0 0 10px; font-size: 1.7rem; }}
+        p {{ margin: 0 0 16px; color: var(--muted); }}
+        ul {{ margin: 0; padding-left: 18px; }}
+        li {{ margin: 10px 0; }}
+        a {{
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 600;
+        }}
+        a:hover {{ color: var(--accent-hover); text-decoration: underline; }}
+        code {{
+            background: #eef4ff;
+            border: 1px solid #d0ddff;
+            border-radius: 6px;
+            padding: 2px 6px;
+        }}
+    </style>
+</head>
+<body>
+    <main class=\"card\">
+        <h1>{settings.app_name} Backend</h1>
+        <p>The API is running. Use the links below to test endpoints quickly.</p>
+        <ul>
+            <li><a href=\"/health\">Health Check</a> <code>/health</code></li>
+            <li><a href=\"/docs\">Swagger UI</a> <code>/docs</code></li>
+            <li><a href=\"{api}/metrics\">Model Metrics</a> <code>{api}/metrics</code></li>
+            <li><a href=\"{api}/forecast\">24-Hour Forecast</a> <code>{api}/forecast</code></li>
+            <li><a href=\"{api}/hotspots\">Hotspots</a> <code>{api}/hotspots</code></li>
+            <li><a href=\"{api}/predictions\">Predictions</a> <code>{api}/predictions</code></li>
+            <li><a href=\"{api}/weather\">Weather</a> <code>{api}/weather</code></li>
+        </ul>
+    </main>
+</body>
+</html>
+"""
 
 
 @app.get("/health", response_model=HealthResponse)
