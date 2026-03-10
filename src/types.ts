@@ -172,3 +172,27 @@ export interface PredictionResponse {
   model_key: string;
   model_label: string;
 }
+
+export interface WeatherResponse {
+  requested_at: string;
+  source: string;
+  zone_id?: string | null;
+  zone_name?: string | null;
+  borough?: string | null;
+  location_name: string;
+  region?: string | null;
+  country?: string | null;
+  lat: number;
+  lng: number;
+  local_time: string;
+  condition: string;
+  temp_c: number;
+  temp_f: number;
+  feelslike_c: number;
+  humidity: number;
+  wind_kph: number;
+  precip_mm: number;
+  cloud: number;
+  demand_impact: 'Low' | 'Moderate' | 'High';
+  impact_score: number;
+}

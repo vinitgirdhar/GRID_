@@ -4,6 +4,9 @@ from math import hypot
 from pathlib import Path
 import json
 import re
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlencode
+from urllib.request import urlopen
 
 import pandas as pd
 import xgboost as xgb
@@ -25,6 +28,7 @@ from .schemas import (
     ModelVariantMetric,
     PredictionResponse,
     RecommendedZone,
+    WeatherResponse,
 )
 
 
@@ -88,6 +92,96 @@ def _event_intensity(value: float) -> str:
 
 def _active_period(now: datetime) -> str:
     return "morning" if now.hour < 15 else "evening"
+
+
+def _resolve_weather_impact(temp_c: float, wind_kph: float, precip_mm: float, condition: str) -> tuple[str, float]:
+    score = 1.0
+    normalized_condition = condition.lower()
+
+    if precip_mm >= 5:
+        score += 0.2
+    elif precip_mm >= 1:
+        score += 0.1
+
+    if wind_kph >= 35:
+        score += 0.12
+    elif wind_kph >= 20:
+        score += 0.05
+
+    if temp_c <= 0 or temp_c >= 32:
+        score += 0.08
+
+    if any(token in normalized_condition for token in ["rain", "thunder", "snow", "storm"]):
+        score += 0.1
+
+    if score >= 1.25:
+        return "High", round(score, 2)
+    if score >= 1.1:
+        return "Moderate", round(score, 2)
+    return "Low", round(score, 2)
+
+
+def _fetch_weather_snapshot(zone_id: str | None, lat: float, lng: float) -> WeatherResponse:
+    if not settings.weather_api_key:
+        raise HTTPException(status_code=503, detail="WEATHER_API_KEY is not configured.")
+
+    params = urlencode(
+        {
+            "key": settings.weather_api_key,
+            "q": f"{lat},{lng}",
+            "aqi": "no",
+        }
+    )
+    request_url = f"{settings.weather_api_base_url}?{params}"
+
+    try:
+        with urlopen(request_url, timeout=10) as response:
+            payload = json.load(response)
+    except HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="ignore")
+        raise HTTPException(status_code=502, detail=f"Weather API error: {detail or str(exc)}") from exc
+    except URLError as exc:
+        raise HTTPException(status_code=502, detail=f"Unable to reach Weather API: {exc.reason}") from exc
+
+    current = payload.get("current", {})
+    location = payload.get("location", {})
+
+    condition = str(current.get("condition", {}).get("text", "Unknown"))
+    temp_c = float(current.get("temp_c", 0.0))
+    wind_kph = float(current.get("wind_kph", 0.0))
+    precip_mm = float(current.get("precip_mm", 0.0))
+    demand_impact, impact_score = _resolve_weather_impact(temp_c, wind_kph, precip_mm, condition)
+
+    zone_name = None
+    borough = None
+    if zone_id and zone_id in ZONE_CATALOG:
+        zone_profile = _get_zone_profile(zone_id)
+        zone_name = str(zone_profile["name"])
+        borough = str(zone_profile["borough"])
+
+    return WeatherResponse(
+        requested_at=datetime.utcnow(),
+        source="weatherapi",
+        zone_id=zone_id,
+        zone_name=zone_name,
+        borough=borough,
+        location_name=str(location.get("name", "Unknown")),
+        region=str(location.get("region", "")) or None,
+        country=str(location.get("country", "")) or None,
+        lat=float(location.get("lat", lat)),
+        lng=float(location.get("lon", lng)),
+        local_time=str(location.get("localtime", "")),
+        condition=condition,
+        temp_c=temp_c,
+        temp_f=float(current.get("temp_f", 0.0)),
+        feelslike_c=float(current.get("feelslike_c", temp_c)),
+        humidity=int(current.get("humidity", 0)),
+        wind_kph=wind_kph,
+        precip_mm=precip_mm,
+        cloud=int(current.get("cloud", 0)),
+        demand_impact=demand_impact,
+        impact_score=impact_score,
+    )
 
 
 def _parse_recommendations(path: Path) -> tuple[str, list[RecommendedZone], list[AvoidZone]]:
@@ -384,3 +478,29 @@ def get_prediction(
         raise HTTPException(status_code=400, detail="prediction_time must be ISO-8601 formatted.") from exc
 
     return _predict_for_zone(app, resolved_prediction_time, zone_id)
+
+
+@app.get(f"{settings.api_prefix}/weather", response_model=WeatherResponse)
+def get_weather(
+    zone_id: str | None = Query(default=None),
+    lat: float | None = Query(default=None),
+    lng: float | None = Query(default=None),
+) -> WeatherResponse:
+    resolved_zone_id = zone_id
+
+    if resolved_zone_id is None and (lat is None or lng is None):
+        resolved_zone_id = DEFAULT_ZONE_ID
+
+    if resolved_zone_id is not None:
+        if resolved_zone_id not in ZONE_CATALOG:
+            raise HTTPException(status_code=404, detail=f"Zone {resolved_zone_id} is not configured for weather lookup.")
+        zone_profile = _get_zone_profile(resolved_zone_id)
+        lat = float(zone_profile["lat"])
+        lng = float(zone_profile["lng"])
+    elif lat is not None and lng is not None:
+        resolved_zone_id = _pick_zone_from_coordinates(lat, lng)
+
+    if lat is None or lng is None:
+        raise HTTPException(status_code=400, detail="Provide zone_id or both lat and lng.")
+
+    return _fetch_weather_snapshot(resolved_zone_id, lat, lng)

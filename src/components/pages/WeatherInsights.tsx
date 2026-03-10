@@ -1,34 +1,123 @@
-import React from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   LineChart, Line, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
 } from 'recharts';
 import { Thermometer, CloudRain, Wind, Info } from 'lucide-react';
-import { WEATHER_IMPACT } from '../../constants';
+import { getForecast, getWeather } from '../../services/apiService';
+import { ForecastResponse, WeatherResponse } from '../../types';
 
-const TEMP_DEMAND = [
-  { name: '0°C', value: 4200 },
-  { name: '5°C', value: 4800 },
-  { name: '10°C', value: 5500 },
-  { name: '15°C', value: 6800 },
-  { name: '20°C', value: 8200 },
-  { name: '25°C', value: 9100 },
-  { name: '30°C', value: 8500 },
-];
+const REFRESH_INTERVAL_MS = 20000;
 
-const RAIN_DEMAND = [
-  { name: 'None', value: 7200 },
-  { name: 'Light', value: 8500 },
-  { name: 'Moderate', value: 9800 },
-  { name: 'Heavy', value: 10500 },
-];
+function buildTemperatureCurve(tempC: number, baselineDemand: number) {
+  const points = [0, 5, 10, 15, 20, 25, 30, 35];
+  return points.map((point) => {
+    const comfortDistance = Math.abs(22 - point);
+    const comfortFactor = Math.max(0.7, 1.15 - (comfortDistance * 0.02));
+    const rainBoost = tempC < 10 ? 1.05 : 1;
+    return {
+      name: `${point}°C`,
+      value: Math.round(baselineDemand * comfortFactor * rainBoost),
+    };
+  });
+}
+
+function buildRainCurve(precipMm: number, baselineDemand: number) {
+  return [
+    { name: 'None', value: Math.round(baselineDemand * 0.95) },
+    { name: 'Light', value: Math.round(baselineDemand * 1.03) },
+    { name: 'Moderate', value: Math.round(baselineDemand * 1.1) },
+    { name: 'Heavy', value: Math.round(baselineDemand * Math.max(1.15, 1 + (precipMm * 0.03))) },
+  ];
+}
+
+function buildWindCurve(windKph: number, baselineDemand: number) {
+  const points = [0, 10, 20, 30, 40, 50];
+  return points.map((point) => {
+    const impact = point >= windKph ? 1 + ((point - windKph) * 0.004) : 1 - ((windKph - point) * 0.002);
+    return {
+      name: `${point} kph`,
+      value: Math.round(baselineDemand * Math.max(0.75, impact)),
+    };
+  });
+}
 
 export default function WeatherInsights() {
+  const [forecast, setForecast] = useState<ForecastResponse | null>(null);
+  const [weather, setWeather] = useState<WeatherResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
+    const loadData = async () => {
+      try {
+        const [forecastResponse, weatherResponse] = await Promise.all([
+          getForecast(),
+          getWeather({ zoneId: forecast?.summary.peak_zone_id ?? '132' }),
+        ]);
+
+        if (!cancelled) {
+          setForecast(forecastResponse);
+          setWeather(weatherResponse);
+          setError(null);
+        }
+      } catch {
+        if (!cancelled) {
+          setError('Unable to load live weather intelligence. Check backend and Weather API configuration.');
+        }
+      }
+    };
+
+    loadData();
+    intervalId = setInterval(loadData, REFRESH_INTERVAL_MS);
+
+    return () => {
+      cancelled = true;
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [forecast?.summary.peak_zone_id]);
+
+  const baselineDemand = forecast?.summary.peak_zone_demand ?? 8000;
+  const tempDemand = useMemo(() => buildTemperatureCurve(weather?.temp_c ?? 22, baselineDemand), [weather?.temp_c, baselineDemand]);
+  const rainDemand = useMemo(() => buildRainCurve(weather?.precip_mm ?? 0, baselineDemand), [weather?.precip_mm, baselineDemand]);
+  const windDemand = useMemo(() => buildWindCurve(weather?.wind_kph ?? 10, baselineDemand), [weather?.wind_kph, baselineDemand]);
+
   return (
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold tracking-tight text-[var(--text-primary)]">Weather Insights</h1>
-        <p className="text-[var(--text-secondary)] mt-1">Correlation between meteorological conditions and ride demand</p>
+        <p className="text-[var(--text-secondary)] mt-1">Live weather intelligence powered by WeatherAPI and demand forecast context</p>
+      </div>
+
+      {error && (
+        <div className="glass-card p-6 border border-danger/20 text-danger">
+          {error}
+        </div>
+      )}
+
+      <div className="glass-card p-5">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
+          <div>
+            <p className="text-[var(--text-secondary)]">Location</p>
+            <p className="font-bold text-[var(--text-primary)]">{weather?.location_name ?? '--'}</p>
+          </div>
+          <div>
+            <p className="text-[var(--text-secondary)]">Condition</p>
+            <p className="font-bold text-[var(--text-primary)]">{weather?.condition ?? '--'}</p>
+          </div>
+          <div>
+            <p className="text-[var(--text-secondary)]">Temperature</p>
+            <p className="font-bold text-[var(--text-primary)]">{weather ? `${weather.temp_c.toFixed(1)}°C / ${weather.temp_f.toFixed(1)}°F` : '--'}</p>
+          </div>
+          <div>
+            <p className="text-[var(--text-secondary)]">Demand Impact</p>
+            <p className="font-bold text-[var(--text-primary)]">{weather?.demand_impact ?? '--'} ({weather?.impact_score ?? '--'})</p>
+          </div>
+        </div>
       </div>
 
       {/* Top: Temp vs Demand */}
@@ -39,7 +128,7 @@ export default function WeatherInsights() {
         </div>
         <div className="h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={TEMP_DEMAND}>
+            <LineChart data={tempDemand}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
               <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
               <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
@@ -61,7 +150,7 @@ export default function WeatherInsights() {
           </div>
           <div className="h-[250px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={RAIN_DEMAND}>
+              <BarChart data={rainDemand}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
@@ -69,7 +158,7 @@ export default function WeatherInsights() {
                   contentStyle={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)' }}
                 />
                 <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={50}>
-                  {RAIN_DEMAND.map((entry, index) => (
+                  {rainDemand.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={index > 1 ? '#F4B000' : '#F4B00040'} stroke="#F4B000" strokeWidth={1} />
                   ))}
                 </Bar>
@@ -84,7 +173,7 @@ export default function WeatherInsights() {
           </div>
           <div className="h-[250px]">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={WEATHER_IMPACT}>
+              <LineChart data={windDemand}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
@@ -106,7 +195,9 @@ export default function WeatherInsights() {
         <div>
           <h3 className="text-lg font-semibold text-primary">Key Weather Insight</h3>
           <p className="text-[var(--text-primary)]/80 mt-1">
-            Historical data shows that ride demand increases by <span className="font-bold text-primary">24.5%</span> during moderate to heavy rainfall, especially in Manhattan and Brooklyn. The model accounts for this by increasing weight for precipitation features during peak hours.
+            The current weather feed indicates <span className="font-bold text-primary">{weather?.condition ?? 'unknown conditions'}</span>
+            {' '}in {weather?.location_name ?? 'the active area'}, with a dynamic demand impact score of
+            {' '}<span className="font-bold text-primary">{weather?.impact_score ?? '--'}</span>. Charts above recompute demand sensitivity in real time.
           </p>
         </div>
       </div>

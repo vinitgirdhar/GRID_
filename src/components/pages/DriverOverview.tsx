@@ -13,8 +13,8 @@ import {
   Clock
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
-import { getActiveHotspotPeriod, getForecast, getHotspots } from '../../services/apiService';
-import { ForecastResponse, HotspotsResponse, Theme, ZoneDemand } from '../../types';
+import { getActiveHotspotPeriod, getForecast, getHotspots, getWeather } from '../../services/apiService';
+import { ForecastResponse, HotspotsResponse, Theme, WeatherResponse, ZoneDemand } from '../../types';
 import MapComponent from '../MapComponent';
 
 const REFRESH_INTERVAL_MS = 20000;
@@ -37,6 +37,7 @@ function getEventFactor(level?: string) {
 export default function DriverOverview() {
   const [forecast, setForecast] = useState<ForecastResponse | null>(null);
   const [hotspots, setHotspots] = useState<HotspotsResponse | null>(null);
+  const [weather, setWeather] = useState<WeatherResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [theme, setTheme] = useState<Theme>('dark');
 
@@ -47,9 +48,16 @@ export default function DriverOverview() {
     const loadDriverData = async () => {
       try {
         const [forecastResponse, hotspotResponse] = await Promise.all([getForecast(), getHotspots()]);
+        const activePeriodResponse = getActiveHotspotPeriod(hotspotResponse);
+        const primaryZoneResponse = activePeriodResponse.zones[0];
+        const weatherResponse = primaryZoneResponse
+          ? await getWeather({ zoneId: primaryZoneResponse.zone_id })
+          : null;
+
         if (!cancelled) {
           setForecast(forecastResponse);
           setHotspots(hotspotResponse);
+          setWeather(weatherResponse);
           setError(null);
         }
       } catch {
@@ -131,7 +139,7 @@ export default function DriverOverview() {
 
   const baseDemand = primaryZone?.predicted_demand ?? 0;
   const hourlyForecast = trendData[1]?.value ?? trendData[0]?.value ?? 0;
-  const weatherFactor = getWeatherFactor(primaryZone?.weather_condition);
+  const weatherFactor = getWeatherFactor(weather?.condition ?? primaryZone?.weather_condition);
   const eventFactor = getEventFactor(primaryZone?.event_intensity);
   const weatherLift = baseDemand * (weatherFactor - 1);
   const eventLift = baseDemand * (eventFactor - 1);
@@ -278,7 +286,7 @@ export default function DriverOverview() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <p className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-widest">Area</p>
-                  <p className="text-sm font-bold text-[var(--text-primary)]">{primaryZone?.borough ?? '--'}</p>
+                  <p className="text-sm font-bold text-[var(--text-primary)]">{weather?.location_name ?? primaryZone?.borough ?? '--'}</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-widest">Time Window</p>
@@ -286,11 +294,11 @@ export default function DriverOverview() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Thermometer size={14} className="text-[var(--text-secondary)]" />
-                  <p className="text-sm font-bold text-[var(--text-primary)]">68°F</p>
+                  <p className="text-sm font-bold text-[var(--text-primary)]">{weather ? `${weather.temp_f.toFixed(1)}°F` : '--'}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <Wind size={14} className="text-[var(--text-secondary)]" />
-                  <p className="text-sm font-bold text-[var(--text-primary)]">12 mph</p>
+                  <p className="text-sm font-bold text-[var(--text-primary)]">{weather ? `${weather.wind_kph.toFixed(1)} kph` : '--'}</p>
                 </div>
               </div>
             </div>
@@ -298,7 +306,8 @@ export default function DriverOverview() {
             <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
               <p className="text-xs font-bold text-[var(--text-primary)] mb-1">Impact Analysis</p>
               <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
-                Current hotspot feed is marked <span className="text-slate-700 font-bold">{primaryZone?.weather_condition ?? 'Cloudy'}</span>, and demand remains concentrated in the top live zones.
+                Current weather is <span className="text-slate-700 font-bold">{weather?.condition ?? primaryZone?.weather_condition ?? 'Unknown'}</span>
+                {' '}with demand impact rated <span className="text-slate-700 font-bold">{weather?.demand_impact ?? 'Unknown'}</span>.
               </p>
             </div>
           </div>

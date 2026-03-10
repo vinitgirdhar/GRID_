@@ -4,6 +4,7 @@ import {
   HotspotsResponse,
   MetricsResponse,
   PredictionResponse,
+  WeatherResponse,
 } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api';
@@ -68,4 +69,29 @@ export async function getPrediction(query: PredictionQuery): Promise<PredictionR
 
   const suffix = params.toString();
   return fetchJson<PredictionResponse>(`/predictions${suffix ? `?${suffix}` : ''}`);
+}
+
+export interface WeatherQuery {
+  zoneId?: string;
+  lat?: number;
+  lng?: number;
+}
+
+export async function getWeather(query: WeatherQuery): Promise<WeatherResponse> {
+  const params = new URLSearchParams();
+
+  if (query.zoneId) {
+    params.set('zone_id', query.zoneId);
+  }
+
+  if (typeof query.lat === 'number') {
+    params.set('lat', String(query.lat));
+  }
+
+  if (typeof query.lng === 'number') {
+    params.set('lng', String(query.lng));
+  }
+
+  const suffix = params.toString();
+  return fetchJson<WeatherResponse>(`/weather${suffix ? `?${suffix}` : ''}`);
 }

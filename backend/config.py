@@ -18,6 +18,11 @@ class Settings(BaseSettings):
         default="postgresql+psycopg2://postgres:postgres@localhost:5432/grid",
         alias="DATABASE_URL",
     )
+    weather_api_key: str = Field(default="", alias="WEATHER_API_KEY")
+    weather_api_base_url: str = Field(
+        default="http://api.weatherapi.com/v1/current.json",
+        alias="WEATHER_API_BASE_URL",
+    )
     allowed_origins: list[str] = Field(
         default_factory=lambda: [
             "http://localhost:3000",

@@ -109,3 +109,27 @@ class PredictionResponse(BaseModel):
     active_period: str
     model_key: str
     model_label: str
+
+
+class WeatherResponse(BaseModel):
+    requested_at: datetime
+    source: str
+    zone_id: str | None = None
+    zone_name: str | None = None
+    borough: str | None = None
+    location_name: str
+    region: str | None = None
+    country: str | None = None
+    lat: float
+    lng: float
+    local_time: str
+    condition: str
+    temp_c: float
+    temp_f: float
+    feelslike_c: float
+    humidity: int
+    wind_kph: float
+    precip_mm: float
+    cloud: int
+    demand_impact: str
+    impact_score: float
