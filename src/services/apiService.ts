@@ -95,3 +95,22 @@ export async function getWeather(query: WeatherQuery): Promise<WeatherResponse> 
   const suffix = params.toString();
   return fetchJson<WeatherResponse>(`/weather${suffix ? `?${suffix}` : ''}`);
 }
+
+export async function askCopilot(query: string, currentTime: string): Promise<any> {
+  const response = await fetch(`${API_BASE_URL}/copilot/ask`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      query,
+      current_time: currentTime,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`API error: ${response.status}`);
+  }
+
+  return response.json();
+}

@@ -2,8 +2,10 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from math import hypot
 from pathlib import Path
+from typing import Any, Dict, List
 import json
 import re
+import requests
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import urlopen
@@ -577,9 +579,161 @@ def get_weather(
         lat = float(zone_profile["lat"])
         lng = float(zone_profile["lng"])
     elif lat is not None and lng is not None:
-        resolved_zone_id = _pick_zone_from_coordinates(lat, lng)
-
-    if lat is None or lng is None:
         raise HTTPException(status_code=400, detail="Provide zone_id or both lat and lng.")
 
     return _fetch_weather_snapshot(resolved_zone_id, lat, lng)
+
+
+# ==============================================================================
+# COPILOT ENDPOINT (Gemini-powered)
+# ==============================================================================
+
+class CopilotRequest(BaseModel):
+    query: str
+    current_time: str
+    current_zone: str | None = None
+
+class CopilotResponse(BaseModel):
+    spoken_response: str
+    action: Dict[str, Any] | None = None
+
+
+def _build_grid_context() -> str:
+    """Build a short context string from live hotspot/forecast data for the LLM."""
+    now = datetime.now()
+    period = "morning" if now.hour < 15 else "evening"
+    active = _synthetic_active_period(period)
+
+    lines = [
+        f"Current time: {now.strftime('%I:%M %p')}",
+        f"Active period: {period}",
+        f"Top recommended zones:",
+    ]
+    for z in active.get("recommended_zones", [])[:5]:
+        lines.append(
+            f"  - {z['zone_name']} (Zone {z['zone_id']}, {z['borough']}): "
+            f"{z['expected_trips_per_hour']:.0f} trips/hr, "
+            f"weather: {z.get('weather_condition', 'N/A')}, "
+            f"events: {z.get('event_intensity', 'None')}"
+        )
+
+    avoid = active.get("avoid_zones", [])
+    if avoid:
+        lines.append("Zones to avoid:")
+        for z in avoid[:3]:
+            lines.append(f"  - {z['zone_name']} (Zone {z['zone_id']}): {z.get('reason', 'low demand')}")
+
+    return "\n".join(lines)
+
+
+def _gemini_ask(query: str, context: str) -> CopilotResponse | None:
+    """Try to call Gemini API for a smart response. Returns None if unavailable."""
+    import os
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key or api_key == "MY_GEMINI_API_KEY":
+        return None
+
+    try:
+        from google import genai
+
+        client = genai.Client(api_key=api_key)
+
+        system_prompt = (
+            "You are GRID Pilot, a voice assistant for taxi/rideshare drivers. "
+            "You help drivers find the best areas for rides based on real-time demand data. "
+            "Keep responses SHORT (2-3 sentences max) since they will be spoken aloud while driving. "
+            "Be direct and actionable. Never use markdown or special formatting. "
+            "If you recommend a zone, mention the zone name clearly.\n\n"
+            f"LIVE GRID DATA:\n{context}"
+        )
+
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=query,
+            config=genai.types.GenerateContentConfig(
+                system_instruction=system_prompt,
+                max_output_tokens=150,
+                temperature=0.7,
+            ),
+        )
+
+        spoken = response.text.strip()
+        if not spoken:
+            return None
+
+        # Try to extract an action from the context
+        action = None
+        active = _synthetic_active_period("morning" if datetime.now().hour < 15 else "evening")
+        for z in active.get("recommended_zones", []):
+            if z["zone_name"].lower() in spoken.lower() or z["zone_id"] in spoken:
+                action = {"type": "navigate_to_zone", "payload": z["zone_id"]}
+                break
+
+        return CopilotResponse(spoken_response=spoken, action=action)
+
+    except Exception as exc:
+        print(f"[Copilot] Gemini API error: {exc}")
+        return None
+
+
+def _fallback_ask(query: str) -> CopilotResponse:
+    """Keyword-based fallback when Gemini is unavailable."""
+    query_lower = query.lower()
+    now = datetime.now()
+
+    match = re.search(r'after (\d+)\s*(am|pm)?', query_lower)
+    target_hour = now.hour
+    if match:
+        h = int(match.group(1))
+        ampm = match.group(2)
+        if ampm == 'pm' and h < 12:
+            h += 12
+        if ampm == 'am' and h == 12:
+            h = 0
+        target_hour = h
+
+    period = "morning" if target_hour < 15 else "evening"
+    active = _synthetic_active_period(period)
+
+    if ("where" in query_lower or "demand" in query_lower or "go" in query_lower
+            or "ride" in query_lower or "best" in query_lower or "should" in query_lower):
+        if active["recommended_zones"]:
+            top = active["recommended_zones"][0]
+            return CopilotResponse(
+                spoken_response=(
+                    f"The highest demand right now is in {top['zone_name']}. "
+                    f"I expect about {int(top['expected_trips_per_hour'])} trips per hour there. "
+                    f"Head that way for the best earnings."
+                ),
+                action={"type": "navigate_to_zone", "payload": top["zone_id"]},
+            )
+
+    if "avoid" in query_lower or "bad" in query_lower or "low" in query_lower:
+        avoid = active.get("avoid_zones", [])
+        if avoid:
+            names = ", ".join(z["zone_name"] for z in avoid[:3])
+            return CopilotResponse(
+                spoken_response=f"I'd avoid these areas right now: {names}. Demand is low there.",
+                action=None,
+            )
+
+    return CopilotResponse(
+        spoken_response=(
+            "I monitor the entire city grid in real time. "
+            "Ask me where the highest demand is, which zones to avoid, or where to go next."
+        ),
+        action=None,
+    )
+
+
+@app.post(f"{settings.api_prefix}/copilot/ask", response_model=CopilotResponse)
+def ask_copilot(request: CopilotRequest) -> CopilotResponse:
+    context = _build_grid_context()
+
+    # Try Gemini first
+    gemini_response = _gemini_ask(request.query, context)
+    if gemini_response:
+        return gemini_response
+
+    # Fallback to keyword logic
+    return _fallback_ask(request.query)

@@ -74,8 +74,8 @@ function buildRideRequests(zones: HotspotZone[]): RideRequest[] {
   });
 }
 
-export default function GoForRide() {
-  const [destinationModeActive, setDestinationModeActive] = useState(false);
+export default function GoForRide({ copilotZoneId }: { copilotZoneId?: string | null }) {
+  const [destinationModeActive, setDestinationModeActive] = useState(!!copilotZoneId);
   const [destination, setDestination] = useState('');
   const [hotspots, setHotspots] = useState<HotspotsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -102,6 +102,18 @@ export default function GoForRide() {
 
   const activeZones = hotspots ? getActiveHotspotPeriod(hotspots).zones : [];
   const rideRequests = buildRideRequests(activeZones);
+
+  // If a copilotZoneId was passed in and hotspot data is loaded, try to set the destination 
+  // to that zone's borough if we haven't already set one.
+  useEffect(() => {
+     if (copilotZoneId && hotspots && !destination) {
+        const targetZone = activeZones.find(z => z.zone_id === copilotZoneId);
+        if (targetZone) {
+          setDestination(targetZone.borough);
+          setDestinationModeActive(true);
+        }
+     }
+  }, [copilotZoneId, hotspots, activeZones, destination]);
 
   const filteredRides = rideRequests.filter(ride => {
     if (!destinationModeActive || !destination.trim()) return true;

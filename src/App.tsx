@@ -34,6 +34,7 @@ import DriverOverview from './components/pages/DriverOverview';
 import GoForRide from './components/pages/GoForRide';
 import DriverPerformance from './components/pages/DriverPerformance';
 import Login from './components/Login';
+import VoicePilot from './components/VoicePilot';
 
 const ADMIN_ITEMS = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -71,6 +72,22 @@ export default function App() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   // Real time: use the current system hour, update every minute
   const [currentHour, setCurrentHour] = useState(() => new Date().getHours());
+  
+  // Copilot Navigation State
+  const [copilotDest, setCopilotDest] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleCopilotNav = (e: any) => {
+       const targetZoneId = e.detail.zoneId;
+       // For this MVP, we just set it to the generic borough "Manhattan" or let GoForRide lookup the zone.
+       // We'll pass it down to GoForRide via props if possible, or just use a global state/search param.
+       setCopilotDest(targetZoneId);
+       setActivePage('go-for-ride');
+    };
+    
+    window.addEventListener('grid-copilot-navigate', handleCopilotNav);
+    return () => window.removeEventListener('grid-copilot-navigate', handleCopilotNav);
+  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -107,7 +124,7 @@ export default function App() {
     } else {
       switch (activePage) {
         case 'overview': return <DriverOverview currentHour={currentHour} />;
-        case 'go-for-ride': return <GoForRide />;
+        case 'go-for-ride': return <GoForRide copilotZoneId={copilotDest} />;
         case 'where-next': return <DemandPrediction />;
         case 'driver-performance': return <DriverPerformance />;
         default: return <DriverOverview currentHour={currentHour} />;
@@ -333,6 +350,9 @@ export default function App() {
           </div>
         </main>
       )}
+
+      {/* Voice Pilot — rendered for driver on ALL screen sizes */}
+      {userRole === 'driver' && <VoicePilot />}
     </div>
   );
 }

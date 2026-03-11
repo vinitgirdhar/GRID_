@@ -196,3 +196,17 @@ export interface WeatherResponse {
   demand_impact: 'Low' | 'Moderate' | 'High';
   impact_score: number;
 }
+
+export interface CopilotRequest {
+  query: string;
+  current_time: string;
+  current_zone?: string;
+}
+
+export interface CopilotResponse {
+  spoken_response: string;
+  action?: {
+    type: string;
+    payload: string;
+  };
+}
