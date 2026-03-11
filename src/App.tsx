@@ -16,6 +16,7 @@ import {
   Moon,
   Sun,
   Navigation,
+  Clock,
   LineChart as LineChartIcon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -49,10 +50,34 @@ const DRIVER_ITEMS = [
   { id: 'driver-performance', label: 'Performance', icon: LineChartIcon },
 ] as const;
 
+function MobileClock() {
+  const [time, setTime] = useState(() =>
+    new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  );
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  return <span className="text-sm font-bold">{time}</span>;
+}
+
 export default function App() {
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [activePage, setActivePage] = useState<Page>('overview');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  // Real time: use the current system hour, update every minute
+  const [currentHour, setCurrentHour] = useState(() => new Date().getHours());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentHour(new Date().getHours());
+    }, 60000); // check every minute
+    return () => clearInterval(timer);
+  }, []);
 
   const handleLogin = (role: UserRole) => {
     setUserRole(role);
@@ -81,11 +106,11 @@ export default function App() {
       }
     } else {
       switch (activePage) {
-        case 'overview': return <DriverOverview />;
+        case 'overview': return <DriverOverview currentHour={currentHour} />;
         case 'go-for-ride': return <GoForRide />;
         case 'where-next': return <DemandPrediction />;
         case 'driver-performance': return <DriverPerformance />;
-        default: return <DriverOverview />;
+        default: return <DriverOverview currentHour={currentHour} />;
       }
     }
   };
@@ -163,6 +188,20 @@ export default function App() {
           </nav>
 
           <div className="p-4 border-t border-[var(--border)] flex flex-col gap-3">
+            {userRole === 'driver' && !isSidebarCollapsed && (
+              <div className="flex items-center justify-between px-2 py-2 bg-[var(--primary)]/10 rounded-xl border border-[var(--primary)]/20">
+                <div className="flex items-center gap-2">
+                  <Clock size={14} className="text-[var(--primary-dark)]" />
+                  <MobileClock />
+                </div>
+                <span className="text-[10px] font-bold text-[var(--success)] uppercase tracking-wider">Live</span>
+              </div>
+            )}
+            {userRole === 'driver' && isSidebarCollapsed && (
+              <div className="w-10 h-10 mx-auto rounded-full bg-[var(--primary)]/10 border border-[var(--primary)]/20 flex items-center justify-center">
+                <Clock size={14} className="text-[var(--primary-dark)]" />
+              </div>
+            )}
             {!isSidebarCollapsed && (
               <div className="flex items-center justify-between px-2">
                 <span className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">System</span>
@@ -236,7 +275,7 @@ export default function App() {
           {/* Floating Top Elements */}
           <div className="fixed top-0 left-0 right-0 p-6 flex justify-between items-center z-40 pointer-events-none">
             <div className="flex items-center gap-2 pointer-events-auto shadow-md bg-white rounded-full p-1 pl-4 pr-1">
-              <span className="text-sm font-bold">12:30</span>
+              <MobileClock />
               <div className="w-8 h-8 rounded-full bg-[var(--primary)] flex items-center justify-center">
                 <Search size={16} className="text-[var(--accent)]" />
               </div>

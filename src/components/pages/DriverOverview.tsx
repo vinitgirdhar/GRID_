@@ -35,7 +35,8 @@ function getEventFactor(level?: string) {
   return 1.0;
 }
 
-export default function DriverOverview() {
+export default function DriverOverview({ currentHour }: { currentHour?: number }) {
+  const activeHour = currentHour ?? new Date().getHours();
   const [forecast, setForecast] = useState<ForecastResponse | null>(null);
   const [hotspots, setHotspots] = useState<HotspotsResponse | null>(null);
   const [weather, setWeather] = useState<WeatherResponse | null>(null);
@@ -100,30 +101,54 @@ export default function DriverOverview() {
     };
   }, []);
 
-  const activePeriod = hotspots ? getActiveHotspotPeriod(hotspots) : null;
+  const activePeriod = hotspots
+    ? (activeHour < 15 ? hotspots.morning : hotspots.evening)
+    : null;
   const primaryZone = activePeriod?.zones[0];
-  const trendData = forecast?.forecast.slice(0, 4).map((point, index) => ({
+
+  // Dynamic forecast slicing: find the entry matching the simulated hour and show the next 4 hours
+  const forecastStartIndex = forecast?.forecast.findIndex(p => p.hour === activeHour) ?? -1;
+  const trendSlice = forecast && forecastStartIndex >= 0
+    ? forecast.forecast.slice(forecastStartIndex, forecastStartIndex + 4)
+    : forecast?.forecast.slice(0, 4) ?? [];
+  const trendData = trendSlice.map((point, index) => ({
     name: index === 0 ? 'Now' : `+${index}h`,
     value: point.total_predicted_demand,
-  })) ?? [];
+  }));
+
+  // Dynamic peak: find the peak from the remaining hours in the day
+  const remainingForecast = forecast && forecastStartIndex >= 0
+    ? forecast.forecast.slice(forecastStartIndex)
+    : forecast?.forecast ?? [];
+  const dynamicPeak = remainingForecast.length > 0
+    ? remainingForecast.reduce((best, p) => p.total_predicted_demand > best.total_predicted_demand ? p : best, remainingForecast[0])
+    : null;
+
+  // Current hour forecast point
+  const currentForecastPoint = forecast?.forecast.find(p => p.hour === activeHour) ?? null;
+
+  const displayHour = activeHour % 24;
+  const period = displayHour >= 12 ? 'PM' : 'AM';
+  const h12 = displayHour % 12 || 12;
+  const timeLabel = `${h12}:00 ${period}`;
 
   const liveKpis = [
     {
       label: 'Peak Zone Demand',
-      value: primaryZone ? `${primaryZone.predicted_demand.toFixed(1)}` : '--',
-      change: primaryZone?.zone_name ?? '--',
+      value: currentForecastPoint ? `${currentForecastPoint.total_predicted_demand.toFixed(0)}` : (primaryZone ? `${primaryZone.predicted_demand.toFixed(1)}` : '--'),
+      change: currentForecastPoint?.top_zone_name ?? primaryZone?.zone_name ?? '--',
       icon: DollarSign,
     },
     {
       label: 'Recommended Zones',
       value: String(activePeriod?.recommended_zones.length ?? 0),
-      change: activePeriod?.target_time?.includes(' at ') ? `At ${activePeriod.target_time.split(' at ')[1]}` : (activePeriod?.target_time ?? '--'),
+      change: activeHour < 15 ? 'Morning Window' : 'Evening Window',
       icon: CheckCircle,
     },
     {
       label: 'Active Forecast Hour',
-      value: forecast ? `${forecast.summary.peak_hour}:00` : '--',
-      change: forecast?.summary.peak_zone_name ?? '--',
+      value: dynamicPeak ? `${dynamicPeak.hour}:00` : '--',
+      change: dynamicPeak ? `Peak: ${dynamicPeak.total_predicted_demand.toFixed(0)} rides` : '--',
       icon: Percent,
     },
     {
@@ -145,7 +170,7 @@ export default function DriverOverview() {
     weatherCondition: zone.weather_condition,
   })) ?? [];
 
-  const baseDemand = primaryZone?.predicted_demand ?? 0;
+  const baseDemand = currentForecastPoint?.total_predicted_demand ?? primaryZone?.predicted_demand ?? 0;
   const hourlyForecast = trendData[1]?.value ?? trendData[0]?.value ?? 0;
   const weatherFactor = getWeatherFactor(weather?.condition ?? primaryZone?.weather_condition);
   const eventFactor = getEventFactor(primaryZone?.event_intensity);
@@ -166,7 +191,7 @@ export default function DriverOverview() {
       <div className="flex justify-between items-end">
         <div>
           <h1 className="text-3xl font-black tracking-tight text-[var(--accent)]">Intelligence</h1>
-          <p className="text-[var(--text-secondary)] mt-1 font-medium">Urban demand & awareness.</p>
+          <p className="text-[var(--text-secondary)] mt-1 font-medium">Urban demand & awareness &middot; <span className="text-[var(--primary-dark)] font-bold">{timeLabel}</span></p>
         </div>
         <div className="flex items-center gap-2 text-xs font-bold text-[var(--success)] bg-[var(--success)]/10 px-3 py-1.5 rounded-full border border-[var(--success)]/20 shadow-sm">
           <span className="w-2 h-2 bg-[var(--success)] rounded-full animate-pulse-soft"></span>
