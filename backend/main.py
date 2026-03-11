@@ -6,6 +6,7 @@ from typing import Any, Dict, List
 import json
 import re
 import requests
+from pydantic import BaseModel, Field
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import urlopen
@@ -598,37 +599,32 @@ class CopilotResponse(BaseModel):
     action: Dict[str, Any] | None = None
 
 
-def _build_grid_context() -> str:
+def _build_grid_context(hotspots: HotspotsResponse) -> str:
     """Build a short context string from live hotspot/forecast data for the LLM."""
-    now = datetime.now()
-    period = "morning" if now.hour < 15 else "evening"
-    active = _synthetic_active_period(period)
+    now = datetime.utcnow()
+    period_name = _active_period(now)
+    active = hotspots.morning if period_name == "morning" else hotspots.evening
 
     lines = [
         f"Current time: {now.strftime('%I:%M %p')}",
-        f"Active period: {period}",
+        f"Active period: {period_name}",
         f"Top recommended zones:",
     ]
-    for z in active.get("recommended_zones", [])[:5]:
+    for z in active.zones[:5]:
         lines.append(
-            f"  - {z['zone_name']} (Zone {z['zone_id']}, {z['borough']}): "
-            f"{z['expected_trips_per_hour']:.0f} trips/hr, "
-            f"weather: {z.get('weather_condition', 'N/A')}, "
-            f"events: {z.get('event_intensity', 'None')}"
+            f"  - {z.zone_name} (Zone {z.zone_id}, {z.borough}): "
+            f"{z.predicted_demand:.0f} trips/hr"
         )
-
-    avoid = active.get("avoid_zones", [])
-    if avoid:
-        lines.append("Zones to avoid:")
-        for z in avoid[:3]:
-            lines.append(f"  - {z['zone_name']} (Zone {z['zone_id']}): {z.get('reason', 'low demand')}")
 
     return "\n".join(lines)
 
 
-def _gemini_ask(query: str, context: str) -> CopilotResponse | None:
+def _gemini_ask(query: str, context: str, hotspots: HotspotsResponse) -> CopilotResponse | None:
     """Try to call Gemini API for a smart response. Returns None if unavailable."""
     import os
+    from dotenv import load_dotenv
+    load_dotenv()
+    
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key or api_key == "MY_GEMINI_API_KEY":
         return None
@@ -639,11 +635,13 @@ def _gemini_ask(query: str, context: str) -> CopilotResponse | None:
         client = genai.Client(api_key=api_key)
 
         system_prompt = (
-            "You are GRID Pilot, a voice assistant for taxi/rideshare drivers. "
-            "You help drivers find the best areas for rides based on real-time demand data. "
-            "Keep responses SHORT (2-3 sentences max) since they will be spoken aloud while driving. "
-            "Be direct and actionable. Never use markdown or special formatting. "
-            "If you recommend a zone, mention the zone name clearly.\n\n"
+            "You are GRID Pilot, a smart AI voice assistant for taxi and rideshare drivers. "
+            "You help drivers find the best areas for rides based on live demand data. "
+            "Your answers will be spoken aloud to the driver while they are driving, so keep responses SHORT (1-3 sentences). "
+            "Be conversational, direct, and actionable. Never use markdown or special formatting. "
+            "If the driver asks to head towards a location (e.g. 'airport', 'home', 'downtown', 'direction'), acknowledge it "
+            "and tell them you are filtering rides or activating Destination Mode towards that area. "
+            "If you recommend a specific zone, mention the zone name naturally in your response.\n\n"
             f"LIVE GRID DATA:\n{context}"
         )
 
@@ -663,11 +661,19 @@ def _gemini_ask(query: str, context: str) -> CopilotResponse | None:
 
         # Try to extract an action from the context
         action = None
-        active = _synthetic_active_period("morning" if datetime.now().hour < 15 else "evening")
-        for z in active.get("recommended_zones", []):
-            if z["zone_name"].lower() in spoken.lower() or z["zone_id"] in spoken:
-                action = {"type": "navigate_to_zone", "payload": z["zone_id"]}
+        period_name = _active_period(datetime.utcnow())
+        active = hotspots.morning if period_name == "morning" else hotspots.evening
+        
+        # 1. Look for explicit zone mention
+        for z in active.zones:
+            if str(z.zone_name).lower() in spoken.lower() or str(z.zone_id) in spoken:
+                action = {"type": "navigate_to_zone", "payload": str(z.zone_id)}
                 break
+
+        # 2. Fallback to general routing if destination mode is mentioned
+        if not action and any(w in spoken.lower() for w in ["destination", "towards", "filter", "routing", "airport", "home"]):
+            if active.zones:
+                action = {"type": "navigate_to_zone", "payload": str(active.zones[0].zone_id)}
 
         return CopilotResponse(spoken_response=spoken, action=action)
 
@@ -676,11 +682,12 @@ def _gemini_ask(query: str, context: str) -> CopilotResponse | None:
         return None
 
 
-def _fallback_ask(query: str) -> CopilotResponse:
+def _fallback_ask(query: str, hotspots: HotspotsResponse) -> CopilotResponse:
     """Keyword-based fallback when Gemini is unavailable."""
     query_lower = query.lower()
-    now = datetime.now()
+    now = datetime.utcnow()
 
+    # Time parsing
     match = re.search(r'after (\d+)\s*(am|pm)?', query_lower)
     target_hour = now.hour
     if match:
@@ -693,23 +700,46 @@ def _fallback_ask(query: str) -> CopilotResponse:
         target_hour = h
 
     period = "morning" if target_hour < 15 else "evening"
-    active = _synthetic_active_period(period)
+    active = hotspots.morning if period == "morning" else hotspots.evening
+    top_zone = active.zones[0] if active.zones else None
 
-    if ("where" in query_lower or "demand" in query_lower or "go" in query_lower
+    # Intent 1: Home / Directional routing ("travel towards home", "end of shift")
+    if "home" in query_lower or "towards" in query_lower or "direction" in query_lower:
+        return CopilotResponse(
+            spoken_response=(
+                f"I can help you filter rides heading towards your destination. "
+                f"Right now, {top_zone.borough if top_zone else 'the city center'} has good volume. "
+                "I've activated Destination Mode for you."
+            ),
+            action={"type": "navigate_to_zone", "payload": str(top_zone.zone_id) if top_zone else "Manhattan"}
+        )
+
+    # Intent 2: Nearby rides ("can I get a ride nearby", "around here")
+    elif "nearby" in query_lower or "around here" in query_lower or "close" in query_lower:
+        return CopilotResponse(
+            spoken_response=(
+                "There are several ride requests near your current location. "
+                "I'm pulling up the map so you can accept one right now."
+            ),
+            action={"type": "navigate_to_zone", "payload": str(top_zone.zone_id) if top_zone else "Manhattan"}
+        )
+
+    # Intent 3: High Demand / Where to go ("where should I go", "highest demand")
+    elif ("where" in query_lower or "demand" in query_lower or "go" in query_lower
             or "ride" in query_lower or "best" in query_lower or "should" in query_lower):
-        if active["recommended_zones"]:
-            top = active["recommended_zones"][0]
+        if top_zone:
             return CopilotResponse(
                 spoken_response=(
-                    f"The highest demand right now is in {top['zone_name']}. "
-                    f"I expect about {int(top['expected_trips_per_hour'])} trips per hour there. "
+                    f"The highest demand right now is in {top_zone.zone_name}. "
+                    f"I expect about {int(top_zone.predicted_demand)} trips per hour there. "
                     f"Head that way for the best earnings."
                 ),
-                action={"type": "navigate_to_zone", "payload": top["zone_id"]},
+                action={"type": "navigate_to_zone", "payload": str(top_zone.zone_id)},
             )
 
-    if "avoid" in query_lower or "bad" in query_lower or "low" in query_lower:
-        avoid = active.get("avoid_zones", [])
+    # Intent 4: Areas to avoid
+    elif "avoid" in query_lower or "bad" in query_lower or "low" in query_lower:
+        avoid = active.get("avoid_zones", []) if hasattr(active, "get") else []
         if avoid:
             names = ", ".join(z["zone_name"] for z in avoid[:3])
             return CopilotResponse(
@@ -717,10 +747,11 @@ def _fallback_ask(query: str) -> CopilotResponse:
                 action=None,
             )
 
+    # Fallback response
     return CopilotResponse(
         spoken_response=(
-            "I monitor the entire city grid in real time. "
-            "Ask me where the highest demand is, which zones to avoid, or where to go next."
+            "I'm monitoring the city grid. "
+            "You can ask me where the highest demand is, if there are rides nearby, or for a route towards home."
         ),
         action=None,
     )
@@ -728,12 +759,13 @@ def _fallback_ask(query: str) -> CopilotResponse:
 
 @app.post(f"{settings.api_prefix}/copilot/ask", response_model=CopilotResponse)
 def ask_copilot(request: CopilotRequest) -> CopilotResponse:
-    context = _build_grid_context()
+    hotspots: HotspotsResponse = app.state.hotspots
+    context = _build_grid_context(hotspots)
 
     # Try Gemini first
-    gemini_response = _gemini_ask(request.query, context)
+    gemini_response = _gemini_ask(request.query, context, hotspots)
     if gemini_response:
         return gemini_response
 
     # Fallback to keyword logic
-    return _fallback_ask(request.query)
+    return _fallback_ask(request.query, hotspots)
