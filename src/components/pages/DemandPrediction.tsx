@@ -16,7 +16,7 @@ export default function DemandPrediction() {
   const [prediction, setPrediction] = useState<PredictionResponse | null>(null);
   const [topZones, setTopZones] = useState<HotspotZone[]>([]);
   const [selectedDate, setSelectedDate] = useState(getDefaultDate());
-  const [selectedHour, setSelectedHour] = useState(String(new Date().getHours()));
+  const [selectedHour, setSelectedHour] = useState('live');
   const [selectedZoneId, setSelectedZoneId] = useState('');
 
   useEffect(() => {
@@ -60,9 +60,10 @@ export default function DemandPrediction() {
     setError(null);
 
     try {
+      const hourToUse = selectedHour === 'live' ? String(new Date().getHours()) : selectedHour;
       const response = await getPrediction({
         zoneId: selectedZoneId,
-        predictionTime: `${selectedDate}T${selectedHour.padStart(2, '0')}:00:00`,
+        predictionTime: `${selectedDate}T${hourToUse.padStart(2, '0')}:00:00`,
       });
       setPrediction(response);
     } catch {
@@ -117,6 +118,7 @@ export default function DemandPrediction() {
                     onChange={(event) => setSelectedHour(event.target.value)}
                     className="w-full bg-[var(--background)] border border-[var(--border)] rounded-lg py-3 pl-10 pr-4 text-sm focus:outline-none focus:border-primary/50 transition-colors appearance-none text-[var(--text-primary)]"
                   >
+                    <option value="live">Live Time</option>
                     {Array.from({ length: 24 }, (_, i) => (
                       <option key={i} value={String(i)}>{`${i}:00`}</option>
                     ))}
@@ -275,7 +277,7 @@ export default function DemandPrediction() {
                       />
                     </div>
                     <p className="text-sm text-[var(--text-secondary)]">
-                      Serving <span className="text-[var(--text-primary)] font-semibold">{prediction.model_label}</span> for {prediction.borough} at {selectedHour.padStart(2, '0')}:00.
+                      Serving <span className="text-[var(--text-primary)] font-semibold">{prediction.model_label}</span> for {prediction.borough} at {selectedHour === 'live' ? 'Live Time' : `${selectedHour.padStart(2, '0')}:00`}.
                     </p>
                   </div>
                 </motion.div>
