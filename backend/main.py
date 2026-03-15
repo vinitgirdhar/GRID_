@@ -32,8 +32,19 @@ from .schemas import (
     ModelVariantMetric,
     PredictionResponse,
     RecommendedZone,
+    SessionToggle,
     WeatherResponse,
+    WellnessStatus,
 )
+
+
+# Wellness State (Accelerated for demo)
+# 1 real minute = 15 simulated driver minutes (approx 10 mins to reach "Take Break")
+DRIVER_SESSION = {
+    "is_live": True,
+    "start_time": datetime.utcnow(),
+    "acceleration": 15
+}
 
 
 settings = get_settings()
@@ -768,4 +779,48 @@ def ask_copilot(request: CopilotRequest) -> CopilotResponse:
         return gemini_response
 
     # Fallback to keyword logic
-    return _fallback_ask(request.query, hotspots)
+    return _fallback_ask(request.query, hotspots)
+
+
+# ==============================================================================
+# WELLNESS & SESSION ENDPOINTS
+# ==============================================================================
+
+@app.get(f"{settings.api_prefix}/driver/wellness", response_model=WellnessStatus)
+def get_wellness_status() -> WellnessStatus:
+    is_live = DRIVER_SESSION["is_live"]
+    start_time = DRIVER_SESSION["start_time"]
+    
+    drive_minutes = 0
+    if is_live:
+        elapsed_seconds = (datetime.utcnow() - start_time).total_seconds()
+        drive_minutes = int(elapsed_seconds * 0.25)
+
+    fatigue_level = "low"
+    if drive_minutes >= 120:
+        fatigue_level = "high"
+    elif drive_minutes >= 60:
+        fatigue_level = "moderate"
+
+    is_filling = drive_minutes >= 30 and drive_minutes < 120
+    
+    progress = 0.0
+    if drive_minutes >= 30:
+        progress = min(1.0, (drive_minutes - 30) / 90.0)
+
+    return WellnessStatus(
+        drive_minutes=drive_minutes,
+        fatigue_level=fatigue_level,
+        is_live=is_live,
+        is_filling=is_filling,
+        progress=progress
+    )
+
+
+@app.post(f"{settings.api_prefix}/driver/session")
+def toggle_session(toggle: SessionToggle):
+    DRIVER_SESSION["is_live"] = toggle.is_live
+    if toggle.is_live:
+        DRIVER_SESSION["start_time"] = datetime.utcnow()
+    return {"status": "updated", "is_live": toggle.is_live}
+

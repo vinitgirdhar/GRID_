@@ -133,3 +133,15 @@ class WeatherResponse(BaseModel):
     cloud: int
     demand_impact: str
     impact_score: float
+
+
+class WellnessStatus(BaseModel):
+    drive_minutes: int
+    fatigue_level: str
+    is_live: bool
+    is_filling: bool
+    progress: float
+
+
+class SessionToggle(BaseModel):
+    is_live: bool

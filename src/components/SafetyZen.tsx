@@ -19,21 +19,48 @@ const WELLNESS_TIPS = [
   "Adjust your seat posture — your back will thank you.",
 ];
 
-export default function SafetyZen() {
+export default function SafetyZen({ isLive }: { isLive?: boolean }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [prevIsLive, setPrevIsLive] = useState(isLive);
+  const [isFilling, setIsFilling] = useState(false);
+  const [showBreakModal, setShowBreakModal] = useState(false);
   const [phase, setPhase] = useState<ZenPhase>('idle');
   const [cycleCount, setCycleCount] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
   const [tip] = useState(() => WELLNESS_TIPS[Math.floor(Math.random() * WELLNESS_TIPS.length)]);
   const [driveMinutes, setDriveMinutes] = useState(0);
+  const [progress, setProgress] = useState(0);
 
-  // Track drive time (mock — increments every minute the app is open)
+  // Sync with Backend Wellness Simulation
   useEffect(() => {
-    const timer = setInterval(() => {
-      setDriveMinutes((prev) => prev + 1);
-    }, 60000);
-    return () => clearInterval(timer);
-  }, []);
+    const fetchWellness = async () => {
+      try {
+        const res = await fetch('http://localhost:8000/api/driver/wellness');
+        if (!res.ok) return;
+        const data = await res.json();
+        
+        setDriveMinutes(data.drive_minutes);
+        setIsFilling(data.is_filling);
+        setProgress(data.progress);
+        
+        // Trigger break modal if we just finished filling (progress 1.0)
+        if (data.progress >= 1.0 && !showBreakModal && data.is_live) {
+          setShowBreakModal(true);
+        }
+      } catch (e) {
+        // Fallback to local if backend is down
+      }
+    };
+
+    const poll = setInterval(fetchWellness, 2000); // Poll every 2s
+    fetchWellness();
+    return () => clearInterval(poll);
+  }, [showBreakModal]);
+
+  // Detect Offline -> Online transition for "Filling" animation is now handled by backend
+  useEffect(() => {
+    setPrevIsLive(isLive);
+  }, [isLive, prevIsLive]);
 
   const runBreathingCycle = useCallback(() => {
     let cycleIndex = 0;
@@ -86,7 +113,7 @@ export default function SafetyZen() {
       <motion.button
         onClick={() => setIsOpen(true)}
         className={cn(
-          'fixed bottom-40 right-7 md:bottom-24 md:right-9 w-12 h-12 rounded-full shadow-lg flex items-center justify-center z-[60] transition-colors',
+          'fixed bottom-40 right-7 md:bottom-24 md:right-9 w-12 h-12 rounded-full shadow-lg flex items-center justify-center z-[60] transition-colors overflow-hidden',
           fatigueLevel === 'high'
             ? 'bg-[var(--danger)] text-white animate-pulse'
             : 'bg-[var(--surface)] border border-[var(--border)] text-[var(--danger)] hover:bg-red-50'
@@ -95,7 +122,29 @@ export default function SafetyZen() {
         whileTap={{ scale: 0.92 }}
         title="Driver Wellness"
       >
-        <Heart className="w-5 h-5" />
+        <Heart className="w-5 h-5 relative z-10" />
+        
+        {/* Wavy Water Fill Animation (Now Dynamic via Backend Progress) */}
+        <AnimatePresence>
+          {isFilling && (
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: `${100 - (progress * 100)}%` }} // Fills up based on progress
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-blue-500/40 z-0"
+              style={{
+                borderRadius: '50%',
+                backgroundImage: 'linear-gradient(0deg, rgba(37,99,235,0.6) 0%, rgba(37,99,235,0) 100%)'
+              }}
+            >
+              <motion.div 
+                className="absolute top-0 left-[-50%] w-[200%] h-8 bg-blue-400/50 rounded-[40%]"
+                animate={{ rotate: 360, x: [0, 20, 0] }}
+                transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.button>
 
       <AnimatePresence>
@@ -216,6 +265,39 @@ export default function SafetyZen() {
                   {isRunning ? 'Breathing in progress...' : phase === 'done' ? 'Start Again' : 'Start Breathing Exercise'}
                 </motion.button>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Break Recommendation Modal */}
+      <AnimatePresence>
+        {showBreakModal && (
+          <motion.div
+            className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="w-full max-w-xs bg-[var(--surface)] rounded-2xl shadow-2xl border border-[var(--border)] p-6 text-center"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+            >
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Coffee className="w-8 h-8 text-blue-600" />
+              </div>
+              <h3 className="text-lg font-bold text-[var(--text-primary)] mb-2">Break Recommended</h3>
+              <p className="text-sm text-[var(--text-secondary)] mb-6">
+                You're back online! To stay sharp, we recommend taking a <span className="text-blue-600 font-bold">10-minute break</span> before your first ride of the session.
+              </p>
+              <button
+                onClick={() => setShowBreakModal(false)}
+                className="w-full py-3 bg-[var(--primary)] text-white font-bold rounded-xl shadow-lg shadow-[var(--primary)]/20"
+              >
+                Got it
+              </button>
             </motion.div>
           </motion.div>
         )}

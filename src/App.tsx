@@ -76,6 +76,7 @@ export default function App() {
   
   // Copilot Navigation State
   const [copilotDest, setCopilotDest] = useState<string | null>(null);
+  const [isLive, setIsLive] = useState(true);
 
   useEffect(() => {
     const handleCopilotNav = (e: any) => {
@@ -124,11 +125,11 @@ export default function App() {
       }
     } else {
       switch (activePage) {
-        case 'overview': return <DriverOverview currentHour={currentHour} />;
+        case 'overview': return <DriverOverview currentHour={currentHour} isLive={isLive} setIsLive={setIsLive} />;
         case 'go-for-ride': return <GoForRide copilotZoneId={copilotDest} />;
         case 'where-next': return <DemandPrediction />;
         case 'driver-performance': return <DriverPerformance />;
-        default: return <DriverOverview currentHour={currentHour} />;
+        default: return <DriverOverview currentHour={currentHour} isLive={isLive} setIsLive={setIsLive} />;
       }
     }
   };
@@ -354,7 +355,7 @@ export default function App() {
 
       {/* Voice Pilot + Safety Zen — rendered for driver on ALL screen sizes */}
       {userRole === 'driver' && <VoicePilot />}
-      {userRole === 'driver' && <SafetyZen />}
+      {userRole === 'driver' && <SafetyZen isLive={isLive} />}
     </div>
   );
 }

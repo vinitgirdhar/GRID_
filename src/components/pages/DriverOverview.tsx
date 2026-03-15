@@ -20,6 +20,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { getActiveHotspotPeriod, getForecast, getHotspots, getWeather } from '../../services/apiService';
 import { ForecastResponse, HotspotsResponse, Theme, WeatherResponse, ZoneDemand } from '../../types';
 import MapComponent from '../MapComponent';
+import { cn } from '../../lib/utils';
 
 const REFRESH_INTERVAL_MS = 20000;
 
@@ -38,7 +39,15 @@ function getEventFactor(level?: string) {
   return 1.0;
 }
 
-export default function DriverOverview({ currentHour }: { currentHour?: number }) {
+export default function DriverOverview({ 
+  currentHour,
+  isLive,
+  setIsLive
+}: { 
+  currentHour?: number;
+  isLive?: boolean;
+  setIsLive?: (val: boolean) => void;
+}) {
   const activeHour = currentHour ?? new Date().getHours();
   const [forecast, setForecast] = useState<ForecastResponse | null>(null);
   const [hotspots, setHotspots] = useState<HotspotsResponse | null>(null);
@@ -206,10 +215,34 @@ export default function DriverOverview({ currentHour }: { currentHour?: number }
             <Leaf size={13} />
             {ecoMode ? 'Eco On' : 'Eco'}
           </button>
-          <div className="flex items-center gap-2 text-xs font-bold text-[var(--success)] bg-[var(--success)]/10 px-3 py-1.5 rounded-full border border-[var(--success)]/20 shadow-sm">
-            <span className="w-2 h-2 bg-[var(--success)] rounded-full animate-pulse-soft"></span>
-            LIVE
-          </div>
+          <button
+            onClick={async () => {
+              const nextLive = !isLive;
+              setIsLive?.(nextLive);
+              try {
+                await fetch('http://localhost:8000/api/driver/session', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ is_live: nextLive }),
+                });
+              } catch (e) {
+                console.error('Failed to sync session with backend:', e);
+              }
+            }}
+            className={cn(
+              "flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-full border transition-all duration-300 shadow-sm",
+              isLive 
+                ? "text-[var(--success)] bg-[var(--success)]/10 border-[var(--success)]/20" 
+                : "text-[var(--text-muted)] bg-[var(--surface)] border-[var(--border)] hover:bg-[var(--secondary)]"
+            )}
+          >
+            <span className={cn(
+              "w-2 h-2 rounded-full transition-all duration-300",
+              isLive ? "bg-[var(--success)] animate-pulse-soft" : "bg-[var(--text-muted)]"
+            )}></span>
+            {isLive ? 'LIVE' : 'OFFLINE'}
+          </button>
+
         </div>
       </div>
 
@@ -230,7 +263,13 @@ export default function DriverOverview({ currentHour }: { currentHour?: number }
           <AlertTriangle size={18} className="text-[var(--danger)] shrink-0" />
           <div className="flex-1">
             <p className="text-sm font-bold text-[var(--danger)]">🔥 Surge Alert: High demand in {primaryZone?.zone_name ?? 'your zone'}</p>
-            <p className="text-xs text-[var(--text-secondary)] mt-0.5">Position now for maximum earnings. Demand peaks at {activePeriod?.target_time ?? 'peak window'}.</p>
+            <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+              Position now for maximum earnings. Demand peaks at {' '}
+              <span className="font-bold text-[var(--danger)]">
+                {dynamicPeak ? `${dynamicPeak.hour % 12 || 12}:00 ${dynamicPeak.hour >= 12 ? 'PM' : 'AM'}` : 'peak window'}
+              </span> {' '}
+              in your area.
+            </p>
           </div>
         </div>
       )}
