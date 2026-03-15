@@ -1,9 +1,71 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Calendar, Clock, MapPin, Sparkles, AlertCircle, Cloud, Zap, BrainCircuit } from 'lucide-react';
+import { Calendar, Clock, MapPin, Sparkles, AlertCircle, Cloud, Zap, BrainCircuit, Music, Trophy, Flame, Navigation } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { getActiveHotspotPeriod, getHotspots, getPrediction } from '../../services/apiService';
 import { HotspotZone, PredictionResponse } from '../../types';
+
+// Simulated live NYC events for AI strategy (displayed even without backend)
+const LIVE_EVENTS = [
+  { id: 1, name: 'Madison Square Garden Concert', zone: 'Midtown', surge: '+28%', type: 'music', icon: Music, color: 'text-purple-500', bg: 'bg-purple-500/10 border-purple-500/20', time: '9:00 PM' },
+  { id: 2, name: 'Yankees Game – Yankee Stadium', zone: 'Bronx', surge: '+18%', type: 'sports', icon: Trophy, color: 'text-blue-500', bg: 'bg-blue-500/10 border-blue-500/20', time: '7:30 PM' },
+  { id: 3, name: 'Heavy Rain Advisory', zone: 'All Boroughs', surge: '+12%', type: 'weather', icon: Cloud, color: 'text-sky-500', bg: 'bg-sky-500/10 border-sky-500/20', time: 'Now' },
+];
+
+function SmartStrategyCard({ prediction, zoneName }: { prediction: PredictionResponse; zoneName: string }) {
+  const matchedEvent = LIVE_EVENTS.find(e => zoneName.toLowerCase().includes(e.zone.toLowerCase()) || e.zone === 'All Boroughs');
+  const baseAdvice = prediction.demand_level === 'High'
+    ? `Demand is peaking in ${zoneName}. Position near transit hubs for fastest pickup.`
+    : `Moderate demand in ${zoneName}. Consider moving to adjacent high-demand zones.`;
+
+  const surgeTotal = matchedEvent ? parseInt(matchedEvent.surge) + (prediction.predicted_demand > 50 ? 8 : 3) : 0;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="glass-card p-6 border border-[var(--primary)]/20 bg-[var(--primary)]/3"
+    >
+      <div className="flex items-center gap-2 mb-4">
+        <div className="p-2 bg-[var(--primary)]/10 rounded-xl">
+          <Flame className="w-5 h-5 text-[var(--primary-dark)]" />
+        </div>
+        <div>
+          <h3 className="font-bold text-[var(--text-primary)]">AI Smart Strategy</h3>
+          <p className="text-xs text-[var(--text-secondary)]">Event-driven recommendation</p>
+        </div>
+        <span className="ml-auto px-2 py-1 bg-[var(--primary)]/10 text-[var(--primary-dark)] text-[10px] font-black rounded uppercase border border-[var(--primary)]/20">
+          Live
+        </span>
+      </div>
+
+      <p className="text-sm text-[var(--text-primary)] leading-relaxed mb-4">{baseAdvice}</p>
+
+      {matchedEvent && (
+        <div className={cn('p-3 rounded-xl border mb-4', matchedEvent.bg)}>
+          <div className="flex items-center gap-2 mb-1">
+            <matchedEvent.icon size={14} className={matchedEvent.color} />
+            <span className="text-xs font-bold text-[var(--text-primary)]">{matchedEvent.name}</span>
+            <span className="ml-auto text-[10px] font-black text-[var(--warning)]">{matchedEvent.time}</span>
+          </div>
+          <p className="text-xs text-[var(--text-secondary)]">
+            Estimated demand lift near <span className="font-bold text-[var(--text-primary)]">{matchedEvent.zone}</span>:
+            <span className={cn('font-black ml-1', matchedEvent.color)}>{matchedEvent.surge}</span>
+          </p>
+        </div>
+      )}
+
+      <div className="flex items-center gap-3 p-3 bg-[var(--success)]/5 border border-[var(--success)]/20 rounded-xl">
+        <Navigation size={16} className="text-[var(--success)] shrink-0" />
+        <p className="text-xs font-semibold text-[var(--text-primary)]">
+          GRID recommends: <span className="text-[var(--success)] font-black">
+            {matchedEvent ? `Head to ${matchedEvent.zone} — ${surgeTotal}% surge opportunity` : `Stay in ${zoneName} for continued high demand`}
+          </span>
+        </p>
+      </div>
+    </motion.div>
+  );
+}
 
 function getDefaultDate() {
   return new Date().toISOString().split('T')[0];
@@ -286,6 +348,37 @@ export default function DemandPrediction() {
           </div>
         </div>
       </div>
+
+      {/* Live Events Feed */}
+      <div className="glass-card p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Flame className="w-5 h-5 text-[var(--warning)]" />
+          <h2 className="text-lg font-bold text-[var(--text-primary)]">Live City Events</h2>
+          <span className="ml-auto flex items-center gap-1.5 text-xs font-bold text-[var(--success)] bg-[var(--success)]/10 px-2 py-1 rounded-full border border-[var(--success)]/20">
+            <span className="w-1.5 h-1.5 bg-[var(--success)] rounded-full animate-pulse" />
+            LIVE
+          </span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {LIVE_EVENTS.map((event) => (
+            <div key={event.id} className={`p-4 rounded-2xl border ${event.bg}`}>
+              <div className="flex items-center gap-2 mb-2">
+                <event.icon size={16} className={event.color} />
+                <span className="text-xs font-black text-[var(--text-primary)] leading-tight">{event.name}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-[var(--text-secondary)] font-medium">{event.zone} · {event.time}</span>
+                <span className={`text-xs font-black ${event.color}`}>{event.surge}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Smart Strategy Card (shown when prediction exists) */}
+      {prediction && (
+        <SmartStrategyCard prediction={prediction} zoneName={prediction.zone_name} />
+      )}
     </div>
   );
 }

@@ -149,23 +149,64 @@ export default function VoicePilot() {
 
   return (
     <>
-      {/* Floating Action Button */}
+      {/* Floating AI Orb Button */}
       <motion.button
         onClick={(e) => { e.stopPropagation(); e.preventDefault(); toggleMic(); }}
-        className={cn(
-          "fixed bottom-24 right-6 md:bottom-8 md:right-8 w-14 h-14 rounded-full shadow-lg flex items-center justify-center z-[60] transition-colors",
-          voiceState === 'listening' ? "bg-[var(--danger)] text-white" :
-          voiceState === 'speaking' ? "bg-[var(--primary)] text-[var(--accent)]" :
-          "bg-[var(--surface)] border border-[var(--border)] text-[var(--text-primary)] hover:bg-[var(--secondary)]"
-        )}
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
+        className="fixed bottom-24 right-6 md:bottom-8 md:right-8 w-14 h-14 rounded-full flex items-center justify-center z-[60]"
+        whileHover={{ scale: 1.08 }}
+        whileTap={{ scale: 0.92 }}
+        title="GRID Voice Copilot"
       >
-        <Mic className={cn("w-6 h-6", voiceState === 'listening' && "animate-pulse")} />
+        {/* Pulsing Outer Rings */}
         {voiceState === 'listening' && (
-          <span className="absolute inset-0 rounded-full border-2 border-[var(--danger)] animate-ping opacity-75" />
+          <>
+            <motion.span
+              className="absolute inset-0 rounded-full bg-[var(--danger)]"
+              animate={{ scale: [1, 1.6, 1], opacity: [0.4, 0, 0.4] }}
+              transition={{ duration: 1.5, repeat: Infinity, ease: 'easeOut' }}
+            />
+            <motion.span
+              className="absolute inset-0 rounded-full bg-[var(--danger)]"
+              animate={{ scale: [1, 1.35, 1], opacity: [0.5, 0, 0.5] }}
+              transition={{ duration: 1.5, delay: 0.3, repeat: Infinity, ease: 'easeOut' }}
+            />
+          </>
         )}
+        {voiceState === 'speaking' && (
+          <motion.span
+            className="absolute inset-0 rounded-full border-2 border-[var(--primary)]"
+            animate={{ scale: [1, 1.4, 1], opacity: [0.7, 0, 0.7] }}
+            transition={{ duration: 1.2, repeat: Infinity, ease: 'easeOut' }}
+          />
+        )}
+        {voiceState === 'computing' && (
+          <motion.span
+            className="absolute inset-0 rounded-full border-2 border-t-[var(--primary)] border-transparent"
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+            style={{ borderRadius: '100%' }}
+          />
+        )}
+        {/* Core Orb */}
+        <div className={cn(
+          'w-14 h-14 rounded-full flex items-center justify-center shadow-xl transition-all duration-300',
+          voiceState === 'listening'
+            ? 'bg-gradient-to-br from-[var(--danger)] to-rose-600 shadow-rose-500/40'
+            : voiceState === 'speaking'
+              ? 'bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] shadow-[var(--primary)]/40'
+            : voiceState === 'computing'
+              ? 'bg-gradient-to-br from-[var(--primary-dark)] to-purple-700 shadow-purple-500/30'
+            : 'bg-[var(--surface)] border border-[var(--border)] shadow-[var(--shadow-sm)]'
+        )}>
+          <Mic className={cn(
+            'w-6 h-6 transition-all',
+            (voiceState === 'listening' || voiceState === 'speaking' || voiceState === 'computing')
+              ? 'text-white'
+              : 'text-[var(--text-primary)]'
+          )} />
+        </div>
       </motion.button>
+
 
       {/* Voice Assistant Overlay UI */}
       <AnimatePresence>

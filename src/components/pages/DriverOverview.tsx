@@ -11,8 +11,11 @@ import {
   Calendar,
   MapPin,
   Clock,
-  X
+  X,
+  Leaf,
+  AlertTriangle
 } from 'lucide-react';
+
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { getActiveHotspotPeriod, getForecast, getHotspots, getWeather } from '../../services/apiService';
 import { ForecastResponse, HotspotsResponse, Theme, WeatherResponse, ZoneDemand } from '../../types';
@@ -43,6 +46,7 @@ export default function DriverOverview({ currentHour }: { currentHour?: number }
   const [error, setError] = useState<string | null>(null);
   const [theme, setTheme] = useState<Theme>('dark');
   const [expandedCard, setExpandedCard] = useState<'demand' | 'weather' | 'event' | null>(null);
+  const [ecoMode, setEcoMode] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -193,11 +197,43 @@ export default function DriverOverview({ currentHour }: { currentHour?: number }
           <h1 className="text-3xl font-black tracking-tight text-[var(--accent)]">Intelligence</h1>
           <p className="text-[var(--text-secondary)] mt-1 font-medium">Urban demand & awareness &middot; <span className="text-[var(--primary-dark)] font-bold">{timeLabel}</span></p>
         </div>
-        <div className="flex items-center gap-2 text-xs font-bold text-[var(--success)] bg-[var(--success)]/10 px-3 py-1.5 rounded-full border border-[var(--success)]/20 shadow-sm">
-          <span className="w-2 h-2 bg-[var(--success)] rounded-full animate-pulse-soft"></span>
-          LIVE
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setEcoMode((prev) => !prev)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-bold transition-all duration-200 ${ecoMode ? 'bg-green-500/15 border-green-500/30 text-green-600' : 'bg-[var(--surface)] border-[var(--border)] text-[var(--text-secondary)]'}`}
+            title="Toggle Eco-Mode"
+          >
+            <Leaf size={13} />
+            {ecoMode ? 'Eco On' : 'Eco'}
+          </button>
+          <div className="flex items-center gap-2 text-xs font-bold text-[var(--success)] bg-[var(--success)]/10 px-3 py-1.5 rounded-full border border-[var(--success)]/20 shadow-sm">
+            <span className="w-2 h-2 bg-[var(--success)] rounded-full animate-pulse-soft"></span>
+            LIVE
+          </div>
         </div>
       </div>
+
+      {/* Eco Mode Banner */}
+      {ecoMode && (
+        <div className="p-4 rounded-2xl bg-green-500/10 border border-green-500/20 flex items-center gap-3">
+          <Leaf size={18} className="text-green-500 shrink-0" />
+          <div>
+            <p className="text-sm font-bold text-green-700 dark:text-green-400">Eco-Mode Active</p>
+            <p className="text-xs text-[var(--text-secondary)] mt-0.5">GRID is routing you through fuel-efficient, low-idle paths. Estimated CO₂ saved today: <span className="font-bold text-green-600">1.2 kg</span>.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Urgency AI Banner (when high demand is expected) */}
+      {primaryZone?.demand_level === 'High' && (
+        <div className="p-4 rounded-2xl bg-[var(--danger)]/8 border border-[var(--danger)]/20 flex items-center gap-3">
+          <AlertTriangle size={18} className="text-[var(--danger)] shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-bold text-[var(--danger)]">🔥 Surge Alert: High demand in {primaryZone?.zone_name ?? 'your zone'}</p>
+            <p className="text-xs text-[var(--text-secondary)] mt-0.5">Position now for maximum earnings. Demand peaks at {activePeriod?.target_time ?? 'peak window'}.</p>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="glass-card p-6 border border-danger/20 text-danger">

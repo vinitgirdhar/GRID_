@@ -35,6 +35,7 @@ import GoForRide from './components/pages/GoForRide';
 import DriverPerformance from './components/pages/DriverPerformance';
 import Login from './components/Login';
 import VoicePilot from './components/VoicePilot';
+import SafetyZen from './components/SafetyZen';
 
 const ADMIN_ITEMS = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -351,8 +352,9 @@ export default function App() {
         </main>
       )}
 
-      {/* Voice Pilot — rendered for driver on ALL screen sizes */}
+      {/* Voice Pilot + Safety Zen — rendered for driver on ALL screen sizes */}
       {userRole === 'driver' && <VoicePilot />}
+      {userRole === 'driver' && <SafetyZen />}
     </div>
   );
 }
