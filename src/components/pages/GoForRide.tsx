@@ -216,7 +216,7 @@ export default function GoForRide({ copilotZoneId }: { copilotZoneId?: string | 
 
                 {/* Quick Destinations */}
                 {!destinationModeActive && (
-                  <div className="flex gap-2 pt-1">
+                  <div className="flex flex-wrap gap-2 pt-1">
                     <button
                       onClick={() => setDestination('Home')}
                       className="px-3 py-1.5 text-xs font-bold rounded-lg border border-[var(--border)] bg-[var(--background)] text-[var(--text-secondary)] hover:text-primary hover:border-primary/50 transition-colors"

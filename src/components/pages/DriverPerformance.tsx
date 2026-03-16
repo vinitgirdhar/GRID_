@@ -63,13 +63,13 @@ export default function DriverPerformance() {
       </div>
 
       {/* Earnings Chart */}
-      <div className="glass-card p-8">
-        <div className="flex items-center justify-between mb-8">
+      <div className="glass-card p-6 sm:p-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div className="flex items-center gap-2">
             <DollarSign className="text-primary w-5 h-5" />
             <h2 className="text-xl font-bold text-[var(--text-primary)]">Weekly Earnings Trend</h2>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button className="px-4 py-1.5 bg-primary text-white text-xs font-bold rounded-lg shadow-lg shadow-primary/20">Weekly</button>
             <button className="px-4 py-1.5 bg-[var(--background)] text-[var(--text-secondary)] text-xs font-bold rounded-lg border border-[var(--border)]">Monthly</button>
           </div>
@@ -126,7 +126,7 @@ export default function DriverPerformance() {
           </div>
         </div>
 
-        <div className="glass-card p-8 flex flex-col items-center justify-center text-center space-y-6">
+        <div className="glass-card p-6 sm:p-8 flex flex-col items-center justify-center text-center space-y-6">
           <div className="w-24 h-24 rounded-full border-8 border-primary/10 border-t-primary flex items-center justify-center relative">
             <span className="text-2xl font-black text-primary">8.8</span>
             <div className="absolute -top-2 -right-2 w-8 h-8 bg-success rounded-full flex items-center justify-center border-4 border-[var(--card)] shadow-lg">
@@ -147,7 +147,7 @@ export default function DriverPerformance() {
 
       {/* Achievements & Badges */}
       <div className="glass-card p-6">
-        <div className="flex items-center gap-2 mb-6">
+        <div className="flex flex-wrap items-center gap-2 mb-6">
           <div className="p-2 bg-yellow-500/10 rounded-xl">
             <Trophy className="w-5 h-5 text-yellow-500" />
           </div>
@@ -155,7 +155,7 @@ export default function DriverPerformance() {
             <h3 className="font-bold text-[var(--text-primary)]">Achievements & Badges</h3>
             <p className="text-xs text-[var(--text-secondary)]">3 of 6 unlocked</p>
           </div>
-          <div className="ml-auto px-3 py-1 bg-yellow-500/10 border border-yellow-500/20 rounded-full">
+          <div className="sm:ml-auto px-3 py-1 bg-yellow-500/10 border border-yellow-500/20 rounded-full">
             <span className="text-xs font-black text-yellow-500">Level 12 Driver</span>
           </div>
         </div>

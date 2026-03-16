@@ -143,7 +143,10 @@ export default function App() {
       <motion.aside
         initial={false}
         animate={{ width: isSidebarCollapsed ? 80 : 260 }}
-        className="fixed left-0 top-0 h-full bg-[var(--surface)] border-r border-[var(--border)] z-50 flex flex-col shadow-sm"
+        className={cn(
+          "fixed left-0 top-0 h-full bg-[var(--surface)] border-r border-[var(--border)] z-50 flex-col shadow-sm",
+          userRole === 'driver' ? 'hidden lg:flex' : 'flex',
+        )}
       >
         <div className="p-6 flex items-center justify-between">
           {!isSidebarCollapsed && (
@@ -200,6 +203,20 @@ export default function App() {
         </nav>
 
         <div className="p-4 border-t border-[var(--border)] flex flex-col gap-3">
+          {userRole === 'driver' && !isSidebarCollapsed && (
+            <div className="flex items-center justify-between px-2 py-2 bg-[var(--primary)]/10 rounded-xl border border-[var(--primary)]/20">
+              <div className="flex items-center gap-2">
+                <Clock size={14} className="text-[var(--primary-dark)]" />
+                <MobileClock />
+              </div>
+              <span className="text-[10px] font-bold text-[var(--success)] uppercase tracking-wider">Live</span>
+            </div>
+          )}
+          {userRole === 'driver' && isSidebarCollapsed && (
+            <div className="w-10 h-10 mx-auto rounded-full bg-[var(--primary)]/10 border border-[var(--primary)]/20 flex items-center justify-center">
+              <Clock size={14} className="text-[var(--primary-dark)]" />
+            </div>
+          )}
           {userRole === 'driver' && isLive && (
             <DrowsinessMonitor isLive={isLive} collapsed={isSidebarCollapsed} />
           )}
@@ -248,10 +265,12 @@ export default function App() {
 
       <div className={cn(
         "flex-1 flex flex-col min-h-screen transition-all duration-300 relative",
-        isSidebarCollapsed ? "ml-[80px]" : "ml-[260px]"
+        userRole === 'driver'
+          ? (isSidebarCollapsed ? "lg:ml-[80px]" : "lg:ml-[260px]")
+          : (isSidebarCollapsed ? "ml-[80px]" : "ml-[260px]")
       )}>
         {userRole === 'driver' && (
-          <div className="md:hidden fixed top-0 left-0 right-0 p-6 flex justify-between items-center z-40 pointer-events-none">
+          <div className="lg:hidden fixed top-0 left-0 right-0 p-4 sm:p-6 flex justify-between items-center z-40 pointer-events-none gap-3">
             <div className="flex items-center gap-2 pointer-events-auto shadow-md bg-white rounded-full p-1 pl-4 pr-1">
               <MobileClock />
               <div className="w-8 h-8 rounded-full bg-[var(--primary)] flex items-center justify-center">
@@ -274,7 +293,7 @@ export default function App() {
 
         <main className={cn(
           "flex-1 w-full max-w-7xl mx-auto px-4 md:px-8 overflow-y-auto",
-          userRole === 'driver' ? "pt-24 pb-32 md:pb-8 md:pt-12" : "pt-12 pb-8"
+          userRole === 'driver' ? "pt-24 pb-32 lg:pb-8 lg:pt-12" : "pt-12 pb-8"
         )}>
           <AnimatePresence mode="wait">
             <motion.div
@@ -291,7 +310,7 @@ export default function App() {
         </main>
 
         {userRole === 'driver' && (
-          <div className="md:hidden fixed bottom-6 left-0 right-0 flex justify-center z-50 pointer-events-none">
+          <div className="lg:hidden fixed bottom-4 sm:bottom-6 left-0 right-0 flex justify-center z-50 pointer-events-none px-3">
             <div className="nav-pill pointer-events-auto">
               {DRIVER_ITEMS.map((item) => (
                 <div

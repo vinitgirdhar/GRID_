@@ -130,7 +130,7 @@ export default function SafetyZen({ isLive }: { isLive?: boolean }) {
       <motion.button
         onClick={() => setIsOpen(true)}
         className={cn(
-          'fixed bottom-40 right-7 md:bottom-24 md:right-9 w-12 h-12 rounded-full shadow-lg flex items-center justify-center z-[60] transition-colors overflow-hidden',
+          'fixed bottom-44 right-4 sm:right-6 lg:bottom-24 lg:right-9 w-12 h-12 rounded-full shadow-lg flex items-center justify-center z-[60] transition-colors overflow-hidden',
           fatigueLevel === 'high'
             ? 'bg-[var(--danger)] text-white animate-pulse'
             : 'bg-[var(--surface)] border border-[var(--border)] text-[var(--danger)] hover:bg-red-50'

@@ -151,7 +151,7 @@ export default function DemandPrediction() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Left Panel: Input */}
         <div className="lg:col-span-5">
-          <div className="glass-card p-8 space-y-6">
+          <div className="glass-card p-5 sm:p-8 space-y-6">
             <div className="flex items-center gap-2 mb-2">
               <Sparkles className="text-primary w-5 h-5" />
               <h2 className="text-xl font-semibold text-[var(--text-primary)]">Forecast Parameters</h2>
@@ -249,7 +249,7 @@ export default function DemandPrediction() {
 
         {/* Right Panel: Output */}
         <div className="lg:col-span-7">
-          <div className="glass-card p-8 h-full flex flex-col items-center justify-center relative overflow-hidden">
+          <div className="glass-card p-5 sm:p-8 h-full flex flex-col items-center justify-center relative overflow-hidden">
             <AnimatePresence mode="wait">
               {!prediction && !isPredicting && (
                 <motion.div
@@ -301,13 +301,13 @@ export default function DemandPrediction() {
                 >
                   <div className="text-center">
                     <p className="text-sm font-medium text-[var(--text-secondary)] uppercase tracking-widest mb-2">Predicted Demand</p>
-                    <div className="text-7xl font-bold text-primary tracking-tighter">
+                    <div className="text-5xl sm:text-7xl font-bold text-primary tracking-tighter break-words">
                       {prediction.predicted_demand.toLocaleString()}
-                      <span className="text-2xl font-medium text-[var(--text-secondary)] ml-2">Trips</span>
+                      <span className="block sm:inline text-xl sm:text-2xl font-medium text-[var(--text-secondary)] sm:ml-2">Trips</span>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="bg-[var(--background)] rounded-2xl p-4 text-center border border-[var(--border)]">
                       <AlertCircle className="w-5 h-5 text-warning mx-auto mb-2" />
                       <p className="text-[10px] text-[var(--text-secondary)] uppercase font-bold">Demand Level</p>

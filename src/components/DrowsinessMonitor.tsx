@@ -117,8 +117,6 @@ export default function DrowsinessMonitor({
   const visual = severityClasses(activeStatus.severity);
   const Icon = monitorIcon(status, error);
   const statusLabel = activeStatus.alarm_active ? 'ALERT' : activeStatus.severity.toUpperCase();
-  const message = truncate(activeStatus.assistant_response, 96);
-
   if (collapsed) {
     return (
       <div
@@ -137,41 +135,35 @@ export default function DrowsinessMonitor({
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className={cn('rounded-2xl border p-3 shadow-sm', visual.panel)}
+      className={cn('rounded-xl border px-3 py-2.5 shadow-sm', visual.panel)}
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
-          <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center shrink-0', visual.icon)}>
-            <Icon size={17} />
+          <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center shrink-0', visual.icon)}>
+            <Icon size={16} />
           </div>
           <div className="min-w-0">
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)]">Drowsiness</p>
-            <p className="text-sm font-bold text-[var(--text-primary)] truncate">{activeStatus.status}</p>
+            <p className="text-[9px] font-black uppercase tracking-[0.22em] text-[var(--text-muted)]">Drowsiness</p>
+            <p className="text-sm font-bold text-[var(--text-primary)] truncate">{truncate(activeStatus.status, 26)}</p>
           </div>
         </div>
-        <span className={cn('px-2 py-1 rounded-full text-[9px] font-black tracking-widest shrink-0', visual.badge)}>
+        <span className={cn('px-2 py-1 rounded-full text-[8px] font-black tracking-widest shrink-0', visual.badge)}>
           {statusLabel}
         </span>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 mt-3">
-        <div className="rounded-xl bg-white/60 border border-white/50 px-3 py-2">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">EAR</p>
-          <p className="text-sm font-bold text-[var(--text-primary)]">
+      <div className="grid grid-cols-2 gap-2 mt-2.5">
+        <div className="rounded-lg bg-white/60 border border-white/50 px-2.5 py-2">
+          <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-[var(--text-muted)]">EAR</p>
+          <p className="text-sm font-bold text-[var(--text-primary)] leading-tight">
             {typeof activeStatus.ear === 'number' ? activeStatus.ear.toFixed(3) : '--'}
           </p>
         </div>
-        <div className="rounded-xl bg-white/60 border border-white/50 px-3 py-2">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Closed</p>
-          <p className="text-sm font-bold text-[var(--text-primary)]">{activeStatus.eyes_closed_seconds.toFixed(1)}s</p>
+        <div className="rounded-lg bg-white/60 border border-white/50 px-2.5 py-2">
+          <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-[var(--text-muted)]">Closed</p>
+          <p className="text-sm font-bold text-[var(--text-primary)] leading-tight">{activeStatus.eyes_closed_seconds.toFixed(1)}s</p>
         </div>
       </div>
-
-      {message && (
-        <p className="mt-3 text-[11px] leading-relaxed text-[var(--text-secondary)]">
-          {message}
-        </p>
-      )}
     </motion.div>
   );
 }

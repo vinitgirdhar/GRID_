@@ -173,6 +173,15 @@
   align-items: center;
   gap: 8px;
   border: 1px solid rgba(255, 255, 255, 0.3);
+  width: fit-content;
+  max-width: calc(100vw - 24px);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.nav-pill::-webkit-scrollbar {
+  display: none;
 }
 
 .nav-pill-item {
@@ -185,6 +194,7 @@
   color: var(--text-secondary);
   transition: all 0.3s ease;
   cursor: pointer;
+  flex: 0 0 auto;
 }
 
 .nav-pill-item.active {

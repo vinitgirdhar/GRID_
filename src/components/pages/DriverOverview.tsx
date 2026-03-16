@@ -280,7 +280,7 @@ export default function DriverOverview({
         </div>
       )}
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         {liveKpis.map((kpi, idx) => (
           <div key={kpi.label} className="kpi-card">
             <div className="flex items-center justify-between mb-4">
@@ -322,7 +322,7 @@ export default function DriverOverview({
                 <span className="px-2 py-1 bg-[var(--danger)]/10 text-[var(--danger)] text-[10px] font-black rounded uppercase border border-[var(--danger)]/20">Critical</span>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <p className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-widest">Area</p>
                   <p className="text-sm font-bold text-[var(--text-primary)]">{primaryZone ? `${primaryZone.borough} - ${primaryZone.zone_name}` : '--'}</p>
@@ -397,7 +397,7 @@ export default function DriverOverview({
                 <span className="px-2 py-1 bg-slate-100 text-slate-600 text-[10px] font-black rounded uppercase border border-slate-200">Active Alert</span>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <p className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-widest">Area</p>
                   <p className="text-sm font-bold text-[var(--text-primary)]">{weather?.location_name ?? primaryZone?.borough ?? '--'}</p>
@@ -454,7 +454,7 @@ export default function DriverOverview({
                 <span className="px-2 py-1 bg-[var(--warning)]/10 text-[var(--warning)] text-[10px] font-black rounded uppercase border border-[var(--warning)]/20">Surge Risk</span>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <p className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-widest">Area</p>
                   <p className="text-sm font-bold text-[var(--text-primary)]">{activePeriod?.recommended_zones[0]?.zone_name ?? '--'}</p>
@@ -657,7 +657,7 @@ export default function DriverOverview({
 
               {expandedCard === 'weather' && (
                 <>
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border)] shadow-sm text-center">
                       <Thermometer className="mx-auto text-orange-500 mb-2 w-8 h-8" />
                       <p className="text-xs font-bold text-[var(--text-secondary)] uppercase">Temperature</p>

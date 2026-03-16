@@ -152,7 +152,7 @@ export default function VoicePilot() {
       {/* Floating AI Orb Button */}
       <motion.button
         onClick={(e) => { e.stopPropagation(); e.preventDefault(); toggleMic(); }}
-        className="fixed bottom-24 right-6 md:bottom-8 md:right-8 w-14 h-14 rounded-full flex items-center justify-center z-[60]"
+        className="fixed bottom-28 right-4 sm:right-6 lg:bottom-8 lg:right-8 w-14 h-14 rounded-full flex items-center justify-center z-[60]"
         whileHover={{ scale: 1.08 }}
         whileTap={{ scale: 0.92 }}
         title="GRID Voice Copilot"
@@ -215,7 +215,7 @@ export default function VoicePilot() {
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            className="fixed bottom-40 right-6 md:bottom-24 md:right-8 w-80 bg-[var(--surface)] border border-[var(--border)] shadow-2xl rounded-2xl p-5 z-[60] overflow-hidden"
+            className="fixed bottom-44 left-4 right-4 lg:left-auto lg:right-8 lg:bottom-24 w-auto lg:w-80 max-w-sm bg-[var(--surface)] border border-[var(--border)] shadow-2xl rounded-2xl p-5 z-[60] overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
