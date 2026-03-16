@@ -15,7 +15,9 @@ const FACE_LANDMARKER_MODEL_URL =
 const LEFT_EYE = [33, 160, 158, 133, 153, 144] as const;
 const RIGHT_EYE = [362, 385, 387, 263, 373, 380] as const;
 const EYE_RING = [0, 1, 2, 3, 4, 5, 0] as const;
+const MOUTH = [78, 81, 13, 311, 308, 402, 14, 178, 78] as const;
 const DEFAULT_THRESHOLD = 0.23;
+const YAWN_THRESHOLD = 0.06;
 const CLOSED_FRAME_THRESHOLD = 20;
 const CLOSED_SECONDS_THRESHOLD = 2;
 const POST_INTERVAL_MS = 900;
@@ -24,7 +26,11 @@ const CAMERA_START_TIMEOUT_MS = 12000;
 const FACE_MESH_LOAD_TIMEOUT_MS = 15000;
 
 type Landmark = { x: number; y: number; z?: number };
-type FaceLandmarkerResult = { faceLandmarks?: Landmark[][] };
+type BlendshapeCategory = { categoryName: string; score: number };
+type FaceLandmarkerResult = {
+  faceLandmarks?: Landmark[][];
+  faceBlendshapes?: Array<{ categories: BlendshapeCategory[] }>;
+};
 type FaceLandmarkerInstance = {
   detectForVideo: (video: HTMLVideoElement, timestampMs: number) => FaceLandmarkerResult;
   close?: () => void;
@@ -53,6 +59,25 @@ function computeEar(points: { x: number; y: number }[]) {
     return 0;
   }
   return (verticalOne + verticalTwo) / (2 * horizontal);
+}
+
+
+function computeMouthRatio(points: { x: number; y: number }[]) {
+  const vertical = distance(points[2], points[6]);
+  const horizontal = distance(points[0], points[4]);
+  if (!horizontal) {
+    return 0;
+  }
+  return vertical / horizontal;
+}
+
+
+function blendshapeScore(result: FaceLandmarkerResult | null, name: string) {
+  const categories = result?.faceBlendshapes?.[0]?.categories;
+  if (!categories) {
+    return 0;
+  }
+  return categories.find((category) => category.categoryName === name)?.score ?? 0;
 }
 
 
@@ -265,6 +290,7 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
   const audioContextRef = useRef<AudioContext | null>(null);
   const lastBuzzAtRef = useRef(0);
   const isMountedRef = useRef(true);
+  const latestResultRef = useRef<FaceLandmarkerResult | null>(null);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -415,8 +441,10 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
 
     const leftEye = LEFT_EYE.map((index) => points[index]);
     const rightEye = RIGHT_EYE.map((index) => points[index]);
+    const mouth = MOUTH.map((index) => points[index]);
     drawEyePath(context, leftEye, '#f59e0b');
     drawEyePath(context, rightEye, '#f59e0b');
+    drawEyePath(context, mouth, '#22c55e');
 
     if (next.alarm_active) {
       context.strokeStyle = 'rgba(239, 68, 68, 0.95)';
@@ -442,10 +470,11 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
       return;
     }
 
-    let result: FaceLandmarkerResult | null = null;
+    let result = latestResultRef.current;
     if (video.currentTime !== lastVideoTimeRef.current) {
       lastVideoTimeRef.current = video.currentTime;
       result = landmarker.detectForVideo(video, performance.now());
+      latestResultRef.current = result;
     }
 
     const next = buildPayload({
@@ -462,7 +491,11 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
       const points = result.faceLandmarks[0].map((landmark) => ({ x: landmark.x, y: landmark.y }));
       const leftEye = LEFT_EYE.map((index) => points[index]);
       const rightEye = RIGHT_EYE.map((index) => points[index]);
+      const mouth = MOUTH.map((index) => points[index]);
       const ear = (computeEar(leftEye) + computeEar(rightEye)) / 2;
+      const mouthRatio = computeMouthRatio(mouth);
+      const jawOpenScore = blendshapeScore(result, 'jawOpen');
+      const yawnDetected = mouthRatio >= YAWN_THRESHOLD || jawOpenScore >= 0.25;
 
       if (ear < DEFAULT_THRESHOLD) {
         consecutiveClosedFramesRef.current += 1;
@@ -481,14 +514,20 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
         consecutiveClosedFramesRef.current >= CLOSED_FRAME_THRESHOLD ||
         closedSeconds >= CLOSED_SECONDS_THRESHOLD;
 
-      next.status = alarmActive ? 'Drowsiness detected' : 'Face tracked live';
-      next.severity = alarmActive ? 'critical' : 'normal';
+      next.status = alarmActive
+        ? 'Drowsiness detected'
+        : yawnDetected
+          ? 'Yawning detected'
+          : 'Face tracked live';
+      next.severity = alarmActive ? 'critical' : yawnDetected ? 'warning' : 'normal';
       next.ear = Number(ear.toFixed(4));
       next.consecutive_closed_frames = consecutiveClosedFramesRef.current;
       next.eyes_closed_seconds = Number(closedSeconds.toFixed(2));
       next.alarm_active = alarmActive;
       next.assistant_response = alarmActive
         ? 'Eyes closed too long. Pull over safely and take a break.'
+        : yawnDetected
+          ? 'Yawning detected. Stay alert, breathe deeply, and consider a short break soon.'
         : 'Face mesh is tracking live. Blink naturally and keep your eyes open.';
     } else {
       consecutiveClosedFramesRef.current = 0;
@@ -583,8 +622,12 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
       const faceLandmarker = await withTimeout(
         vision.FaceLandmarker.createFromOptions(visionFiles, {
           baseOptions: { modelAssetPath: FACE_LANDMARKER_MODEL_URL },
-          outputFaceBlendshapes: false,
+          outputFaceBlendshapes: true,
+          outputFacialTransformationMatrixes: true,
           runningMode: 'VIDEO',
+          minFaceDetectionConfidence: 0.25,
+          minFacePresenceConfidence: 0.25,
+          minTrackingConfidence: 0.25,
           numFaces: 1,
         }),
         25000,
@@ -653,6 +696,7 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
     closedSinceRef.current = null;
     consecutiveClosedFramesRef.current = 0;
     lastVideoTimeRef.current = -1;
+    latestResultRef.current = null;
     setCameraState('idle');
     setError(null);
 
