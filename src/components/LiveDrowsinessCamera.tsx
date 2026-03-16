@@ -45,6 +45,14 @@ type VisionBundleModule = {
   };
 };
 
+type SafetyLogTone = 'critical' | 'warning';
+type SafetyLogEntry = {
+  id: string;
+  time: string;
+  label: string;
+  tone: SafetyLogTone;
+};
+
 
 function distance(a: { x: number; y: number }, b: { x: number; y: number }) {
   return Math.hypot(a.x - b.x, a.y - b.y);
@@ -162,6 +170,14 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string)
   });
 }
 
+function formatLogTime(date: Date) {
+  return date.toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+}
+
 
 async function requestCameraStream(setLoadingStep: (value: string) => void) {
   console.log('[Camera] Starting stream request sequence...');
@@ -262,6 +278,7 @@ function waitForVideoMetadata(video: HTMLVideoElement, timeoutMs: number) {
 export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
   const [cameraState, setCameraState] = useState<'idle' | 'loading' | 'active' | 'error'>('idle');
   const [loadingStep, setLoadingStep] = useState<string>('');
+  const [eventLogs, setEventLogs] = useState<SafetyLogEntry[]>([]);
 
   const [status, setStatus] = useState<DrowsinessResponse>({
     status: 'Open camera to start live tracking',
@@ -291,6 +308,8 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
   const lastBuzzAtRef = useRef(0);
   const isMountedRef = useRef(true);
   const latestResultRef = useRef<FaceLandmarkerResult | null>(null);
+  const hasTrackedFaceRef = useRef(false);
+  const lastLoggedEventRef = useRef<string | null>(null);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -393,6 +412,18 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
     }
   }
 
+  function appendEventLog(label: string, tone: SafetyLogTone) {
+    const now = new Date();
+    const nextEntry: SafetyLogEntry = {
+      id: `${now.getTime()}-${label}`,
+      time: formatLogTime(now),
+      label,
+      tone,
+    };
+
+    setEventLogs((current) => [nextEntry, ...current].slice(0, 8));
+  }
+
   function drawOverlay(result: FaceLandmarkerResult | null, next: DrowsinessUpdatePayload) {
     const canvas = canvasRef.current;
     const video = videoRef.current;
@@ -487,7 +518,11 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
       assistant_response: 'Center your face in the camera for live tracking.',
     });
 
+    let eventLabel: string | null = null;
+    let eventTone: SafetyLogTone | null = null;
+
     if (result?.faceLandmarks?.length) {
+      hasTrackedFaceRef.current = true;
       const points = result.faceLandmarks[0].map((landmark) => ({ x: landmark.x, y: landmark.y }));
       const leftEye = LEFT_EYE.map((index) => points[index]);
       const rightEye = RIGHT_EYE.map((index) => points[index]);
@@ -529,9 +564,30 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
         : yawnDetected
           ? 'Yawning detected. Stay alert, breathe deeply, and consider a short break soon.'
         : 'Face mesh is tracking live. Blink naturally and keep your eyes open.';
+
+      if (alarmActive) {
+        eventLabel = 'Drowsiness detected';
+        eventTone = 'critical';
+      } else if (yawnDetected) {
+        eventLabel = 'Yawning detected';
+        eventTone = 'warning';
+      }
     } else {
       consecutiveClosedFramesRef.current = 0;
       closedSinceRef.current = null;
+      if (hasTrackedFaceRef.current) {
+        eventLabel = 'Driver distracted';
+        eventTone = 'warning';
+      }
+    }
+
+    if (eventLabel && eventTone) {
+      if (lastLoggedEventRef.current !== eventLabel) {
+        appendEventLog(eventLabel, eventTone);
+        lastLoggedEventRef.current = eventLabel;
+      }
+    } else {
+      lastLoggedEventRef.current = null;
     }
 
     drawOverlay(result, next);
@@ -697,6 +753,8 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
     consecutiveClosedFramesRef.current = 0;
     lastVideoTimeRef.current = -1;
     latestResultRef.current = null;
+    hasTrackedFaceRef.current = false;
+    lastLoggedEventRef.current = null;
     setCameraState('idle');
     setError(null);
 
@@ -854,6 +912,46 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
                 : status.assistant_response ?? 'Open the camera to start live facial landmark tracking and drowsiness detection.'}
             </p>
           </div>
+        </div>
+      </div>
+
+      <div className="mt-5 rounded-[24px] border border-[var(--border)] bg-[var(--surface)] p-5">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-[11px] font-black uppercase tracking-[0.24em] text-[var(--text-muted)]">Driver Safety Log</p>
+            <p className="text-sm text-[var(--text-secondary)] mt-1">
+              Live session events captured from the camera detector.
+            </p>
+          </div>
+          <span className="text-xs font-bold text-[var(--text-secondary)]">
+            {eventLogs.length} event{eventLogs.length === 1 ? '' : 's'}
+          </span>
+        </div>
+
+        <div className="mt-4 space-y-3">
+          {eventLogs.length > 0 ? (
+            eventLogs.map((entry) => (
+              <div
+                key={entry.id}
+                className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--border)] bg-[var(--background)]/80 px-4 py-3"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <span
+                    className={cn(
+                      'w-2.5 h-2.5 rounded-full shrink-0',
+                      entry.tone === 'critical' ? 'bg-[var(--danger)]' : 'bg-sky-500',
+                    )}
+                  />
+                  <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{entry.label}</p>
+                </div>
+                <span className="text-sm font-bold text-[var(--text-secondary)] shrink-0">{entry.time}</span>
+              </div>
+            ))
+          ) : (
+            <div className="rounded-2xl border border-dashed border-[var(--border)] px-4 py-6 text-sm text-[var(--text-secondary)] text-center">
+              No safety events yet. Open the camera and the log will record drowsiness, yawning, and distraction events with timestamps.
+            </div>
+          )}
         </div>
       </div>
     </motion.section>
