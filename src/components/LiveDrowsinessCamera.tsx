@@ -136,6 +136,58 @@ function drawEyePath(
   context.stroke();
 }
 
+function drawRoundedPanel(
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number,
+  fill: string,
+  stroke?: string,
+) {
+  context.beginPath();
+  context.roundRect(x, y, width, height, radius);
+  context.fillStyle = fill;
+  context.fill();
+  if (stroke) {
+    context.strokeStyle = stroke;
+    context.lineWidth = 1;
+    context.stroke();
+  }
+}
+
+function drawMetricTile(
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  label: string,
+  value: string,
+) {
+  drawRoundedPanel(context, x, y, width, 64, 16, 'rgba(15, 23, 42, 0.78)', 'rgba(255,255,255,0.08)');
+  context.fillStyle = 'rgba(148, 163, 184, 0.95)';
+  context.font = '700 11px Segoe UI';
+  context.fillText(label, x + 16, y + 22);
+  context.fillStyle = '#f8fafc';
+  context.font = '700 24px Segoe UI';
+  context.fillText(value, x + 16, y + 48);
+}
+
+function drawStatusChip(
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  label: string,
+  fill: string,
+) {
+  const width = Math.max(112, 22 + label.length * 8.2);
+  drawRoundedPanel(context, x, y, width, 34, 17, fill);
+  context.fillStyle = '#f8fafc';
+  context.font = '700 12px Segoe UI';
+  context.fillText(label, x + 14, y + 21);
+}
+
 
 function buildPayload(
   next: Partial<DrowsinessResponse> & Pick<DrowsinessUpdatePayload, 'status' | 'severity'>,
@@ -310,6 +362,7 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
   const latestResultRef = useRef<FaceLandmarkerResult | null>(null);
   const hasTrackedFaceRef = useRef(false);
   const lastLoggedEventRef = useRef<string | null>(null);
+  const fatigueEventCountRef = useRef(0);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -421,10 +474,15 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
       tone,
     };
 
+    fatigueEventCountRef.current += 1;
     setEventLogs((current) => [nextEntry, ...current].slice(0, 8));
   }
 
-  function drawOverlay(result: FaceLandmarkerResult | null, next: DrowsinessUpdatePayload) {
+  function drawOverlay(
+    result: FaceLandmarkerResult | null,
+    next: DrowsinessUpdatePayload,
+    fatigueEventCount: number,
+  ) {
     const canvas = canvasRef.current;
     const video = videoRef.current;
     if (!canvas || !video) {
@@ -445,16 +503,22 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
     }
 
     context.clearRect(0, 0, width, height);
+    context.lineJoin = 'round';
+    context.lineCap = 'round';
 
     if (!result?.faceLandmarks?.length) {
-      context.fillStyle = 'rgba(15, 23, 42, 0.72)';
-      context.fillRect(16, 16, 280, 92);
+      drawRoundedPanel(context, 18, 18, 340, 112, 24, 'rgba(15, 23, 42, 0.74)', 'rgba(255,255,255,0.08)');
+      context.fillStyle = 'rgba(56, 189, 248, 0.95)';
+      context.font = '700 12px Segoe UI';
+      context.fillText('GRID DRIVER MONITOR', 34, 42);
       context.fillStyle = '#f8fafc';
-      context.font = '600 15px Segoe UI';
-      context.fillText('No face detected', 28, 45);
+      context.font = '700 24px Segoe UI';
+      context.fillText('Awaiting Face Lock', 34, 76);
+      context.fillStyle = 'rgba(226, 232, 240, 0.95)';
       context.font = '500 13px Segoe UI';
-      context.fillText('Center your face inside the camera frame.', 28, 68);
-      context.fillText('Drowsiness tracking starts as soon as a face is visible.', 28, 88);
+      context.fillText('Center your face in frame to start live analytics.', 34, 99);
+
+      drawStatusChip(context, width - 170, 22, 'CAMERA LIVE', 'rgba(14,165,233,0.92)');
       return;
     }
 
@@ -463,19 +527,26 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
       y: landmark.y * height,
     }));
 
-    context.fillStyle = next.alarm_active ? 'rgba(239, 68, 68, 0.9)' : 'rgba(56, 189, 248, 0.82)';
+    context.fillStyle = next.alarm_active ? 'rgba(248, 113, 113, 0.95)' : 'rgba(125, 211, 252, 0.92)';
     for (const point of points) {
       context.beginPath();
-      context.arc(point.x, point.y, 1.5, 0, Math.PI * 2);
+      context.arc(point.x, point.y, next.alarm_active ? 1.8 : 1.55, 0, Math.PI * 2);
       context.fill();
     }
 
     const leftEye = LEFT_EYE.map((index) => points[index]);
     const rightEye = RIGHT_EYE.map((index) => points[index]);
     const mouth = MOUTH.map((index) => points[index]);
-    drawEyePath(context, leftEye, '#f59e0b');
-    drawEyePath(context, rightEye, '#f59e0b');
+    drawEyePath(context, leftEye, next.alarm_active ? '#fb7185' : '#f59e0b');
+    drawEyePath(context, rightEye, next.alarm_active ? '#fb7185' : '#f59e0b');
     drawEyePath(context, mouth, '#22c55e');
+
+    const leftEyeAnchor = leftEye[0];
+    const rightEyeAnchor = rightEye[3];
+    context.fillStyle = '#f8fafc';
+    context.font = '700 11px Segoe UI';
+    context.fillText('LEFT EYE', leftEyeAnchor.x - 8, leftEyeAnchor.y - 14);
+    context.fillText('RIGHT EYE', rightEyeAnchor.x - 22, rightEyeAnchor.y - 14);
 
     if (next.alarm_active) {
       context.strokeStyle = 'rgba(239, 68, 68, 0.95)';
@@ -483,14 +554,40 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
       context.strokeRect(8, 8, width - 16, height - 16);
     }
 
-    context.fillStyle = 'rgba(15, 23, 42, 0.74)';
-    context.fillRect(16, 16, 250, 94);
+    const heroFill = next.alarm_active
+      ? 'rgba(127, 29, 29, 0.86)'
+      : next.severity === 'warning'
+        ? 'rgba(120, 53, 15, 0.84)'
+        : 'rgba(15, 23, 42, 0.76)';
+
+    drawRoundedPanel(context, 18, 18, 360, 120, 24, heroFill, 'rgba(255,255,255,0.08)');
+    context.fillStyle = next.alarm_active ? '#fca5a5' : next.severity === 'warning' ? '#fdba74' : '#7dd3fc';
+    context.font = '700 12px Segoe UI';
+    context.fillText('LIVE DRIVER SAFETY MONITOR', 34, 42);
     context.fillStyle = '#f8fafc';
-    context.font = '700 16px Segoe UI';
-    context.fillText(next.status, 28, 42);
+    context.font = next.alarm_active ? '700 24px Segoe UI' : '700 22px Segoe UI';
+    context.fillText(next.alarm_active ? 'DRIVER DROWSINESS DETECTED' : next.status.toUpperCase(), 34, 78);
+    context.fillStyle = 'rgba(226, 232, 240, 0.95)';
     context.font = '500 13px Segoe UI';
-    context.fillText(`EAR ${next.ear?.toFixed(3) ?? '--'}`, 28, 66);
-    context.fillText(`Eyes closed ${next.eyes_closed_seconds.toFixed(1)}s`, 28, 88);
+    context.fillText(
+      next.alarm_active ? 'Alert triggered. Recommend immediate safe break.' : 'Face landmarks, eyes, and fatigue telemetry are live.',
+      34,
+      103,
+    );
+
+    const metricY = height - 92;
+    const metricWidth = Math.min(152, (width - 52) / 3);
+    drawMetricTile(context, 18, metricY, metricWidth, 'EAR', next.ear?.toFixed(3) ?? '--');
+    drawMetricTile(context, 28 + metricWidth, metricY, metricWidth, 'STATUS', next.alarm_active ? 'ALERT' : next.severity.toUpperCase());
+    drawMetricTile(context, 38 + metricWidth * 2, metricY, metricWidth, 'EVENTS', String(fatigueEventCount));
+
+    drawStatusChip(
+      context,
+      width - 164,
+      22,
+      next.alarm_active ? 'ALERT TRIGGERED' : 'TRACKING LIVE',
+      next.alarm_active ? 'rgba(239,68,68,0.95)' : 'rgba(34,197,94,0.9)',
+    );
   }
 
   function analyzeFrame() {
@@ -590,7 +687,7 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
       lastLoggedEventRef.current = null;
     }
 
-    drawOverlay(result, next);
+    drawOverlay(result, next, fatigueEventCountRef.current);
     void postStatus(next);
 
     if (next.alarm_active) {
@@ -755,6 +852,7 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
     latestResultRef.current = null;
     hasTrackedFaceRef.current = false;
     lastLoggedEventRef.current = null;
+    fatigueEventCountRef.current = 0;
     setCameraState('idle');
     setError(null);
 
@@ -775,13 +873,14 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
 
   const visual = severityClasses(status.severity);
   const isBusy = cameraState === 'loading';
+  const fatigueEventCount = eventLogs.length;
 
   return (
     <motion.section
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       className={cn(
-        'glass-card p-6 border overflow-hidden',
+        'glass-card p-5 sm:p-6 border overflow-hidden bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.96))]',
         visual.border,
         visual.glow,
       )}
@@ -792,7 +891,7 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
             <ShieldAlert className={cn('w-5 h-5', visual.accent)} />
             <h3 className="font-bold text-[var(--text-primary)]">Live Drowsiness Camera</h3>
           </div>
-          <p className="text-sm text-[var(--text-secondary)] mt-1">
+          <p className="text-sm text-[var(--text-secondary)] mt-1 max-w-2xl">
             Open the camera to see your live face mesh, eye tracking, and buzzer alerts directly on screen.
           </p>
         </div>
@@ -872,10 +971,10 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
         </div>
 
         <div className="space-y-4">
-          <div className="rounded-[24px] border border-[var(--border)] bg-[var(--surface)] p-5">
+          <div className="rounded-[24px] border border-[var(--border)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.95))] p-5 shadow-[0_12px_40px_rgba(15,23,42,0.08)]">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-[11px] font-black uppercase tracking-[0.25em] text-[var(--text-muted)]">Status</p>
+                <p className="text-[11px] font-black uppercase tracking-[0.25em] text-[var(--text-muted)]">Driver Status</p>
                 <p className="text-2xl font-black text-[var(--text-primary)] mt-1">{status.status}</p>
               </div>
               <span className={cn('px-3 py-2 rounded-full text-xs font-black tracking-widest', visual.badge)}>
@@ -883,7 +982,7 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
               </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 mt-5">
+            <div className="grid grid-cols-3 gap-3 mt-5">
               <div className="rounded-2xl bg-[var(--secondary)]/60 px-4 py-3">
                 <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)]">EAR</p>
                 <p className="text-3xl font-black text-[var(--text-primary)] mt-1">
@@ -894,10 +993,14 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
                 <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)]">Closed</p>
                 <p className="text-3xl font-black text-[var(--text-primary)] mt-1">{status.eyes_closed_seconds.toFixed(1)}s</p>
               </div>
+              <div className="rounded-2xl bg-[var(--secondary)]/60 px-4 py-3">
+                <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)]">Events</p>
+                <p className="text-3xl font-black text-[var(--text-primary)] mt-1">{fatigueEventCount}</p>
+              </div>
             </div>
           </div>
 
-          <div className="rounded-[24px] border border-[var(--border)] bg-[var(--surface)] p-5">
+          <div className="rounded-[24px] border border-[var(--border)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.95))] p-5 shadow-[0_12px_40px_rgba(15,23,42,0.08)]">
             <div className="flex items-center gap-2">
               {status.alarm_active ? (
                 <AlertTriangle className="w-4 h-4 text-[var(--danger)]" />
@@ -915,7 +1018,7 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
         </div>
       </div>
 
-      <div className="mt-5 rounded-[24px] border border-[var(--border)] bg-[var(--surface)] p-5">
+      <div className="mt-5 rounded-[24px] border border-[var(--border)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.95))] p-5 shadow-[0_12px_40px_rgba(15,23,42,0.08)]">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-[11px] font-black uppercase tracking-[0.24em] text-[var(--text-muted)]">Driver Safety Log</p>
