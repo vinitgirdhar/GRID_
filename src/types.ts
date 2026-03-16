@@ -1,4 +1,4 @@
-export type Page = 'overview' | 'data-insights' | 'weather-insights' | 'prediction' | 'hotspot-map' | 'performance' | 'drivers' | 'go-for-ride' | 'driver-performance' | 'where-next';
+export type Page = 'overview' | 'data-insights' | 'weather-insights' | 'prediction' | 'hotspot-map' | 'performance' | 'drivers' | 'go-for-ride' | 'driver-performance' | 'where-next' | 'drowsiness-camera';
 export type UserRole = 'driver' | 'admin';
 export type Theme = 'dark' | 'light';
 

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, Camera, CameraOff, Loader2, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, Camera, CameraOff, ShieldAlert } from 'lucide-react';
 import { motion } from 'motion/react';
 
 import { cn } from '../lib/utils';
@@ -138,8 +138,106 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string)
 }
 
 
+async function requestCameraStream(setLoadingStep: (value: string) => void) {
+  console.log('[Camera] Starting stream request sequence...');
+  
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const videoDevices = devices.filter(d => d.kind === 'videoinput');
+    console.log('[Camera] Available video devices:', videoDevices);
+    
+    if (videoDevices.length === 0) {
+      throw new Error('No webcam devices found on this system.');
+    }
+  } catch (e) {
+    console.warn('[Camera] Failed to enumerate devices:', e);
+  }
+
+  const attempts: Array<{ step: string; constraints: MediaStreamConstraints }> = [
+    {
+      step: 'Requesting camera (Primary: HD)...',
+      constraints: {
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          facingMode: 'user',
+        },
+        audio: false,
+      },
+    },
+    {
+      step: 'Retrying camera (Basic)...',
+      constraints: {
+        video: true,
+        audio: false,
+      },
+    },
+  ];
+
+  let lastError: unknown = null;
+  for (const attempt of attempts) {
+    try {
+      console.log(`[Camera] Attempting: ${attempt.step}`, attempt.constraints);
+      setLoadingStep(attempt.step);
+      
+      const stream = await withTimeout(
+        navigator.mediaDevices.getUserMedia(attempt.constraints),
+        10000,
+        `Timed out at step: ${attempt.step}`,
+      );
+      
+      console.log('[Camera] Stream successfully obtained!', stream.id);
+      return stream;
+    } catch (error) {
+      console.error(`[Camera] Attempt failed (${attempt.step}):`, error);
+      lastError = error;
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error('Unable to open the webcam after multiple attempts.');
+}
+
+
+function waitForVideoMetadata(video: HTMLVideoElement, timeoutMs: number) {
+  return new Promise<void>((resolve, reject) => {
+    if (video.readyState >= 1 || video.videoWidth > 0) {
+      resolve();
+      return;
+    }
+
+    const cleanup = () => {
+      window.clearTimeout(timeoutId);
+      video.removeEventListener('loadedmetadata', onLoadedMetadata);
+      video.removeEventListener('loadeddata', onLoadedMetadata);
+      video.removeEventListener('error', onVideoError);
+    };
+
+    const onLoadedMetadata = () => {
+      cleanup();
+      resolve();
+    };
+
+    const onVideoError = () => {
+      cleanup();
+      reject(new Error('The webcam stream opened but the video element failed to load it.'));
+    };
+
+    const timeoutId = window.setTimeout(() => {
+      cleanup();
+      reject(new Error('The webcam stream opened, but video frames never started.'));
+    }, timeoutMs);
+
+    video.addEventListener('loadedmetadata', onLoadedMetadata, { once: true });
+    video.addEventListener('loadeddata', onLoadedMetadata, { once: true });
+    video.addEventListener('error', onVideoError, { once: true });
+  });
+}
+
+
 export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
   const [cameraState, setCameraState] = useState<'idle' | 'loading' | 'active' | 'error'>('idle');
+  const [loadingStep, setLoadingStep] = useState<string>('');
+
   const [status, setStatus] = useState<DrowsinessResponse>({
     status: 'Open camera to start live tracking',
     severity: 'warning',
@@ -169,7 +267,10 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
   const isMountedRef = useRef(true);
 
   useEffect(() => {
+    isMountedRef.current = true;
+    console.log('[Camera] Component mounted');
     return () => {
+      console.log('[Camera] Component unmounting. Cleaning up...');
       isMountedRef.current = false;
       if (animationFrameRef.current !== null) {
         cancelAnimationFrame(animationFrameRef.current);
@@ -414,62 +515,71 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
     setError(null);
 
     try {
-      await ensureAudioContext();
-      if (!navigator.mediaDevices?.getUserMedia) {
-        throw new Error('This browser does not support webcam access.');
-      }
+      console.log('[Camera] Step 1: Requesting Stream');
+      setLoadingStep('Requesting camera permission...');
+      const stream = await requestCameraStream(setLoadingStep);
 
-      const stream = await withTimeout(
-        navigator.mediaDevices.getUserMedia({
-          video: {
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-            facingMode: 'user',
-          },
-          audio: false,
-        }),
-        CAMERA_START_TIMEOUT_MS,
-        'Webcam permission timed out. Allow the camera in the browser and try again.',
-      );
-
-      if (!isMountedRef.current) {
+      // Relaxed check: only abort if strictly unmounted
+      if (isMountedRef.current === false) {
+        console.warn('[Camera] Component unmounted during stream request. Stopping tracks.');
         stream.getTracks().forEach((track) => track.stop());
         return;
       }
 
+      console.log('[Camera] Step 2: Initializing Stream');
+      setLoadingStep('Initializing video stream...');
       streamRef.current = stream;
 
       const video = videoRef.current;
       if (!video) {
-        throw new Error('Video element not ready.');
+        throw new Error('Internal Error: Video element not found.');
       }
 
+      console.log('[Camera] Step 3: Binding stream to video element');
+      setLoadingStep('Binding webcam stream...');
       video.srcObject = stream;
-      await video.play();
+      video.muted = true;
+      video.autoplay = true;
+      video.playsInline = true;
+      
+      // We set active here so the UI shows the video element
       setCameraState('active');
 
+      console.log('[Camera] Step 4: Waiting for metadata');
+      setLoadingStep('Waiting for video frames...');
+      await waitForVideoMetadata(video, 10000);
+      
+      console.log('[Camera] Step 5: Starting playback');
+      await video.play().catch(e => console.warn('[Camera] Play failed but continuing:', e));
+
+      console.log('[Camera] Step 6: Initializing MediaPipe');
       await postStatus(
         buildPayload({
-          status: 'Camera live, loading face mesh...',
+          status: 'Camera live, loading AI...',
           severity: 'warning',
           ear: null,
           consecutive_closed_frames: 0,
           eyes_closed_seconds: 0,
           alarm_active: false,
-          assistant_response: 'Webcam is open. Loading live face tracking on top of the video now.',
+          assistant_response: 'Webcam is open. Loading facial landmark tracking now...',
         }),
       );
 
+      setLoadingStep('Loading face mesh bundle...');
       const vision = (await withTimeout(
         import(/* @vite-ignore */ VISION_BUNDLE_URL),
-        FACE_MESH_LOAD_TIMEOUT_MS,
+        20000,
         'Face mesh bundle did not load. Check internet access and reload the page.',
       )) as VisionBundleModule;
+
+      setLoadingStep('Initializing vision runtime...');
       const visionFiles = await withTimeout(
         vision.FilesetResolver.forVisionTasks(VISION_WASM_URL),
-        FACE_MESH_LOAD_TIMEOUT_MS,
+        20000,
         'Face mesh runtime did not initialize.',
       );
+
+      setLoadingStep('Downloading face tracking model...');
       const faceLandmarker = await withTimeout(
         vision.FaceLandmarker.createFromOptions(visionFiles, {
           baseOptions: { modelAssetPath: FACE_LANDMARKER_MODEL_URL },
@@ -477,8 +587,8 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
           runningMode: 'VIDEO',
           numFaces: 1,
         }),
-        FACE_MESH_LOAD_TIMEOUT_MS,
-        'Face mesh model did not load. Check internet access and reload the page.',
+        25000,
+        'Face mesh model did not load (Internet may be slow). Please refresh and try again.',
       );
 
       if (!isMountedRef.current) {
@@ -590,11 +700,19 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
             <button
               type="button"
               disabled={isBusy || !isLive}
-              onClick={() => void startCamera()}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                void startCamera();
+              }}
               className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold bg-[var(--primary)] text-white disabled:opacity-60"
             >
-              {isBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
-              {isBusy ? 'Opening...' : 'Open Camera'}
+              {isBusy ? (
+                <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+              ) : (
+                <Camera className="w-4 h-4" />
+              )}
+              {isBusy ? (loadingStep || 'Opening...') : 'Open Camera'}
             </button>
           ) : (
             <button
@@ -616,7 +734,7 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
             muted
             playsInline
             className={cn(
-              'w-full h-full object-cover min-h-[340px]',
+              'w-full h-full object-cover min-h-[340px] scale-x-[-1]',
               cameraState === 'active' ? 'opacity-100' : 'opacity-0',
             )}
           />
@@ -624,20 +742,20 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
 
           {cameraState !== 'active' && (
             <div className="absolute inset-0 flex items-center justify-center bg-[linear-gradient(180deg,rgba(15,23,42,0.92),rgba(30,41,59,0.86))]">
-              <div className="text-center px-6">
+              <div className="text-center px-6" style={{ minWidth: 0 }}>
                 <div className="w-16 h-16 rounded-full bg-white/10 border border-white/10 flex items-center justify-center mx-auto mb-4">
                   {isBusy ? (
-                    <Loader2 className="w-8 h-8 text-white animate-spin" />
+                    <div className="w-8 h-8 rounded-full border-4 border-white/20 border-t-white animate-spin" />
                   ) : (
                     <Camera className="w-8 h-8 text-white" />
                   )}
                 </div>
                 <p className="text-lg font-bold text-white">
-                  {isBusy ? 'Starting webcam and face mesh...' : 'Camera preview ready'}
+                  {isBusy ? (loadingStep || 'Starting webcam...') : 'Camera preview ready'}
                 </p>
                 <p className="text-sm text-slate-300 mt-2">
                   {isLive
-                    ? 'Grant webcam permission and keep your face inside frame for live landmark tracking.'
+                    ? (loadingStep.includes('permission') ? 'Please check the permission popup in your browser.' : 'Stay in frame for live landmark tracking.')
                     : 'Switch the driver session to LIVE first.'}
                 </p>
               </div>

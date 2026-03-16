@@ -120,7 +120,7 @@ export default function ModelPerformance() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="glass-card p-6">
           <h2 className="text-lg font-semibold mb-6 text-[var(--text-primary)]">R² Accuracy Progression</h2>
-          <div className="h-[300px]">
+          <div className="h-[300px]" style={{ minWidth: 0 }}>
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={r2Data}>
                 <defs>
@@ -142,7 +142,7 @@ export default function ModelPerformance() {
         </div>
         <div className="glass-card p-6">
           <h2 className="text-lg font-semibold mb-6 text-[var(--text-primary)]">Feature Importance</h2>
-          <div className="h-[300px]">
+          <div className="h-[300px]" style={{ minWidth: 0 }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={featureImportance} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" />
