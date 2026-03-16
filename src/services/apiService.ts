@@ -1,4 +1,6 @@
 import {
+  DrowsinessUpdatePayload,
+  DrowsinessResponse,
   ForecastResponse,
   HotspotPeriod,
   HotspotsResponse,
@@ -94,6 +96,17 @@ export async function getWeather(query: WeatherQuery): Promise<WeatherResponse> 
 
   const suffix = params.toString();
   return fetchJson<WeatherResponse>(`/weather${suffix ? `?${suffix}` : ''}`);
+}
+
+export async function getDrowsinessStatus(): Promise<DrowsinessResponse> {
+  return fetchJson<DrowsinessResponse>('/driver/drowsiness');
+}
+
+export async function postDrowsinessStatus(payload: DrowsinessUpdatePayload): Promise<DrowsinessResponse> {
+  return fetchJson<DrowsinessResponse>('/driver/drowsiness', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
 }
 
 export async function askCopilot(query: string, currentTime: string): Promise<any> {

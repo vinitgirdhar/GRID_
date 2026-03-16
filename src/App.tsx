@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
-import { Page, UserRole, Theme } from './types';
+import { Page, UserRole } from './types';
 
 // Page Components
 import Overview from './components/pages/Overview';
@@ -36,6 +36,7 @@ import DriverPerformance from './components/pages/DriverPerformance';
 import Login from './components/Login';
 import VoicePilot from './components/VoicePilot';
 import SafetyZen from './components/SafetyZen';
+import DrowsinessMonitor from './components/DrowsinessMonitor';
 
 const ADMIN_ITEMS = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -220,6 +221,9 @@ export default function App() {
               <div className="w-10 h-10 mx-auto rounded-full bg-[var(--primary)]/10 border border-[var(--primary)]/20 flex items-center justify-center">
                 <Clock size={14} className="text-[var(--primary-dark)]" />
               </div>
+            )}
+            {userRole === 'driver' && isLive && (
+              <DrowsinessMonitor isLive={isLive} collapsed={isSidebarCollapsed} />
             )}
             {!isSidebarCollapsed && (
               <div className="flex items-center justify-between px-2">

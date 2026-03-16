@@ -19,11 +19,25 @@ const WELLNESS_TIPS = [
   "Adjust your seat posture — your back will thank you.",
 ];
 
+const HEART_MASK = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z'/%3E%3C/svg%3E")`;
+
+const HEART_MASK_STYLE = {
+  WebkitMaskImage: HEART_MASK,
+  maskImage: HEART_MASK,
+  WebkitMaskRepeat: 'no-repeat',
+  maskRepeat: 'no-repeat',
+  WebkitMaskPosition: 'center',
+  maskPosition: 'center',
+  WebkitMaskSize: 'contain',
+  maskSize: 'contain',
+} as const;
+
 export default function SafetyZen({ isLive }: { isLive?: boolean }) {
   const [isOpen, setIsOpen] = useState(false);
   const [prevIsLive, setPrevIsLive] = useState(isLive);
   const [isFilling, setIsFilling] = useState(false);
   const [showBreakModal, setShowBreakModal] = useState(false);
+  const [hasDismissedBreakModal, setHasDismissedBreakModal] = useState(false);
   const [phase, setPhase] = useState<ZenPhase>('idle');
   const [cycleCount, setCycleCount] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
@@ -42,11 +56,7 @@ export default function SafetyZen({ isLive }: { isLive?: boolean }) {
         setDriveMinutes(data.drive_minutes);
         setIsFilling(data.is_filling);
         setProgress(data.progress);
-        
-        // Trigger break modal if we just finished filling (progress 1.0)
-        if (data.progress >= 1.0 && !showBreakModal && data.is_live) {
-          setShowBreakModal(true);
-        }
+        setShowBreakModal(data.progress >= 1.0 && data.is_live && !hasDismissedBreakModal);
       } catch (e) {
         // Fallback to local if backend is down
       }
@@ -55,10 +65,17 @@ export default function SafetyZen({ isLive }: { isLive?: boolean }) {
     const poll = setInterval(fetchWellness, 2000); // Poll every 2s
     fetchWellness();
     return () => clearInterval(poll);
-  }, [showBreakModal]);
+  }, [hasDismissedBreakModal]);
 
-  // Detect Offline -> Online transition for "Filling" animation is now handled by backend
+  // Reset one-time break prompt per live session and close it when the driver goes offline.
   useEffect(() => {
+    if (!isLive) {
+      setShowBreakModal(false);
+      setHasDismissedBreakModal(false);
+    } else if (prevIsLive === false) {
+      setHasDismissedBreakModal(false);
+    }
+
     setPrevIsLive(isLive);
   }, [isLive, prevIsLive]);
 
@@ -122,29 +139,31 @@ export default function SafetyZen({ isLive }: { isLive?: boolean }) {
         whileTap={{ scale: 0.92 }}
         title="Driver Wellness"
       >
-        <Heart className="w-5 h-5 relative z-10" />
-        
-        {/* Wavy Water Fill Animation (Now Dynamic via Backend Progress) */}
-        <AnimatePresence>
-          {isFilling && (
-            <motion.div
-              initial={{ y: '100%' }}
-              animate={{ y: `${100 - (progress * 100)}%` }} // Fills up based on progress
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-blue-500/40 z-0"
-              style={{
-                borderRadius: '50%',
-                backgroundImage: 'linear-gradient(0deg, rgba(37,99,235,0.6) 0%, rgba(37,99,235,0) 100%)'
-              }}
-            >
-              <motion.div 
-                className="absolute top-0 left-[-50%] w-[200%] h-8 bg-blue-400/50 rounded-[40%]"
-                animate={{ rotate: 360, x: [0, 20, 0] }}
-                transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <div className="relative z-10 w-6 h-6 flex items-center justify-center">
+          <AnimatePresence>
+            {isFilling && (
+              <div className="absolute inset-0" style={HEART_MASK_STYLE}>
+                <motion.div
+                  initial={{ y: '100%' }}
+                  animate={{ y: `${100 - (progress * 100)}%` }}
+                  exit={{ opacity: 0 }}
+                  className="absolute inset-0 bg-red-500/85"
+                  style={{
+                    backgroundImage: 'linear-gradient(0deg, rgba(220,38,38,0.96) 0%, rgba(248,113,113,0.65) 100%)'
+                  }}
+                >
+                  <motion.div
+                    className="absolute top-0 left-[-45%] w-[190%] h-3 bg-red-300/70 rounded-[45%]"
+                    animate={{ x: [0, 8, 0], rotate: [0, 4, 0] }}
+                    transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+                  />
+                </motion.div>
+              </div>
+            )}
+          </AnimatePresence>
+
+          <Heart className="w-5 h-5 relative z-10" />
+        </div>
       </motion.button>
 
       <AnimatePresence>
@@ -278,12 +297,14 @@ export default function SafetyZen({ isLive }: { isLive?: boolean }) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            onClick={(e) => e.stopPropagation()}
           >
             <motion.div
               className="w-full max-w-xs bg-[var(--surface)] rounded-2xl shadow-2xl border border-[var(--border)] p-6 text-center"
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
             >
               <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Coffee className="w-8 h-8 text-blue-600" />
@@ -293,7 +314,12 @@ export default function SafetyZen({ isLive }: { isLive?: boolean }) {
                 You're back online! To stay sharp, we recommend taking a <span className="text-blue-600 font-bold">10-minute break</span> before your first ride of the session.
               </p>
               <button
-                onClick={() => setShowBreakModal(false)}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setHasDismissedBreakModal(true);
+                  setShowBreakModal(false);
+                }}
                 className="w-full py-3 bg-[var(--primary)] text-white font-bold rounded-xl shadow-lg shadow-[var(--primary)]/20"
               >
                 Got it

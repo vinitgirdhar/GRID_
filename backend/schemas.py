@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -145,3 +146,20 @@ class WellnessStatus(BaseModel):
 
 class SessionToggle(BaseModel):
     is_live: bool
+
+
+class DrowsinessUpdate(BaseModel):
+    status: str = "Awaiting detector"
+    severity: Literal["normal", "warning", "critical"] = "warning"
+    ear: float | None = None
+    threshold: float | None = None
+    consecutive_closed_frames: int = 0
+    eyes_closed_seconds: float = 0.0
+    alarm_active: bool = False
+    assistant_response: str | None = None
+    source: str = "webcam"
+    updated_at: datetime | None = None
+
+
+class DrowsinessResponse(DrowsinessUpdate):
+    updated_at: datetime = Field(default_factory=datetime.utcnow)

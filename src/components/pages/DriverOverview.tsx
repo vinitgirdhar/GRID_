@@ -20,6 +20,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { getActiveHotspotPeriod, getForecast, getHotspots, getWeather } from '../../services/apiService';
 import { ForecastResponse, HotspotsResponse, Theme, WeatherResponse, ZoneDemand } from '../../types';
 import MapComponent from '../MapComponent';
+import LiveDrowsinessCamera from '../LiveDrowsinessCamera';
 import { cn } from '../../lib/utils';
 
 const REFRESH_INTERVAL_MS = 20000;
@@ -279,6 +280,8 @@ export default function DriverOverview({
           {error}
         </div>
       )}
+
+      <LiveDrowsinessCamera isLive={Boolean(isLive)} />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {liveKpis.map((kpi, idx) => (

@@ -1,4 +1,4 @@
-export type Page = 'overview' | 'data-insights' | 'weather-insights' | 'prediction' | 'hotspot-map' | 'performance' | 'drivers' | 'go-for-ride' | 'driver-performance';
+export type Page = 'overview' | 'data-insights' | 'weather-insights' | 'prediction' | 'hotspot-map' | 'performance' | 'drivers' | 'go-for-ride' | 'driver-performance' | 'where-next';
 export type UserRole = 'driver' | 'admin';
 export type Theme = 'dark' | 'light';
 
@@ -195,6 +195,34 @@ export interface WeatherResponse {
   cloud: number;
   demand_impact: 'Low' | 'Moderate' | 'High';
   impact_score: number;
+}
+
+export type DrowsinessSeverity = 'normal' | 'warning' | 'critical';
+
+export interface DrowsinessUpdatePayload {
+  status: string;
+  severity: DrowsinessSeverity;
+  ear?: number | null;
+  threshold?: number | null;
+  consecutive_closed_frames: number;
+  eyes_closed_seconds: number;
+  alarm_active: boolean;
+  assistant_response?: string | null;
+  source: string;
+  updated_at?: string;
+}
+
+export interface DrowsinessResponse {
+  status: string;
+  severity: DrowsinessSeverity;
+  ear?: number | null;
+  threshold?: number | null;
+  consecutive_closed_frames: number;
+  eyes_closed_seconds: number;
+  alarm_active: boolean;
+  assistant_response?: string | null;
+  source: string;
+  updated_at: string;
 }
 
 export interface CopilotRequest {

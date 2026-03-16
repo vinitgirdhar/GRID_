@@ -2,11 +2,11 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from math import hypot
 from pathlib import Path
+from threading import Lock
 from typing import Any, Dict, List
 import json
 import re
-import requests
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import urlopen
@@ -20,6 +20,8 @@ from fastapi.responses import HTMLResponse
 from .config import get_settings
 from .schemas import (
     AvoidZone,
+    DrowsinessResponse,
+    DrowsinessUpdate,
     FeatureImportancePoint,
     ForecastPoint,
     ForecastResponse,
@@ -44,6 +46,14 @@ DRIVER_SESSION = {
     "is_live": True,
     "start_time": datetime.utcnow(),
     "acceleration": 15
+}
+
+STATE_LOCK = Lock()
+DROWSINESS_STATE = DrowsinessResponse()
+LOCAL_ASSISTANT_STATE: dict[str, Any] = {
+    "last_response": None,
+    "last_source": "idle",
+    "updated_at": datetime.utcnow(),
 }
 
 
@@ -615,12 +625,19 @@ def _build_grid_context(hotspots: HotspotsResponse) -> str:
     now = datetime.utcnow()
     period_name = _active_period(now)
     active = hotspots.morning if period_name == "morning" else hotspots.evening
+    with STATE_LOCK:
+        drowsiness_snapshot = DROWSINESS_STATE.model_copy()
 
     lines = [
         f"Current time: {now.strftime('%I:%M %p')}",
         f"Active period: {period_name}",
+        f"Driver alertness: {drowsiness_snapshot.status}",
         f"Top recommended zones:",
     ]
+    if drowsiness_snapshot.ear is not None:
+        lines.append(f"Current EAR: {drowsiness_snapshot.ear:.3f}")
+    if drowsiness_snapshot.eyes_closed_seconds > 0:
+        lines.append(f"Eyes closed duration: {drowsiness_snapshot.eyes_closed_seconds:.1f} seconds")
     for z in active.zones[:5]:
         lines.append(
             f"  - {z.zone_name} (Zone {z.zone_id}, {z.borough}): "
@@ -628,6 +645,32 @@ def _build_grid_context(hotspots: HotspotsResponse) -> str:
         )
 
     return "\n".join(lines)
+
+
+def _store_local_assistant_response(response_text: str | None, source: str) -> None:
+    if not response_text:
+        return
+
+    with STATE_LOCK:
+        LOCAL_ASSISTANT_STATE["last_response"] = response_text
+        LOCAL_ASSISTANT_STATE["last_source"] = source
+        LOCAL_ASSISTANT_STATE["updated_at"] = datetime.utcnow()
+
+
+def _extract_copilot_action(spoken: str, hotspots: HotspotsResponse) -> Dict[str, Any] | None:
+    normalized_spoken = spoken.lower()
+    period_name = _active_period(datetime.utcnow())
+    active = hotspots.morning if period_name == "morning" else hotspots.evening
+
+    for zone in active.zones:
+        if str(zone.zone_name).lower() in normalized_spoken or f"zone {zone.zone_id}" in normalized_spoken:
+            return {"type": "navigate_to_zone", "payload": str(zone.zone_id)}
+
+    if any(token in normalized_spoken for token in ["destination", "towards", "filter", "routing", "airport", "home"]):
+        if active.zones:
+            return {"type": "navigate_to_zone", "payload": str(active.zones[0].zone_id)}
+
+    return None
 
 
 def _gemini_ask(query: str, context: str, hotspots: HotspotsResponse) -> CopilotResponse | None:
@@ -670,27 +713,52 @@ def _gemini_ask(query: str, context: str, hotspots: HotspotsResponse) -> Copilot
         if not spoken:
             return None
 
-        # Try to extract an action from the context
-        action = None
-        period_name = _active_period(datetime.utcnow())
-        active = hotspots.morning if period_name == "morning" else hotspots.evening
-        
-        # 1. Look for explicit zone mention
-        for z in active.zones:
-            if str(z.zone_name).lower() in spoken.lower() or str(z.zone_id) in spoken:
-                action = {"type": "navigate_to_zone", "payload": str(z.zone_id)}
-                break
-
-        # 2. Fallback to general routing if destination mode is mentioned
-        if not action and any(w in spoken.lower() for w in ["destination", "towards", "filter", "routing", "airport", "home"]):
-            if active.zones:
-                action = {"type": "navigate_to_zone", "payload": str(active.zones[0].zone_id)}
-
-        return CopilotResponse(spoken_response=spoken, action=action)
+        return CopilotResponse(spoken_response=spoken, action=_extract_copilot_action(spoken, hotspots))
 
     except Exception as exc:
         print(f"[Copilot] Gemini API error: {exc}")
         return None
+
+
+def _local_ask(query: str, context: str, hotspots: HotspotsResponse) -> CopilotResponse | None:
+    try:
+        from grid_ml.src.local_assistant import generate_driver_guidance
+    except Exception as exc:
+        print(f"[Copilot] Local assistant unavailable: {exc}")
+        return None
+
+    with STATE_LOCK:
+        drowsiness_snapshot = DROWSINESS_STATE.model_dump()
+
+    try:
+        spoken, engine = generate_driver_guidance(
+            query=query,
+            context=context,
+            drowsiness_status=drowsiness_snapshot,
+        )
+    except Exception as exc:
+        print(f"[Copilot] Local assistant error: {exc}")
+        return None
+
+    if not spoken:
+        return None
+
+    _store_local_assistant_response(spoken, engine)
+    return CopilotResponse(spoken_response=spoken, action=_extract_copilot_action(spoken, hotspots))
+
+
+def _build_drowsiness_assistant_response(update: DrowsinessUpdate) -> tuple[str | None, str]:
+    try:
+        from grid_ml.src.local_assistant import generate_drowsiness_guidance
+    except Exception as exc:
+        print(f"[Drowsiness] Local assistant unavailable: {exc}")
+        return None, "unavailable"
+
+    try:
+        return generate_drowsiness_guidance(update.model_dump())
+    except Exception as exc:
+        print(f"[Drowsiness] Local assistant error: {exc}")
+        return None, "error"
 
 
 def _fallback_ask(query: str, hotspots: HotspotsResponse) -> CopilotResponse:
@@ -750,9 +818,9 @@ def _fallback_ask(query: str, hotspots: HotspotsResponse) -> CopilotResponse:
 
     # Intent 4: Areas to avoid
     elif "avoid" in query_lower or "bad" in query_lower or "low" in query_lower:
-        avoid = active.get("avoid_zones", []) if hasattr(active, "get") else []
+        avoid = active.avoid_zones[:3]
         if avoid:
-            names = ", ".join(z["zone_name"] for z in avoid[:3])
+            names = ", ".join(f"Zone {zone.zone_id}" for zone in avoid)
             return CopilotResponse(
                 spoken_response=f"I'd avoid these areas right now: {names}. Demand is low there.",
                 action=None,
@@ -776,10 +844,47 @@ def ask_copilot(request: CopilotRequest) -> CopilotResponse:
     # Try Gemini first
     gemini_response = _gemini_ask(request.query, context, hotspots)
     if gemini_response:
+        _store_local_assistant_response(gemini_response.spoken_response, "gemini")
         return gemini_response
 
-    # Fallback to keyword logic
-    return _fallback_ask(request.query, hotspots)
+    local_response = _local_ask(request.query, context, hotspots)
+    if local_response:
+        return local_response
+
+    fallback_response = _fallback_ask(request.query, hotspots)
+    _store_local_assistant_response(fallback_response.spoken_response, "keyword")
+    return fallback_response
+
+
+@app.get(f"{settings.api_prefix}/driver/drowsiness", response_model=DrowsinessResponse)
+def get_drowsiness_status() -> DrowsinessResponse:
+    with STATE_LOCK:
+        return DROWSINESS_STATE.model_copy()
+
+
+@app.post(f"{settings.api_prefix}/driver/drowsiness", response_model=DrowsinessResponse)
+def update_drowsiness_status(update: DrowsinessUpdate) -> DrowsinessResponse:
+    global DROWSINESS_STATE
+
+    assistant_response = update.assistant_response
+    assistant_source = update.source
+
+    if not assistant_response and "drows" in update.status.casefold():
+        assistant_response, assistant_source = _build_drowsiness_assistant_response(update)
+
+    next_state = DrowsinessResponse(
+        **update.model_dump(exclude={"updated_at", "assistant_response"}),
+        assistant_response=assistant_response,
+        updated_at=update.updated_at or datetime.utcnow(),
+    )
+
+    with STATE_LOCK:
+        DROWSINESS_STATE = next_state
+
+    if assistant_response:
+        _store_local_assistant_response(assistant_response, assistant_source)
+
+    return next_state
 
 
 # ==============================================================================
@@ -819,8 +924,13 @@ def get_wellness_status() -> WellnessStatus:
 
 @app.post(f"{settings.api_prefix}/driver/session")
 def toggle_session(toggle: SessionToggle):
+    global DROWSINESS_STATE
+
     DRIVER_SESSION["is_live"] = toggle.is_live
     if toggle.is_live:
         DRIVER_SESSION["start_time"] = datetime.utcnow()
+
+    with STATE_LOCK:
+        DROWSINESS_STATE = DrowsinessResponse()
+
     return {"status": "updated", "is_live": toggle.is_live}
-
