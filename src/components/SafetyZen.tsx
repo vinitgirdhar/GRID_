@@ -205,63 +205,160 @@ export default function SafetyZen({ isLive }: { isLive?: boolean }) {
                   <span className="text-xs font-bold text-[var(--text-secondary)]">Drive Time: {driveMinutes}m</span>
                 </div>
                 <span className={cn('text-xs font-black uppercase tracking-wider', fatigueColor)}>{fatigueText}</span>
-              </div>
+              </div>              {/* Breathing Orb */}
+              <div className="flex flex-col items-center py-10 gap-6">
+                <div className="relative flex items-center justify-center w-56 h-56">
+                  {/* Energy Aura */}
+                  <AnimatePresence>
+                    {isRunning && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ 
+                          opacity: [0.3, 0.6, 0.3],
+                          scale: [1, 1.4, 1],
+                          rotate: [0, 90, 180, 270, 360]
+                        }}
+                        exit={{ opacity: 0, scale: 0.8 }}
+                        transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+                        className="absolute inset-0 rounded-full blur-3xl opacity-30"
+                        style={{ 
+                          background: `conic-gradient(from 0deg, ${orbColor}, transparent, ${orbColor})` 
+                        }}
+                      />
+                    )}
+                  </AnimatePresence>
 
-              {/* Breathing Orb */}
-              <div className="flex flex-col items-center py-8 gap-4">
-                <div className="relative flex items-center justify-center w-44 h-44">
-                  {/* Pulsing outer rings */}
-                  {isRunning && (
-                    <>
-                      <motion.div
-                        className="absolute inset-0 rounded-full"
-                        style={{ background: `radial-gradient(circle, ${orbColor}20, transparent 70%)` }}
-                        animate={{ scale: [1, 1.3, 1], opacity: [0.5, 0.1, 0.5] }}
-                        transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-                      />
-                      <motion.div
-                        className="absolute inset-4 rounded-full"
-                        style={{ background: `radial-gradient(circle, ${orbColor}30, transparent 70%)` }}
-                        animate={{ scale: [1, 1.2, 1], opacity: [0.7, 0.2, 0.7] }}
-                        transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut', delay: 0.3 }}
-                      />
-                    </>
-                  )}
-                  {/* Main Orb */}
+                  {/* Pulsing outer rings (multiple layers for depth) */}
                   <motion.div
-                    className="w-28 h-28 rounded-full flex items-center justify-center shadow-2xl"
-                    style={{ background: `radial-gradient(circle at 35% 35%, ${orbColor}dd, ${orbColor}88)` }}
-                    animate={{ scale: orbScale }}
-                    transition={{ duration: phase === 'inhale' ? 4 : phase === 'exhale' ? 6 : 0.3, ease: 'easeInOut' }}
+                    className="absolute inset-0 rounded-full border border-white/10"
+                    animate={isRunning ? { scale: [1, 1.1, 1], opacity: [0.1, 0.3, 0.1] } : { scale: 1, opacity: 0.1 }}
+                    transition={{ duration: 4, repeat: Infinity }}
+                  />
+                  <motion.div
+                    className="absolute inset-6 rounded-full border border-white/20"
+                    animate={isRunning ? { scale: [1, 1.05, 1], opacity: [0.2, 0.4, 0.2] } : { scale: 1, opacity: 0.2 }}
+                    transition={{ duration: 4, repeat: Infinity, delay: 0.5 }}
+                  />
+
+                  {/* Main Orb Container */}
+                  <motion.div
+                    className="relative w-36 h-36 rounded-full flex items-center justify-center z-10"
+                    animate={{ 
+                      scale: orbScale,
+                      boxShadow: isRunning 
+                        ? [`0 0 20px ${orbColor}44`, `0 0 50px ${orbColor}66`, `0 0 20px ${orbColor}44`]
+                        : '0 0 20px rgba(0,0,0,0.1)'
+                    }}
+                    transition={{ 
+                      scale: { duration: phase === 'inhale' ? 4 : phase === 'exhale' ? 6 : 0.6, ease: 'easeInOut' },
+                      boxShadow: { duration: 2, repeat: Infinity }
+                    }}
                   >
-                    <Wind className="w-8 h-8 text-white" />
+                    {/* Glassmorphism Surface */}
+                    <div className="absolute inset-0 rounded-full glass-card border-none shadow-none backdrop-blur-xl overflow-hidden">
+                      {/* Dynamic Gradient Background */}
+                      <motion.div 
+                        className="absolute inset-0 opacity-80"
+                        animate={{ 
+                          backgroundColor: orbColor,
+                          background: `radial-gradient(circle at 30% 30%, white, ${orbColor})`
+                        }}
+                      />
+                      
+                      {/* Animated "Liquid" fill */}
+                      <AnimatePresence>
+                        {isRunning && (
+                          <motion.div 
+                            initial={{ y: '100%' }}
+                            animate={{ y: phase === 'inhale' ? '0%' : phase === 'exhale' ? '100%' : '0%' }}
+                            transition={{ duration: phase === 'inhale' ? 4 : phase === 'exhale' ? 6 : 0.1 }}
+                            className="absolute inset-0 bg-white/30 blur-sm"
+                          />
+                        )}
+                      </AnimatePresence>
+                    </div>
+
+                    {/* Content inside Orb */}
+                    <div className="relative z-20 flex flex-col items-center">
+                      <AnimatePresence mode="wait">
+                        <motion.div
+                          key={phase}
+                          initial={{ opacity: 0, scale: 0.5 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.5 }}
+                          className="flex flex-col items-center"
+                        >
+                          {phase === 'idle' ? (
+                            <Wind className="w-10 h-10 text-[var(--text-muted)] opacity-50" />
+                          ) : phase === 'hold' ? (
+                            <div className="w-4 h-4 rounded-full bg-white opacity-80 animate-ping" />
+                          ) : (
+                            <motion.div
+                              animate={{ y: phase === 'inhale' ? [-4, 4, -4] : [4, -4, 4] }}
+                              transition={{ duration: 2, repeat: Infinity }}
+                            >
+                              <Wind className="w-10 h-10 text-white shadow-sm" />
+                            </motion.div>
+                          )}
+                        </motion.div>
+                      </AnimatePresence>
+                    </div>
                   </motion.div>
                 </div>
 
-                {/* Phase Label */}
-                <div className="text-center space-y-1">
-                  {phase === 'idle' && !isRunning && (
-                    <p className="text-[var(--text-secondary)] text-sm">3 breathing cycles to reset</p>
-                  )}
-                  {phase === 'done' && (
-                    <div className="flex items-center gap-2 text-[var(--success)]">
-                      <Leaf size={16} />
-                      <p className="text-sm font-bold">Session complete! Great job.</p>
-                    </div>
-                  )}
-                  {isRunning && currentCycle && (
-                    <motion.p
-                      key={phase}
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="text-base font-bold text-[var(--text-primary)]"
-                    >
-                      {currentCycle.label}
-                    </motion.p>
-                  )}
-                  {cycleCount > 0 && (
-                    <p className="text-xs text-[var(--text-secondary)]">{cycleCount} cycles completed today</p>
-                  )}
+                {/* Status UI */}
+                <div className="text-center w-full px-6">
+                  <AnimatePresence mode="wait">
+                    {isRunning ? (
+                      <motion.div
+                        key={phase}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="space-y-1"
+                      >
+                        <p className="text-2xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
+                          {currentCycle?.label}
+                        </p>
+                        <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-[0.3em]">
+                          Phase: {phase}
+                        </p>
+                      </motion.div>
+                    ) : (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="space-y-4"
+                      >
+                        {phase === 'done' ? (
+                          <div className="flex flex-col items-center gap-2">
+                            <div className="flex items-center gap-2 px-4 py-1.5 bg-[var(--success)]/10 text-[var(--success)] rounded-full border border-[var(--success)]/20">
+                              <Leaf size={14} />
+                              <span className="text-sm font-bold">Session Complete</span>
+                            </div>
+                            <p className="text-xs text-[var(--text-secondary)] font-medium">Your heart rate and focus have been optimized.</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-1">
+                            <p className="text-[var(--text-primary)] font-bold">Resonance Breathing</p>
+                            <p className="text-[var(--text-muted)] text-xs font-medium">3 breathing cycles to reset your internal rhythm</p>
+                          </div>
+                        )}
+                        {cycleCount > 0 && (
+                          <div className="mt-4 pt-4 border-t border-[var(--border)] flex justify-center gap-8">
+                            <div className="text-center">
+                              <p className="text-[10px] uppercase font-black text-[var(--text-muted)] tracking-widest leading-none mb-1">Total</p>
+                              <p className="text-lg font-black text-[var(--text-primary)]">{cycleCount}</p>
+                            </div>
+                            <div className="text-center">
+                              <p className="text-[10px] uppercase font-black text-[var(--text-muted)] tracking-widest leading-none mb-1">Goal</p>
+                              <p className="text-lg font-black text-[var(--text-primary)]">15</p>
+                            </div>
+                          </div>
+                        )}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               </div>
 

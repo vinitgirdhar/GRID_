@@ -45,7 +45,7 @@ from .schemas import (
 DRIVER_SESSION = {
     "is_live": True,
     "start_time": datetime.utcnow(),
-    "acceleration": 15
+    "acceleration": 60
 }
 
 STATE_LOCK = Lock()
@@ -899,19 +899,17 @@ def get_wellness_status() -> WellnessStatus:
     drive_minutes = 0
     if is_live:
         elapsed_seconds = (datetime.utcnow() - start_time).total_seconds()
-        drive_minutes = int(elapsed_seconds * 0.25)
+        drive_minutes = int(elapsed_seconds * (DRIVER_SESSION["acceleration"] / 60.0))
 
     fatigue_level = "low"
-    if drive_minutes >= 120:
+    if drive_minutes >= 270:
         fatigue_level = "high"
-    elif drive_minutes >= 60:
+    elif drive_minutes >= 120:
         fatigue_level = "moderate"
 
-    is_filling = drive_minutes >= 30 and drive_minutes < 120
-    
-    progress = 0.0
-    if drive_minutes >= 30:
-        progress = min(1.0, (drive_minutes - 30) / 90.0)
+    # Start filling immediately and show progress relative to the 270m break goal
+    is_filling = drive_minutes > 0
+    progress = min(1.0, drive_minutes / 270.0)
 
     return WellnessStatus(
         drive_minutes=drive_minutes,
