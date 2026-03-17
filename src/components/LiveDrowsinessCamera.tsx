@@ -17,7 +17,9 @@ const RIGHT_EYE = [362, 385, 387, 263, 373, 380] as const;
 const EYE_RING = [0, 1, 2, 3, 4, 5, 0] as const;
 const MOUTH = [78, 81, 13, 311, 308, 402, 14, 178, 78] as const;
 const DEFAULT_THRESHOLD = 0.23;
-const YAWN_THRESHOLD = 0.06;
+const YAWN_THRESHOLD = 0.5;
+const JAW_OPEN_THRESHOLD = 0.7;
+const YAWN_SUSTAINED_SECONDS = 1.5;
 const CLOSED_FRAME_THRESHOLD = 20;
 const CLOSED_SECONDS_THRESHOLD = 2;
 const POST_INTERVAL_MS = 900;
@@ -353,6 +355,7 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
   const animationFrameRef = useRef<number | null>(null);
   const lastVideoTimeRef = useRef(-1);
   const closedSinceRef = useRef<number | null>(null);
+  const yawnSinceRef = useRef<number | null>(null);
   const consecutiveClosedFramesRef = useRef(0);
   const lastPostedSignatureRef = useRef<string>('');
   const lastPostedAtRef = useRef(0);
@@ -593,6 +596,7 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
   function analyzeFrame() {
     const video = videoRef.current;
     const landmarker = faceLandmarkerRef.current;
+    const frameTimestamp = performance.now();
     if (!video || !landmarker || video.readyState < 2) {
       animationFrameRef.current = requestAnimationFrame(analyzeFrame);
       return;
@@ -601,7 +605,7 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
     let result = latestResultRef.current;
     if (video.currentTime !== lastVideoTimeRef.current) {
       lastVideoTimeRef.current = video.currentTime;
-      result = landmarker.detectForVideo(video, performance.now());
+      result = landmarker.detectForVideo(video, frameTimestamp);
       latestResultRef.current = result;
     }
 
@@ -627,20 +631,32 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
       const ear = (computeEar(leftEye) + computeEar(rightEye)) / 2;
       const mouthRatio = computeMouthRatio(mouth);
       const jawOpenScore = blendshapeScore(result, 'jawOpen');
-      const yawnDetected = mouthRatio >= YAWN_THRESHOLD || jawOpenScore >= 0.25;
+      const rawYawnDetected = mouthRatio >= YAWN_THRESHOLD || jawOpenScore >= JAW_OPEN_THRESHOLD;
+
+      if (rawYawnDetected) {
+        if (yawnSinceRef.current === null) {
+          yawnSinceRef.current = frameTimestamp;
+        }
+      } else {
+        yawnSinceRef.current = null;
+      }
+
+      const yawnDetected =
+        yawnSinceRef.current !== null &&
+        (frameTimestamp - yawnSinceRef.current) / 1000 >= YAWN_SUSTAINED_SECONDS;
 
       if (ear < DEFAULT_THRESHOLD) {
         consecutiveClosedFramesRef.current += 1;
         if (closedSinceRef.current === null) {
-          closedSinceRef.current = performance.now();
+          closedSinceRef.current = frameTimestamp;
         }
       } else {
         consecutiveClosedFramesRef.current = 0;
         closedSinceRef.current = null;
       }
 
-      const closedSeconds = closedSinceRef.current
-        ? (performance.now() - closedSinceRef.current) / 1000
+      const closedSeconds = closedSinceRef.current !== null
+        ? (frameTimestamp - closedSinceRef.current) / 1000
         : 0;
       const alarmActive =
         consecutiveClosedFramesRef.current >= CLOSED_FRAME_THRESHOLD ||
@@ -672,6 +688,7 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
     } else {
       consecutiveClosedFramesRef.current = 0;
       closedSinceRef.current = null;
+      yawnSinceRef.current = null;
       if (hasTrackedFaceRef.current) {
         eventLabel = 'Driver distracted';
         eventTone = 'warning';
@@ -847,6 +864,7 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
     canvas?.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
 
     closedSinceRef.current = null;
+    yawnSinceRef.current = null;
     consecutiveClosedFramesRef.current = 0;
     lastVideoTimeRef.current = -1;
     latestResultRef.current = null;

@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
-import { getActiveHotspotPeriod, getForecast, getHotspots, getWeather } from '../../services/apiService';
+import { getActiveHotspotPeriod, getForecast, getHotspots, getWeather, postDriverSession } from '../../services/apiService';
 import { ForecastResponse, HotspotsResponse, Theme, WeatherResponse, ZoneDemand } from '../../types';
 import MapComponent from '../MapComponent';
 import { cn } from '../../lib/utils';
@@ -220,11 +220,7 @@ export default function DriverOverview({
               const nextLive = !isLive;
               setIsLive?.(nextLive);
               try {
-                await fetch('http://localhost:8000/api/driver/session', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ is_live: nextLive }),
-                });
+                await postDriverSession({ is_live: nextLive });
               } catch (e) {
                 console.error('Failed to sync session with backend:', e);
               }

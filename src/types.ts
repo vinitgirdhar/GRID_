@@ -225,6 +225,16 @@ export interface DrowsinessResponse {
   updated_at: string;
 }
 
+export interface DriverSessionTogglePayload {
+  is_live: boolean;
+}
+
+export interface DriverSessionResponse {
+  status: string;
+  is_live: boolean;
+  queued?: boolean;
+}
+
 export interface CopilotRequest {
   query: string;
   current_time: string;

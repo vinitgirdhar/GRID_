@@ -11,6 +11,7 @@ import {
   Info
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { useOffline } from '../../OfflineContext';
 import MapComponent, { MapRoute, MapRidePin } from '../MapComponent';
 import { getActiveHotspotPeriod, getHotspots } from '../../services/apiService';
 import { HotspotsResponse, HotspotZone, RideRequest } from '../../types';
@@ -75,6 +76,7 @@ function buildRideRequests(zones: HotspotZone[]): RideRequest[] {
 }
 
 export default function GoForRide({ copilotZoneId }: { copilotZoneId?: string | null }) {
+  const { isOnline } = useOffline();
   const [destinationModeActive, setDestinationModeActive] = useState(!!copilotZoneId);
   const [destination, setDestination] = useState('');
   const [hotspots, setHotspots] = useState<HotspotsResponse | null>(null);
@@ -87,18 +89,23 @@ export default function GoForRide({ copilotZoneId }: { copilotZoneId?: string | 
       .then((response) => {
         if (!cancelled) {
           setHotspots(response);
+          setError(null);
         }
       })
       .catch(() => {
         if (!cancelled) {
-          setError('Unable to load live hotspot rides. Start the FastAPI backend on port 8000 and refresh.');
+          setError(
+            isOnline
+              ? 'Unable to load live hotspot rides. Start the FastAPI backend on port 8000 and refresh.'
+              : 'Offline mode is active and no cached hotspot ride feed is available yet. Connect once to prime the cache.',
+          );
         }
       });
 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [isOnline]);
 
   const activeZones = hotspots ? getActiveHotspotPeriod(hotspots).zones : [];
   const rideRequests = buildRideRequests(activeZones);
@@ -161,13 +168,35 @@ export default function GoForRide({ copilotZoneId }: { copilotZoneId?: string | 
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-[var(--text-primary)]">Go For Ride</h1>
-          <p className="text-[var(--text-secondary)] mt-1">Live ride opportunities generated from the current hotspot feed.</p>
+          <p className="text-[var(--text-secondary)] mt-1">
+            {isOnline
+              ? 'Live ride opportunities generated from the current hotspot feed.'
+              : 'Cached ride opportunities remain available while the connection is down.'}
+          </p>
         </div>
-        <div className="flex items-center gap-2 text-sm font-medium text-success bg-success/10 px-4 py-2 rounded-full">
-          <span className="w-2 h-2 bg-success rounded-full animate-pulse"></span>
-          {hotspots ? `Live ${hotspots.active_period} feed` : 'Waiting for live feed'}
+        <div
+          className={cn(
+            'flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-full',
+            isOnline ? 'text-success bg-success/10' : 'text-amber-700 bg-amber-100',
+          )}
+        >
+          <span className={cn('w-2 h-2 rounded-full', isOnline ? 'bg-success animate-pulse' : 'bg-amber-500')}></span>
+          {hotspots
+            ? `${isOnline ? 'Live' : 'Cached'} ${hotspots.active_period} feed`
+            : isOnline
+              ? 'Waiting for live feed'
+              : 'Waiting for cached feed'}
         </div>
       </div>
+
+      {!isOnline && hotspots && (
+        <div className="glass-card p-4 border border-amber-300/50 bg-amber-50 text-amber-950">
+          <p className="text-sm font-bold">Offline Mode</p>
+          <p className="text-sm mt-1">
+            Ride alerts below are being served from the most recent cached hotspot snapshot. New requests and map tiles are limited until the connection returns.
+          </p>
+        </div>
+      )}
 
       {error && (
         <div className="glass-card p-6 border border-danger/20 text-danger">
@@ -280,6 +309,7 @@ export default function GoForRide({ copilotZoneId }: { copilotZoneId?: string | 
                   simplified={false}
                   route={mapRoute}
                   ridePins={ridePins}
+                  offlineMode={!isOnline}
                 />
               </motion.div>
             )}
