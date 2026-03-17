@@ -1,5 +1,5 @@
 {
-  "appId": "com.grid.driver",
+  "appId": "local.grid.driver",
   "appName": "GRID Driver",
   "webDir": "dist",
   "bundledWebRuntime": false,
