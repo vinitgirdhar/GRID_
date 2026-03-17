@@ -235,6 +235,107 @@ export interface DriverSessionResponse {
   queued?: boolean;
 }
 
+export interface DriverProfile {
+  id: string;
+  email: string;
+  full_name: string;
+  phone?: string | null;
+  vehicle_number?: string | null;
+  is_admin: boolean;
+  is_active: boolean;
+}
+
+export interface AuthTokensResponse {
+  access_token: string;
+  refresh_token: string;
+  token_type: 'bearer';
+  expires_in: number;
+  driver: DriverProfile;
+}
+
+export interface TripOffer {
+  id: string;
+  status: string;
+  pickup_label: string;
+  dropoff_label: string;
+  pickup_lat: number;
+  pickup_lng: number;
+  dropoff_lat: number;
+  dropoff_lng: number;
+  distance_km: number;
+  estimated_fare: number;
+  zone_id?: string | null;
+  borough?: string | null;
+  expires_at: string;
+  created_at: string;
+}
+
+export interface TripOfferListResponse {
+  offers: TripOffer[];
+}
+
+export interface TripItem {
+  id: string;
+  offer_id: string;
+  status: string;
+  pickup_label: string;
+  dropoff_label: string;
+  pickup_lat: number;
+  pickup_lng: number;
+  dropoff_lat: number;
+  dropoff_lng: number;
+  estimated_fare: number;
+  accepted_at: string;
+  started_at?: string | null;
+  completed_at?: string | null;
+}
+
+export interface DriverTripStateResponse {
+  active_trip?: TripItem | null;
+  recent_trips: TripItem[];
+}
+
+export interface PresenceUpdatePayload {
+  lat: number;
+  lng: number;
+  status: string;
+  accuracy_m?: number | null;
+  speed_kph?: number | null;
+  heading?: number | null;
+  battery_level?: number | null;
+  trip_id?: string | null;
+  recorded_at?: string;
+}
+
+export interface PresenceUpdateResponse {
+  status: string;
+  recorded_at: string;
+  trip_id?: string | null;
+}
+
+export interface DrowsinessTelemetryPayload extends DrowsinessUpdatePayload {
+  trip_id?: string | null;
+}
+
+export interface DrowsinessTelemetryResponse extends DrowsinessResponse {
+  id: string;
+  trip_id?: string | null;
+}
+
+export interface NotificationItem {
+  id: string;
+  title: string;
+  body: string;
+  kind: string;
+  status: string;
+  created_at: string;
+  read_at?: string | null;
+}
+
+export interface NotificationListResponse {
+  notifications: NotificationItem[];
+}
+
 export interface CopilotRequest {
   query: string;
   current_time: string;

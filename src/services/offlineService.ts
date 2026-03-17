@@ -1,4 +1,5 @@
 import { processSyncQueueEntries, SyncAction, SyncQueueEntry } from './syncEngine';
+import { readAuthTokens } from './secureStorage';
 
 export type CacheStoreName = 'hotspots' | 'metrics' | 'forecast';
 
@@ -186,7 +187,7 @@ class OfflineService {
 
     switch (entry.action) {
       case 'driver-drowsiness':
-        path = '/driver/drowsiness';
+        path = '/driver/telemetry/drowsiness';
         break;
       case 'driver-session':
         path = '/driver/session';
@@ -195,11 +196,17 @@ class OfflineService {
         throw new Error(`Unsupported sync action: ${entry.action}`);
     }
 
+    const tokens = await readAuthTokens();
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (tokens?.accessToken) {
+      headers.Authorization = `Bearer ${tokens.accessToken}`;
+    }
+
     const response = await fetch(`${API_BASE_URL}${path}`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify(entry.payload),
     });
 

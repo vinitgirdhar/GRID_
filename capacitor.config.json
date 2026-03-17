@@ -1,0 +1,22 @@
+{
+  "appId": "com.grid.driver",
+  "appName": "GRID Driver",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 0
+    },
+    "BackgroundRunner": {
+      "label": "GRID Driver Tracking",
+      "src": "dist/background/presence-runner.js",
+      "event": "driverPresenceTick",
+      "repeat": true,
+      "interval": 60,
+      "autoStart": false
+    }
+  }
+}

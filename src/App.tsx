@@ -37,6 +37,8 @@ import Overview from './components/pages/Overview';
 import WeatherInsights from './components/pages/WeatherInsights';
 import { OfflineProvider, useOffline } from './OfflineContext';
 import { cn } from './lib/utils';
+import { usePresenceHeartbeat } from './services/presenceService';
+import { useDriverStore } from './stores/driverStore';
 import { Page, UserRole } from './types';
 
 const ADMIN_ITEMS = [
@@ -73,12 +75,26 @@ function MobileClock() {
 
 function AppShell() {
   const { isOnline, isSyncing, pendingCount } = useOffline();
+  const { driver, initialize, isLive, logout, setLive } = useDriverStore();
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [activePage, setActivePage] = useState<Page>('overview');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [currentHour, setCurrentHour] = useState(() => new Date().getHours());
   const [copilotDest, setCopilotDest] = useState<string | null>(null);
-  const [isLive, setIsLive] = useState(true);
+
+  usePresenceHeartbeat();
+
+  useEffect(() => {
+    void initialize();
+  }, [initialize]);
+
+  useEffect(() => {
+    if (driver) {
+      setUserRole('driver');
+    } else if (userRole === 'driver') {
+      setUserRole(null);
+    }
+  }, [driver, userRole]);
 
   useEffect(() => {
     const handleCopilotNav = (e: any) => {
@@ -93,10 +109,10 @@ function AppShell() {
       }
     };
 
-    const handleDriverSessionToggle = (e: any) => {
-      if (typeof e.detail?.isLive === 'boolean') {
-        setIsLive(e.detail.isLive);
-      }
+      const handleDriverSessionToggle = (e: any) => {
+        if (typeof e.detail?.isLive === 'boolean') {
+          setLive(e.detail.isLive);
+        }
 
       if (e.detail?.page) {
         setActivePage(e.detail.page);
@@ -112,7 +128,7 @@ function AppShell() {
       window.removeEventListener('grid-navigate-page', handlePageNavigation);
       window.removeEventListener('grid-driver-session-toggle', handleDriverSessionToggle);
     };
-  }, []);
+  }, [setLive]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -128,6 +144,9 @@ function AppShell() {
   };
 
   const handleLogout = () => {
+    if (userRole === 'driver') {
+      void logout();
+    }
     setUserRole(null);
   };
 
@@ -174,7 +193,7 @@ function AppShell() {
 
     switch (activePage) {
       case 'overview':
-        return <DriverOverview currentHour={currentHour} isLive={isLive} setIsLive={setIsLive} />;
+        return <DriverOverview currentHour={currentHour} isLive={isLive} setIsLive={setLive} />;
       case 'go-for-ride':
         return <GoForRide copilotZoneId={copilotDest} />;
       case 'drowsiness-camera':
@@ -184,7 +203,7 @@ function AppShell() {
       case 'driver-performance':
         return <DriverPerformance />;
       default:
-        return <DriverOverview currentHour={currentHour} isLive={isLive} setIsLive={setIsLive} />;
+        return <DriverOverview currentHour={currentHour} isLive={isLive} setIsLive={setLive} />;
     }
   };
 
@@ -323,7 +342,9 @@ function AppShell() {
               </div>
               {!isSidebarCollapsed && (
                 <div className="flex flex-col flex-1 overflow-hidden">
-                  <span className="text-sm font-bold truncate text-[var(--text-primary)] capitalize">{userRole}</span>
+                  <span className="text-sm font-bold truncate text-[var(--text-primary)] capitalize">
+                    {userRole === 'driver' ? driver?.full_name ?? userRole : userRole}
+                  </span>
                   <span className={cn('text-xs font-semibold flex items-center gap-1.5 mt-0.5', connectivityTextClass)}>
                     <span className={cn('w-1.5 h-1.5 rounded-full', connectivityDotClass)}></span>
                     {connectivityLabel}

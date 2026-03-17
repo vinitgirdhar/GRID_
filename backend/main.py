@@ -18,6 +18,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
 from .config import get_settings
+from .driver_api import bootstrap_mobile_data, router as driver_router
 from .schemas import (
     AvoidZone,
     DrowsinessResponse,
@@ -397,6 +398,7 @@ def _predict_for_zone(app: FastAPI, prediction_time: datetime, zone_id: str) -> 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    bootstrap_mobile_data()
     models_dir = settings.models_dir
     outputs_dir = settings.outputs_dir
 
@@ -447,11 +449,12 @@ app = FastAPI(title=settings.app_name, lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.allowed_origins,
-    allow_origin_regex=r"^(https?://.+|vscode-webview://.+|null)$",
+    allow_origin_regex=r"^(https?://.+|capacitor://.+|vscode-webview://.+|null)$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.include_router(driver_router)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -459,10 +462,10 @@ def home() -> str:
     api = settings.api_prefix
     return f"""
 <!doctype html>
-<html lang=\"en\">
+<html lang="en">
 <head>
-    <meta charset=\"utf-8\" />
-    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{settings.app_name}</title>
     <style>
         :root {{
@@ -513,17 +516,17 @@ def home() -> str:
     </style>
 </head>
 <body>
-    <main class=\"card\">
+    <main class="card">
         <h1>{settings.app_name} Backend</h1>
         <p>The API is running. Use the links below to test endpoints quickly.</p>
         <ul>
-            <li><a href=\"/health\">Health Check</a> <code>/health</code></li>
-            <li><a href=\"/docs\">Swagger UI</a> <code>/docs</code></li>
-            <li><a href=\"{api}/metrics\">Model Metrics</a> <code>{api}/metrics</code></li>
-            <li><a href=\"{api}/forecast\">24-Hour Forecast</a> <code>{api}/forecast</code></li>
-            <li><a href=\"{api}/hotspots\">Hotspots</a> <code>{api}/hotspots</code></li>
-            <li><a href=\"{api}/predictions\">Predictions</a> <code>{api}/predictions</code></li>
-            <li><a href=\"{api}/weather\">Weather</a> <code>{api}/weather</code></li>
+            <li><a href="/health">Health Check</a> <code>/health</code></li>
+            <li><a href="/docs">Swagger UI</a> <code>/docs</code></li>
+            <li><a href="{api}/metrics">Model Metrics</a> <code>{api}/metrics</code></li>
+            <li><a href="{api}/forecast">24-Hour Forecast</a> <code>{api}/forecast</code></li>
+            <li><a href="{api}/hotspots">Hotspots</a> <code>{api}/hotspots</code></li>
+            <li><a href="{api}/predictions">Predictions</a> <code>{api}/predictions</code></li>
+            <li><a href="{api}/weather">Weather</a> <code>{api}/weather</code></li>
         </ul>
     </main>
 </body>

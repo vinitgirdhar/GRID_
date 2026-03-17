@@ -1,19 +1,66 @@
 import {
+  AuthTokensResponse,
   CopilotResponse,
-  DrowsinessUpdatePayload,
-  DrowsinessResponse,
   DriverSessionResponse,
   DriverSessionTogglePayload,
+  DriverTripStateResponse,
+  DrowsinessResponse,
+  DrowsinessTelemetryPayload,
+  DrowsinessTelemetryResponse,
+  DrowsinessUpdatePayload,
   ForecastResponse,
   HotspotPeriod,
   HotspotsResponse,
   MetricsResponse,
+  NotificationListResponse,
   PredictionResponse,
+  PresenceUpdatePayload,
+  PresenceUpdateResponse,
+  TripItem,
+  TripOfferListResponse,
   WeatherResponse,
 } from '../types';
+import { clearAuthTokens, readAuthTokens, saveAuthTokens } from './secureStorage';
 import { CacheStoreName, offlineService } from './offlineService';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api';
+const ENV_API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.trim();
+
+function buildApiCandidates() {
+  const fromWindow =
+    typeof window === 'undefined'
+      ? []
+      : [
+          `${window.location.origin}/api`,
+          `${window.location.protocol}//${window.location.hostname}:8000/api`,
+        ];
+
+  // On web, prioritize localhost/127.0.0.1. On Android emulator, 10.0.2.2 is required.
+  const candidates = [
+    ENV_API_BASE_URL,
+    'http://localhost:8000/api',
+    'http://127.0.0.1:8000/api',
+    ...fromWindow,
+    'http://10.0.2.2:8000/api', // Android Emulator Host (last resort on web, primary on emulator)
+  ].filter((item): item is string => Boolean(item));
+
+  // Deduplicate while preserving order (first occurrence wins)
+  return Array.from(new Set(candidates));
+}
+
+const API_BASE_CANDIDATES = buildApiCandidates();
+let activeApiBaseUrl = API_BASE_CANDIDATES[0] ?? 'http://localhost:8000/api';
+
+function buildApiUrl(base: string, path: string) {
+  return `${base}${path}`;
+}
+
+function shouldTryNextBase(status: number) {
+  return status === 404 || status === 502 || status === 503;
+}
+
+export function getResolvedApiBaseUrl() {
+  return activeApiBaseUrl;
+}
 
 function isBrowserOnline() {
   return typeof navigator === 'undefined' ? true : navigator.onLine;
@@ -29,13 +76,14 @@ function isNetworkError(error: unknown) {
     message.includes('failed to fetch') ||
     message.includes('network') ||
     message.includes('offline') ||
-    message.includes('load failed')
+    message.includes('load failed') ||
+    message.includes('timed out') ||
+    message.includes('aborted')
   );
 }
 
 function getCacheStore(path: string): CacheStoreName | null {
   const normalizedPath = path.split('?')[0];
-
   switch (normalizedPath) {
     case '/metrics':
       return 'metrics';
@@ -57,57 +105,203 @@ async function getCachedResponse<T>(storeName: CacheStoreName): Promise<T> {
   throw new Error(`Offline and no cached ${storeName} data is available yet.`);
 }
 
-async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
+async function refreshAccessToken() {
+  const tokens = await readAuthTokens();
+  if (!tokens?.refreshToken) {
+    return null;
+  }
+
+  let response: Response | null = null;
+  let lastError: unknown;
+
+  for (const baseUrl of API_BASE_CANDIDATES) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+      const attempt = await fetch(buildApiUrl(baseUrl, '/auth/refresh'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: tokens.refreshToken }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (attempt.ok || !shouldTryNextBase(attempt.status)) {
+        activeApiBaseUrl = baseUrl;
+        response = attempt;
+        break;
+      }
+      response = attempt;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  if (!response) {
+    throw lastError instanceof Error
+      ? new Error(`Failed to refresh token. Could not reach API. Last error: ${lastError.message}`)
+      : new Error('Failed to refresh token.');
+  }
+
+  if (!response.ok) {
+    await clearAuthTokens();
+    return null;
+  }
+
+  const refreshed = (await response.json()) as AuthTokensResponse;
+  await saveAuthTokens({
+    accessToken: refreshed.access_token,
+    refreshToken: refreshed.refresh_token,
+  });
+  return refreshed;
+}
+
+async function buildHeaders(init?: RequestInit, auth = false) {
+  const headers = new Headers(init?.headers ?? {});
+  if (!headers.has('Content-Type') && init?.body !== undefined) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  if (auth) {
+    const tokens = await readAuthTokens();
+    if (tokens?.accessToken) {
+      headers.set('Authorization', `Bearer ${tokens.accessToken}`);
+    }
+  }
+
+  return headers;
+}
+
+async function fetchJson<T>(path: string, init?: RequestInit & { auth?: boolean; retry?: boolean }): Promise<T> {
   const method = init?.method?.toUpperCase() ?? 'GET';
+  const auth = init?.auth ?? false;
   const cacheStore = method === 'GET' ? getCacheStore(path) : null;
 
   if (method === 'GET' && cacheStore && !isBrowserOnline()) {
     return getCachedResponse<T>(cacheStore);
   }
 
-  try {
-    const response = await fetch(`${API_BASE_URL}${path}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(init?.headers ?? {}),
-      },
-      ...init,
-    });
+  const headers = await buildHeaders(init, auth);
+  let response: Response | null = null;
+  let lastError: unknown;
+  const orderedBases = [activeApiBaseUrl, ...API_BASE_CANDIDATES.filter((candidate) => candidate !== activeApiBaseUrl)];
 
-    if (!response.ok) {
-      throw new Error(`API request failed with status ${response.status}`);
+  for (const baseUrl of orderedBases) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout for candidate polling
+
+      const attempt = await fetch(buildApiUrl(baseUrl, path), {
+        ...init,
+        headers,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (attempt.ok || !shouldTryNextBase(attempt.status)) {
+        activeApiBaseUrl = baseUrl;
+        response = attempt;
+        break;
+      }
+      response = attempt;
+    } catch (error) {
+      lastError = error;
     }
-
-    const data = await response.json() as T;
-
-    if (method === 'GET' && cacheStore) {
-      void offlineService.saveToCache(cacheStore, data).catch(() => undefined);
-    }
-
-    return data;
-  } catch (error) {
-    if (method === 'GET' && cacheStore && isNetworkError(error)) {
-      return getCachedResponse<T>(cacheStore);
-    }
-
-    throw error;
   }
+
+  if (!response) {
+    const baseHint = orderedBases.join(', ');
+    throw lastError instanceof Error
+      ? new Error(`Failed to fetch API. Tried: ${baseHint}. Last error: ${lastError.message}`)
+      : new Error(`Failed to fetch API. Tried: ${baseHint}`);
+  }
+
+  if (response.status === 401 && auth && init?.retry !== false) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) {
+      return fetchJson<T>(path, { ...init, retry: false });
+    }
+  }
+
+  if (!response.ok) {
+    throw new Error(`API request failed with status ${response.status}`);
+  }
+
+  const data = (await response.json()) as T;
+
+  if (method === 'GET' && cacheStore) {
+    void offlineService.saveToCache(cacheStore, data).catch(() => undefined);
+  }
+
+  return data;
 }
 
 export function getActiveHotspotPeriod(hotspots: HotspotsResponse): HotspotPeriod {
   return hotspots.active_period === 'morning' ? hotspots.morning : hotspots.evening;
 }
 
+export async function loginDriver(email: string, password: string): Promise<AuthTokensResponse> {
+  const response = await fetchJson<AuthTokensResponse>('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+  });
+  await saveAuthTokens({
+    accessToken: response.access_token,
+    refreshToken: response.refresh_token,
+  });
+  return response;
+}
+
+export async function logoutDriver() {
+  try {
+    await fetchJson<{ status: string }>('/auth/logout', {
+      method: 'POST',
+      auth: true,
+    });
+  } finally {
+    await clearAuthTokens();
+  }
+}
+
+export async function getCurrentDriver() {
+  const response = await fetchJson<AuthTokensResponse['driver']>('/auth/me', { auth: true });
+  return response;
+}
+
 export async function getMetrics(): Promise<MetricsResponse> {
-  return fetchJson<MetricsResponse>('/metrics');
+  try {
+    return await fetchJson<MetricsResponse>('/metrics');
+  } catch (error) {
+    if (isNetworkError(error)) {
+      return getCachedResponse<MetricsResponse>('metrics');
+    }
+    throw error;
+  }
 }
 
 export async function getForecast(): Promise<ForecastResponse> {
-  return fetchJson<ForecastResponse>('/forecast');
+  try {
+    return await fetchJson<ForecastResponse>('/forecast');
+  } catch (error) {
+    if (isNetworkError(error)) {
+      return getCachedResponse<ForecastResponse>('forecast');
+    }
+    throw error;
+  }
 }
 
 export async function getHotspots(): Promise<HotspotsResponse> {
-  return fetchJson<HotspotsResponse>('/hotspots');
+  try {
+    return await fetchJson<HotspotsResponse>('/hotspots');
+  } catch (error) {
+    if (isNetworkError(error)) {
+      return getCachedResponse<HotspotsResponse>('hotspots');
+    }
+    throw error;
+  }
 }
 
 export interface PredictionQuery {
@@ -119,23 +313,10 @@ export interface PredictionQuery {
 
 export async function getPrediction(query: PredictionQuery): Promise<PredictionResponse> {
   const params = new URLSearchParams();
-
-  if (query.zoneId) {
-    params.set('zone_id', query.zoneId);
-  }
-
-  if (typeof query.lat === 'number') {
-    params.set('lat', String(query.lat));
-  }
-
-  if (typeof query.lng === 'number') {
-    params.set('lng', String(query.lng));
-  }
-
-  if (query.predictionTime) {
-    params.set('prediction_time', query.predictionTime);
-  }
-
+  if (query.zoneId) params.set('zone_id', query.zoneId);
+  if (typeof query.lat === 'number') params.set('lat', String(query.lat));
+  if (typeof query.lng === 'number') params.set('lng', String(query.lng));
+  if (query.predictionTime) params.set('prediction_time', query.predictionTime);
   const suffix = params.toString();
   return fetchJson<PredictionResponse>(`/predictions${suffix ? `?${suffix}` : ''}`);
 }
@@ -148,21 +329,43 @@ export interface WeatherQuery {
 
 export async function getWeather(query: WeatherQuery): Promise<WeatherResponse> {
   const params = new URLSearchParams();
-
-  if (query.zoneId) {
-    params.set('zone_id', query.zoneId);
-  }
-
-  if (typeof query.lat === 'number') {
-    params.set('lat', String(query.lat));
-  }
-
-  if (typeof query.lng === 'number') {
-    params.set('lng', String(query.lng));
-  }
-
+  if (query.zoneId) params.set('zone_id', query.zoneId);
+  if (typeof query.lat === 'number') params.set('lat', String(query.lat));
+  if (typeof query.lng === 'number') params.set('lng', String(query.lng));
   const suffix = params.toString();
   return fetchJson<WeatherResponse>(`/weather${suffix ? `?${suffix}` : ''}`);
+}
+
+export async function getTripOffers(): Promise<TripOfferListResponse> {
+  return fetchJson<TripOfferListResponse>('/trips/offers', { auth: true });
+}
+
+export async function getTripState(): Promise<DriverTripStateResponse> {
+  return fetchJson<DriverTripStateResponse>('/trips/active', { auth: true });
+}
+
+export async function acceptTripOffer(offerId: string): Promise<TripItem> {
+  return fetchJson<TripItem>(`/trips/${offerId}/accept`, { method: 'POST', auth: true });
+}
+
+export async function startTrip(tripId: string): Promise<TripItem> {
+  return fetchJson<TripItem>(`/trips/${tripId}/start`, { method: 'POST', auth: true });
+}
+
+export async function completeTrip(tripId: string): Promise<TripItem> {
+  return fetchJson<TripItem>(`/trips/${tripId}/complete`, { method: 'POST', auth: true });
+}
+
+export async function getNotifications(): Promise<NotificationListResponse> {
+  return fetchJson<NotificationListResponse>('/notifications', { auth: true });
+}
+
+export async function postPresenceUpdate(payload: PresenceUpdatePayload): Promise<PresenceUpdateResponse> {
+  return fetchJson<PresenceUpdateResponse>('/driver/presence', {
+    method: 'POST',
+    auth: true,
+    body: JSON.stringify(payload),
+  });
 }
 
 export async function getDrowsinessStatus(): Promise<DrowsinessResponse> {
@@ -178,17 +381,19 @@ function buildQueuedDrowsinessResponse(payload: DrowsinessUpdatePayload): Drowsi
   };
 }
 
-export async function postDrowsinessStatus(payload: DrowsinessUpdatePayload): Promise<DrowsinessResponse> {
+export async function postDrowsinessStatus(payload: DrowsinessTelemetryPayload): Promise<DrowsinessResponse> {
   if (!isBrowserOnline()) {
     await offlineService.addToSyncQueue('driver-drowsiness', payload);
     return buildQueuedDrowsinessResponse(payload);
   }
 
   try {
-    return await fetchJson<DrowsinessResponse>('/driver/drowsiness', {
+    const event = await fetchJson<DrowsinessTelemetryResponse>('/driver/telemetry/drowsiness', {
       method: 'POST',
-      body: JSON.stringify(payload),
+      auth: true,
+      body: JSON.stringify(payload satisfies DrowsinessTelemetryPayload),
     });
+    return event;
   } catch (error) {
     if (!isNetworkError(error)) {
       throw error;
@@ -231,9 +436,6 @@ export async function postDriverSession(payload: DriverSessionTogglePayload): Pr
 export async function askCopilot(query: string, currentTime: string): Promise<CopilotResponse> {
   return fetchJson<CopilotResponse>('/copilot/ask', {
     method: 'POST',
-    body: JSON.stringify({
-      query,
-      current_time: currentTime,
-    }),
+    body: JSON.stringify({ query, current_time: currentTime }),
   });
 }

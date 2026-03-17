@@ -15,9 +15,13 @@ class Settings(BaseSettings):
     app_host: str = "0.0.0.0"
     app_port: int = 8000
     database_url: str = Field(
-        default="postgresql+psycopg2://postgres:postgres@localhost:5432/grid",
+        default="sqlite:///./grid.db",
         alias="DATABASE_URL",
     )
+    jwt_secret: str = Field(default="grid-dev-secret-change-me", alias="JWT_SECRET")
+    jwt_issuer: str = Field(default="grid-api", alias="JWT_ISSUER")
+    access_token_exp_minutes: int = Field(default=30, alias="ACCESS_TOKEN_EXP_MINUTES")
+    refresh_token_exp_days: int = Field(default=14, alias="REFRESH_TOKEN_EXP_DAYS")
     weather_api_key: str = Field(default="", alias="WEATHER_API_KEY")
     weather_api_base_url: str = Field(
         default="http://api.weatherapi.com/v1/current.json",

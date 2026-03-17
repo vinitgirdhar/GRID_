@@ -4,48 +4,35 @@ import { motion } from 'motion/react';
 
 import { cn } from '../lib/utils';
 import { postDrowsinessStatus } from '../services/apiService';
+import {
+  blendshapeScore,
+  buildDrowsinessPayload,
+  BUZZ_INTERVAL_MS,
+  CLOSED_FRAME_THRESHOLD,
+  CLOSED_SECONDS_THRESHOLD,
+  computeEar,
+  computeMouthRatio,
+  createFaceLandmarker,
+  DEFAULT_THRESHOLD,
+  EYE_RING,
+  FaceLandmarkerInstance,
+  FaceLandmarkerResult,
+  formatLogTime,
+  JAW_OPEN_THRESHOLD,
+  LEFT_EYE,
+  MOUTH,
+  POST_INTERVAL_MS,
+  requestCameraStream,
+  RIGHT_EYE,
+  waitForVideoMetadata,
+  withTimeout,
+  YAWN_SUSTAINED_SECONDS,
+  YAWN_THRESHOLD,
+} from '../services/drowsinessService';
+import { useDriverStore } from '../stores/driverStore';
 import { DrowsinessResponse, DrowsinessSeverity, DrowsinessUpdatePayload } from '../types';
-
-
-const VISION_BUNDLE_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/vision_bundle.mjs';
-const VISION_WASM_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm';
-const FACE_LANDMARKER_MODEL_URL =
-  'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task';
-
-const LEFT_EYE = [33, 160, 158, 133, 153, 144] as const;
-const RIGHT_EYE = [362, 385, 387, 263, 373, 380] as const;
-const EYE_RING = [0, 1, 2, 3, 4, 5, 0] as const;
-const MOUTH = [78, 81, 13, 311, 308, 402, 14, 178, 78] as const;
-const DEFAULT_THRESHOLD = 0.23;
-const YAWN_THRESHOLD = 0.5;
-const JAW_OPEN_THRESHOLD = 0.7;
-const YAWN_SUSTAINED_SECONDS = 1.5;
-const CLOSED_FRAME_THRESHOLD = 20;
-const CLOSED_SECONDS_THRESHOLD = 2;
-const POST_INTERVAL_MS = 900;
-const BUZZ_INTERVAL_MS = 1100;
 const CAMERA_START_TIMEOUT_MS = 12000;
 const FACE_MESH_LOAD_TIMEOUT_MS = 15000;
-
-type Landmark = { x: number; y: number; z?: number };
-type BlendshapeCategory = { categoryName: string; score: number };
-type FaceLandmarkerResult = {
-  faceLandmarks?: Landmark[][];
-  faceBlendshapes?: Array<{ categories: BlendshapeCategory[] }>;
-};
-type FaceLandmarkerInstance = {
-  detectForVideo: (video: HTMLVideoElement, timestampMs: number) => FaceLandmarkerResult;
-  close?: () => void;
-};
-type VisionBundleModule = {
-  FilesetResolver: { forVisionTasks: (wasmRoot: string) => Promise<unknown> };
-  FaceLandmarker: {
-    createFromOptions: (
-      vision: unknown,
-      options: Record<string, unknown>,
-    ) => Promise<FaceLandmarkerInstance>;
-  };
-};
 
 type SafetyLogTone = 'critical' | 'warning';
 type SafetyLogEntry = {
@@ -54,42 +41,6 @@ type SafetyLogEntry = {
   label: string;
   tone: SafetyLogTone;
 };
-
-
-function distance(a: { x: number; y: number }, b: { x: number; y: number }) {
-  return Math.hypot(a.x - b.x, a.y - b.y);
-}
-
-
-function computeEar(points: { x: number; y: number }[]) {
-  const verticalOne = distance(points[1], points[5]);
-  const verticalTwo = distance(points[2], points[4]);
-  const horizontal = distance(points[0], points[3]);
-  if (!horizontal) {
-    return 0;
-  }
-  return (verticalOne + verticalTwo) / (2 * horizontal);
-}
-
-
-function computeMouthRatio(points: { x: number; y: number }[]) {
-  const vertical = distance(points[2], points[6]);
-  const horizontal = distance(points[0], points[4]);
-  if (!horizontal) {
-    return 0;
-  }
-  return vertical / horizontal;
-}
-
-
-function blendshapeScore(result: FaceLandmarkerResult | null, name: string) {
-  const categories = result?.faceBlendshapes?.[0]?.categories;
-  if (!categories) {
-    return 0;
-  }
-  return categories.find((category) => category.categoryName === name)?.score ?? 0;
-}
-
 
 function severityClasses(severity: DrowsinessSeverity) {
   if (severity === 'critical') {
@@ -191,145 +142,9 @@ function drawStatusChip(
 }
 
 
-function buildPayload(
-  next: Partial<DrowsinessResponse> & Pick<DrowsinessUpdatePayload, 'status' | 'severity'>,
-): DrowsinessUpdatePayload {
-  return {
-    status: next.status,
-    severity: next.severity,
-    ear: next.ear ?? null,
-    threshold: next.threshold ?? DEFAULT_THRESHOLD,
-    consecutive_closed_frames: next.consecutive_closed_frames ?? 0,
-    eyes_closed_seconds: next.eyes_closed_seconds ?? 0,
-    alarm_active: next.alarm_active ?? false,
-    assistant_response: next.assistant_response ?? null,
-    source: next.source ?? 'browser-camera',
-    updated_at: new Date().toISOString(),
-  };
-}
-
-
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string) {
-  return new Promise<T>((resolve, reject) => {
-    const timeoutId = window.setTimeout(() => reject(new Error(message)), timeoutMs);
-    promise
-      .then((value) => {
-        window.clearTimeout(timeoutId);
-        resolve(value);
-      })
-      .catch((error) => {
-        window.clearTimeout(timeoutId);
-        reject(error);
-      });
-  });
-}
-
-function formatLogTime(date: Date) {
-  return date.toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  });
-}
-
-
-async function requestCameraStream(setLoadingStep: (value: string) => void) {
-  console.log('[Camera] Starting stream request sequence...');
-  
-  try {
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    const videoDevices = devices.filter(d => d.kind === 'videoinput');
-    console.log('[Camera] Available video devices:', videoDevices);
-    
-    if (videoDevices.length === 0) {
-      throw new Error('No webcam devices found on this system.');
-    }
-  } catch (e) {
-    console.warn('[Camera] Failed to enumerate devices:', e);
-  }
-
-  const attempts: Array<{ step: string; constraints: MediaStreamConstraints }> = [
-    {
-      step: 'Requesting camera (Primary: HD)...',
-      constraints: {
-        video: {
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          facingMode: 'user',
-        },
-        audio: false,
-      },
-    },
-    {
-      step: 'Retrying camera (Basic)...',
-      constraints: {
-        video: true,
-        audio: false,
-      },
-    },
-  ];
-
-  let lastError: unknown = null;
-  for (const attempt of attempts) {
-    try {
-      console.log(`[Camera] Attempting: ${attempt.step}`, attempt.constraints);
-      setLoadingStep(attempt.step);
-      
-      const stream = await withTimeout(
-        navigator.mediaDevices.getUserMedia(attempt.constraints),
-        10000,
-        `Timed out at step: ${attempt.step}`,
-      );
-      
-      console.log('[Camera] Stream successfully obtained!', stream.id);
-      return stream;
-    } catch (error) {
-      console.error(`[Camera] Attempt failed (${attempt.step}):`, error);
-      lastError = error;
-    }
-  }
-
-  throw lastError instanceof Error ? lastError : new Error('Unable to open the webcam after multiple attempts.');
-}
-
-
-function waitForVideoMetadata(video: HTMLVideoElement, timeoutMs: number) {
-  return new Promise<void>((resolve, reject) => {
-    if (video.readyState >= 1 || video.videoWidth > 0) {
-      resolve();
-      return;
-    }
-
-    const cleanup = () => {
-      window.clearTimeout(timeoutId);
-      video.removeEventListener('loadedmetadata', onLoadedMetadata);
-      video.removeEventListener('loadeddata', onLoadedMetadata);
-      video.removeEventListener('error', onVideoError);
-    };
-
-    const onLoadedMetadata = () => {
-      cleanup();
-      resolve();
-    };
-
-    const onVideoError = () => {
-      cleanup();
-      reject(new Error('The webcam stream opened but the video element failed to load it.'));
-    };
-
-    const timeoutId = window.setTimeout(() => {
-      cleanup();
-      reject(new Error('The webcam stream opened, but video frames never started.'));
-    }, timeoutMs);
-
-    video.addEventListener('loadedmetadata', onLoadedMetadata, { once: true });
-    video.addEventListener('loadeddata', onLoadedMetadata, { once: true });
-    video.addEventListener('error', onVideoError, { once: true });
-  });
-}
-
 
 export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
+  const activeTrip = useDriverStore((state) => state.activeTrip);
   const [cameraState, setCameraState] = useState<'idle' | 'loading' | 'active' | 'error'>('idle');
   const [loadingStep, setLoadingStep] = useState<string>('');
   const [eventLogs, setEventLogs] = useState<SafetyLogEntry[]>([]);
@@ -441,12 +256,17 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
   }
 
   async function postStatus(payload: DrowsinessUpdatePayload) {
+    const payloadWithTrip = {
+      ...payload,
+      trip_id: activeTrip?.id ?? null,
+    };
     const signature = JSON.stringify([
-      payload.status,
-      payload.severity,
-      payload.ear,
-      payload.consecutive_closed_frames,
-      payload.alarm_active,
+      payloadWithTrip.status,
+      payloadWithTrip.severity,
+      payloadWithTrip.ear,
+      payloadWithTrip.consecutive_closed_frames,
+      payloadWithTrip.alarm_active,
+      payloadWithTrip.trip_id,
     ]);
     const now = Date.now();
     if (signature === lastPostedSignatureRef.current && now - lastPostedAtRef.current < POST_INTERVAL_MS) {
@@ -457,13 +277,13 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
     lastPostedAtRef.current = now;
 
     try {
-      const saved = await postDrowsinessStatus(payload);
+      const saved = await postDrowsinessStatus(payloadWithTrip);
       if (isMountedRef.current) {
         setStatus(saved);
       }
     } catch {
       if (isMountedRef.current) {
-        setStatus((current) => ({ ...current, ...payload }));
+        setStatus((current) => ({ ...current, ...payloadWithTrip }));
       }
     }
   }
@@ -609,7 +429,7 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
       latestResultRef.current = result;
     }
 
-    const next = buildPayload({
+    const next = buildDrowsinessPayload({
       status: 'No face detected',
       severity: 'warning',
       ear: null,
@@ -763,7 +583,7 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
 
       console.log('[Camera] Step 6: Initializing MediaPipe');
       await postStatus(
-        buildPayload({
+        buildDrowsinessPayload({
           status: 'Camera live, loading AI...',
           severity: 'warning',
           ear: null,
@@ -775,34 +595,8 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
       );
 
       setLoadingStep('Loading face mesh bundle...');
-      const vision = (await withTimeout(
-        import(/* @vite-ignore */ VISION_BUNDLE_URL),
-        20000,
-        'Face mesh bundle did not load. Check internet access and reload the page.',
-      )) as VisionBundleModule;
-
-      setLoadingStep('Initializing vision runtime...');
-      const visionFiles = await withTimeout(
-        vision.FilesetResolver.forVisionTasks(VISION_WASM_URL),
-        20000,
-        'Face mesh runtime did not initialize.',
-      );
-
-      setLoadingStep('Downloading face tracking model...');
-      const faceLandmarker = await withTimeout(
-        vision.FaceLandmarker.createFromOptions(visionFiles, {
-          baseOptions: { modelAssetPath: FACE_LANDMARKER_MODEL_URL },
-          outputFaceBlendshapes: true,
-          outputFacialTransformationMatrixes: true,
-          runningMode: 'VIDEO',
-          minFaceDetectionConfidence: 0.25,
-          minFacePresenceConfidence: 0.25,
-          minTrackingConfidence: 0.25,
-          numFaces: 1,
-        }),
-        25000,
-        'Face mesh model did not load (Internet may be slow). Please refresh and try again.',
-      );
+      setLoadingStep('Loading local face tracking assets...');
+      const faceLandmarker = await createFaceLandmarker();
 
       if (!isMountedRef.current) {
         faceLandmarker.close?.();
@@ -811,7 +605,7 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
 
       faceLandmarkerRef.current = faceLandmarker;
 
-      const startingPayload = buildPayload({
+      const startingPayload = buildDrowsinessPayload({
         status: 'Face mesh live',
         severity: 'normal',
         ear: null,
@@ -829,7 +623,7 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
       setCameraState(hasLiveVideo ? 'active' : 'error');
 
       await postStatus(
-        buildPayload({
+        buildDrowsinessPayload({
           status: hasLiveVideo ? 'Camera live, face mesh failed' : 'Camera unavailable',
           severity: 'warning',
           ear: null,
@@ -875,7 +669,7 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
     setError(null);
 
     await postStatus(
-      buildPayload({
+      buildDrowsinessPayload({
         status: isLive ? 'Camera stopped' : 'Driver offline',
         severity: 'warning',
         ear: null,

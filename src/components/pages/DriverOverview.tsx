@@ -10,7 +10,6 @@ import {
   Wind,
   Calendar,
   MapPin,
-  Clock,
   X,
   Leaf,
   AlertTriangle
@@ -334,34 +333,36 @@ export default function DriverOverview({
               </div>
             </div>
 
-            <div className="h-[100px] w-full mt-4">
+            <div className="h-[120px] w-full mt-4 relative">
               <p className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-widest mb-2">3 Hour Trend</p>
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={trendData} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorDemand" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.6} />
-                      <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <Area
-                    type="basis"
-                    dataKey="value"
-                    stroke="var(--primary-dark)"
-                    fillOpacity={1}
-                    fill="url(#colorDemand)"
-                    strokeWidth={3}
-                    activeDot={{ r: 4, fill: "var(--primary)", stroke: "var(--surface)", strokeWidth: 2 }}
-                  />
-                  <XAxis dataKey="name" hide />
-                  <YAxis hide domain={['dataMin - 500', 'dataMax + 500']} />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', fontSize: '11px', boxShadow: 'var(--shadow-md)' }}
-                    itemStyle={{ color: 'var(--text-primary)', fontWeight: 'bold' }}
-                    cursor={{ stroke: 'var(--border)', strokeWidth: 1, strokeDasharray: '3 3' }}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+              <div className="absolute inset-0 pt-6">
+                <ResponsiveContainer width="100%" height="100%" debounce={100}>
+                  <AreaChart data={trendData} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorDemand" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.6} />
+                        <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <Area
+                      type="basis"
+                      dataKey="value"
+                      stroke="var(--primary-dark)"
+                      fillOpacity={1}
+                      fill="url(#colorDemand)"
+                      strokeWidth={3}
+                      activeDot={{ r: 4, fill: "var(--primary)", stroke: "var(--surface)", strokeWidth: 2 }}
+                    />
+                    <XAxis dataKey="name" hide />
+                    <YAxis hide domain={['dataMin - 500', 'dataMax + 500']} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', fontSize: '11px', boxShadow: 'var(--shadow-md)' }}
+                      itemStyle={{ color: 'var(--text-primary)', fontWeight: 'bold' }}
+                      cursor={{ stroke: 'var(--border)', strokeWidth: 1, strokeDasharray: '3 3' }}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           </div>
 
@@ -526,8 +527,8 @@ export default function DriverOverview({
           </div>
         </div>
 
-        <div className="h-[250px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
+        <div className="h-[250px] w-full relative">
+          <ResponsiveContainer width="100%" height="100%" debounce={100}>
             <BarChart data={formulaData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
               <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
@@ -618,8 +619,8 @@ export default function DriverOverview({
                   
                   <div className="space-y-4">
                     <h3 className="text-lg font-bold text-[var(--text-primary)] border-b border-[var(--border)] pb-2">Extended 4-Hour Trend Detail</h3>
-                    <div className="h-[250px] w-full">
-                      <ResponsiveContainer width="100%" height="100%">
+                    <div className="h-[250px] w-full relative">
+                      <ResponsiveContainer width="100%" height="100%" debounce={100}>
                         <AreaChart data={trendData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
                           <defs>
                             <linearGradient id="colorDemandLarge" x1="0" y1="0" x2="0" y2="1">
