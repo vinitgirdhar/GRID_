@@ -1,8 +1,8 @@
 import { DrowsinessResponse, DrowsinessUpdatePayload } from '../types';
 
-export const VISION_BUNDLE_URL = '/mediapipe/vision_bundle.mjs';
-export const VISION_WASM_URL = '/mediapipe/wasm';
-export const FACE_LANDMARKER_MODEL_URL = '/mediapipe/face_landmarker.task';
+export const VISION_BUNDLE_PATH = 'mediapipe/vision_bundle.mjs';
+export const VISION_WASM_PATH = 'mediapipe/wasm';
+export const FACE_LANDMARKER_MODEL_PATH = 'mediapipe/face_landmarker.task';
 
 export const LEFT_EYE = [33, 160, 158, 133, 153, 144] as const;
 export const RIGHT_EYE = [362, 385, 387, 263, 373, 380] as const;
@@ -108,6 +108,13 @@ export function formatLogTime(date: Date) {
   });
 }
 
+function resolvePublicAsset(path: string) {
+  const baseUrl = import.meta.env.BASE_URL || '/';
+  const normalizedBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+  const normalizedPath = path.replace(/^\/+/, '');
+  return new URL(`${normalizedBase}${normalizedPath}`, window.location.origin).toString();
+}
+
 export async function requestCameraStream(setLoadingStep: (value: string) => void) {
   const attempts: Array<{ step: string; constraints: MediaStreamConstraints }> = [
     {
@@ -183,21 +190,25 @@ export function waitForVideoMetadata(video: HTMLVideoElement, timeoutMs: number)
 }
 
 export async function createFaceLandmarker() {
+  const visionBundleUrl = resolvePublicAsset(VISION_BUNDLE_PATH);
+  const visionWasmUrl = resolvePublicAsset(VISION_WASM_PATH);
+  const faceLandmarkerModelUrl = resolvePublicAsset(FACE_LANDMARKER_MODEL_PATH);
+
   const vision = (await withTimeout(
-    import(/* @vite-ignore */ VISION_BUNDLE_URL),
+    import(/* @vite-ignore */ visionBundleUrl),
     20000,
     'Face mesh bundle did not load. Confirm the local MediaPipe assets are present in /public/mediapipe.',
   )) as VisionBundleModule;
 
   const visionFiles = await withTimeout(
-    vision.FilesetResolver.forVisionTasks(VISION_WASM_URL),
+    vision.FilesetResolver.forVisionTasks(visionWasmUrl),
     20000,
     'Face mesh runtime did not initialize.',
   );
 
   return withTimeout(
     vision.FaceLandmarker.createFromOptions(visionFiles, {
-      baseOptions: { modelAssetPath: FACE_LANDMARKER_MODEL_URL },
+      baseOptions: { modelAssetPath: faceLandmarkerModelUrl },
       outputFaceBlendshapes: true,
       outputFacialTransformationMatrixes: true,
       runningMode: 'VIDEO',

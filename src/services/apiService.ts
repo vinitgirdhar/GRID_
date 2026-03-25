@@ -23,27 +23,31 @@ import {
 import { clearAuthTokens, readAuthTokens, saveAuthTokens } from './secureStorage';
 import { CacheStoreName, offlineService } from './offlineService';
 
+import { Capacitor } from '@capacitor/core';
+
 const ENV_API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.trim();
 
 function buildApiCandidates() {
+  const isAndroid = Capacitor.getPlatform() === 'android';
+  
   const fromWindow =
     typeof window === 'undefined'
       ? []
       : [
-          `${window.location.origin}/api`,
           `${window.location.protocol}//${window.location.hostname}:8000/api`,
+          `${window.location.origin}/api`,
         ];
 
-  // On web, prioritize localhost/127.0.0.1. On Android emulator, 10.0.2.2 is required.
+  // On Android emulator, 10.0.2.2:8000 is the required host bridge.
   const candidates = [
     ENV_API_BASE_URL,
+    isAndroid ? 'http://10.0.2.2:8000/api' : null,
     'http://localhost:8000/api',
     'http://127.0.0.1:8000/api',
     ...fromWindow,
-    'http://10.0.2.2:8000/api', // Android Emulator Host (last resort on web, primary on emulator)
+    !isAndroid ? 'http://10.0.2.2:8000/api' : null,
   ].filter((item): item is string => Boolean(item));
 
-  // Deduplicate while preserving order (first occurrence wins)
   return Array.from(new Set(candidates));
 }
 
@@ -54,8 +58,15 @@ function buildApiUrl(base: string, path: string) {
   return `${base}${path}`;
 }
 
-function shouldTryNextBase(status: number) {
-  return status === 404 || status === 502 || status === 503;
+function isHtmlResponse(response: Response) {
+  const contentType = response.headers.get('Content-Type') || '';
+  return contentType.includes('text/html');
+}
+
+function shouldTryNextBase(response: Response) {
+  const status = response.status;
+  // If it's a common server error OR if it returned HTML when we expected JSON (common in SPAs/Capacitor 404s)
+  return status === 404 || status === 502 || status === 503 || isHtmlResponse(response);
 }
 
 export function getResolvedApiBaseUrl() {
@@ -128,7 +139,13 @@ async function refreshAccessToken() {
 
       clearTimeout(timeoutId);
 
-      if (attempt.ok || !shouldTryNextBase(attempt.status)) {
+      if (attempt.ok && !isHtmlResponse(attempt)) {
+        activeApiBaseUrl = baseUrl;
+        response = attempt;
+        break;
+      }
+      
+      if (!shouldTryNextBase(attempt)) {
         activeApiBaseUrl = baseUrl;
         response = attempt;
         break;
@@ -201,7 +218,13 @@ async function fetchJson<T>(path: string, init?: RequestInit & { auth?: boolean;
 
       clearTimeout(timeoutId);
 
-      if (attempt.ok || !shouldTryNextBase(attempt.status)) {
+      if (attempt.ok && !isHtmlResponse(attempt)) {
+        activeApiBaseUrl = baseUrl;
+        response = attempt;
+        break;
+      }
+
+      if (!shouldTryNextBase(attempt)) {
         activeApiBaseUrl = baseUrl;
         response = attempt;
         break;
