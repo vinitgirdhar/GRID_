@@ -1,6 +1,7 @@
 import { FormEvent, useState } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { motion } from 'motion/react';
-import { BarChart3, Navigation, ShieldCheck } from 'lucide-react';
+import { BarChart3, ChevronRight, Navigation, ShieldCheck } from 'lucide-react';
 
 import { getResolvedApiBaseUrl } from '../services/apiService';
 import { useDriverStore } from '../stores/driverStore';
@@ -16,6 +17,8 @@ export default function Login({ onLogin }: LoginProps) {
   const [password, setPassword] = useState('grid-driver-123');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const isNativePlatform = Capacitor.isNativePlatform();
+  const errorMessage = localError ?? authError;
 
   async function handleDriverLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -30,6 +33,127 @@ export default function Login({ onLogin }: LoginProps) {
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  const formFields = (
+    <>
+      <div className="space-y-2">
+        <label className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--text-muted)]">Email</label>
+        <input
+          type="email"
+          inputMode="email"
+          autoComplete="username"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          className="w-full rounded-2xl border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--primary)]"
+        />
+      </div>
+      <div className="space-y-2">
+        <label className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--text-muted)]">Password</label>
+        <input
+          type="password"
+          autoComplete="current-password"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          className="w-full rounded-2xl border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--primary)]"
+        />
+      </div>
+    </>
+  );
+
+  if (isNativePlatform) {
+    return (
+      <div className="relative min-h-screen overflow-hidden bg-slate-950 text-white font-sans">
+        {/* Animated Orbs Background */}
+        <motion.div 
+          animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.5, 0.3] }}
+          transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
+          className="absolute -top-[20%] -left-[10%] h-[500px] w-[500px] rounded-full bg-blue-600/30 blur-[120px]" 
+        />
+        <motion.div 
+          animate={{ scale: [1, 1.5, 1], opacity: [0.2, 0.4, 0.2] }}
+          transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
+          className="absolute top-[40%] -right-[20%] h-[400px] w-[400px] rounded-full bg-purple-600/20 blur-[100px]" 
+        />
+        <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
+
+        <div className="relative z-10 flex min-h-screen flex-col items-center justify-center px-6 py-10">
+          <div className="w-full max-w-[340px]">
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, ease: 'easeOut' }}
+              className="mb-10 flex flex-col items-center justify-center text-center"
+            >
+              <div className="relative mb-6 flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-3xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-[0_0_40px_rgba(79,70,229,0.5)]">
+                <div className="absolute inset-x-0 -top-px mx-auto h-px w-1/2 bg-gradient-to-r from-transparent via-white/70 to-transparent" />
+                <Navigation size={32} strokeWidth={2.5} />
+              </div>
+              <h1 className="text-3xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-b from-white to-white/60">
+                GRID Pilot
+              </h1>
+              <p className="mt-2 text-sm font-medium text-slate-400">
+                Connected infrastructure driving.
+              </p>
+            </motion.div>
+
+            <motion.section
+              initial={{ opacity: 0, y: 30, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ duration: 0.5, delay: 0.1, ease: 'easeOut' }}
+            >
+              <form className="space-y-4" onSubmit={handleDriverLogin}>
+                <div className="space-y-3">
+                  <div className="group relative">
+                    <input
+                      type="email"
+                      inputMode="email"
+                      autoComplete="username"
+                      placeholder="Driver Email"
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                      className="peer relative w-full rounded-2xl border border-white/5 bg-white/[0.03] px-5 py-4 text-sm font-medium text-white placeholder-slate-500 shadow-inner backdrop-blur-xl outline-none ring-1 ring-transparent transition focus:bg-white/10 focus:ring-blue-500/50"
+                    />
+                  </div>
+                  <div className="group relative">
+                    <input
+                      type="password"
+                      autoComplete="current-password"
+                      placeholder="Access Code"
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      className="peer relative w-full rounded-2xl border border-white/5 bg-white/[0.03] px-5 py-4 text-sm font-medium text-white placeholder-slate-500 shadow-inner backdrop-blur-xl outline-none ring-1 ring-transparent transition focus:bg-white/10 focus:ring-blue-500/50"
+                    />
+                  </div>
+                </div>
+
+                {errorMessage && (
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0 }} 
+                    animate={{ opacity: 1, height: 'auto' }}
+                    className="overflow-hidden rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-center text-[13px] font-medium text-red-300 backdrop-blur-md"
+                  >
+                    {errorMessage}
+                  </motion.div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="group relative mt-2 flex w-full items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-[18px] text-sm font-bold tracking-wide text-white shadow-[0_10px_40px_-5px_rgba(79,70,229,0.5)] transition-all hover:scale-[1.02] hover:shadow-[0_15px_40px_-5px_rgba(79,70,229,0.7)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] transition-transform duration-700 ease-in-out group-hover:translate-x-[100%]" />
+                  <span className="relative flex shadow-sm items-center gap-2">
+                    {isSubmitting ? 'Authenticating...' : 'Commence Shift'}
+                    {!isSubmitting && <ChevronRight size={18} className="transition-transform group-hover:translate-x-1" />}
+                  </span>
+                </button>
+              </form>
+            </motion.section>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -94,27 +218,11 @@ export default function Login({ onLogin }: LoginProps) {
           </div>
 
           <form className="mt-8 space-y-4" onSubmit={handleDriverLogin}>
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--text-muted)]">Email</label>
-              <input
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                className="w-full rounded-2xl border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--primary)]"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--text-muted)]">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                className="w-full rounded-2xl border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--primary)]"
-              />
-            </div>
+            {formFields}
 
-            {(localError || authError) && (
+            {errorMessage && (
               <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-                {localError ?? authError}
+                {errorMessage}
               </div>
             )}
 

@@ -26,10 +26,36 @@ import { CacheStoreName, offlineService } from './offlineService';
 import { Capacitor } from '@capacitor/core';
 
 const ENV_API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.trim();
+const ENV_ANDROID_API_BASE_URL = import.meta.env.VITE_ANDROID_API_BASE_URL?.trim();
+const BACKEND_UNREACHABLE_MESSAGE = 'Unable to reach the backend server. Please verify your connection.';
+const ANDROID_EMULATOR_API_BASE_URL = 'http://10.0.2.2:8000/api';
+
+function normalizeAndroidApiBase(baseUrl: string | undefined, isAndroid: boolean) {
+  if (!baseUrl) {
+    return null;
+  }
+
+  if (!isAndroid) {
+    return baseUrl;
+  }
+
+  try {
+    const parsed = new URL(baseUrl);
+    if (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1' || parsed.hostname === '0.0.0.0') {
+      parsed.hostname = '10.0.2.2';
+      return parsed.toString().replace(/\/$/, '');
+    }
+  } catch {
+    return baseUrl;
+  }
+
+  return baseUrl;
+}
 
 function buildApiCandidates() {
   const isAndroid = Capacitor.getPlatform() === 'android';
-  
+  const nativePreferredBase = normalizeAndroidApiBase(ENV_ANDROID_API_BASE_URL ?? ENV_API_BASE_URL, isAndroid);
+
   const fromWindow =
     typeof window === 'undefined'
       ? []
@@ -38,14 +64,15 @@ function buildApiCandidates() {
           `${window.location.origin}/api`,
         ];
 
-  // On Android emulator, 10.0.2.2:8000 is the required host bridge.
+  // Native Android should talk to the backend directly, not probe the app WebView origin.
   const candidates = [
-    ENV_API_BASE_URL,
-    isAndroid ? 'http://10.0.2.2:8000/api' : null,
-    'http://localhost:8000/api',
-    'http://127.0.0.1:8000/api',
-    ...fromWindow,
-    !isAndroid ? 'http://10.0.2.2:8000/api' : null,
+    nativePreferredBase,
+    isAndroid ? ANDROID_EMULATOR_API_BASE_URL : ENV_API_BASE_URL,
+    isAndroid ? 'http://192.168.1.35:8000/api' : 'http://localhost:8000/api',
+    isAndroid ? null : 'http://192.168.1.35:8000/api',
+    isAndroid ? null : 'http://127.0.0.1:8000/api',
+    ...(isAndroid ? [] : fromWindow),
+    !isAndroid ? ANDROID_EMULATOR_API_BASE_URL : null,
   ].filter((item): item is string => Boolean(item));
 
   return Array.from(new Set(candidates));
@@ -240,6 +267,10 @@ async function fetchJson<T>(path: string, init?: RequestInit & { auth?: boolean;
     throw lastError instanceof Error
       ? new Error(`Failed to fetch API. Tried: ${baseHint}. Last error: ${lastError.message}`)
       : new Error(`Failed to fetch API. Tried: ${baseHint}`);
+  }
+
+  if (isHtmlResponse(response)) {
+    throw new Error(BACKEND_UNREACHABLE_MESSAGE);
   }
 
   if (response.status === 401 && auth && init?.retry !== false) {
