@@ -63,21 +63,21 @@ export default function Login({ onLogin }: LoginProps) {
 
   if (isNativePlatform) {
     return (
-      <div className="relative min-h-screen overflow-hidden bg-slate-950 text-white font-sans">
+      <div className="relative min-h-screen overflow-hidden text-white font-sans" style={{ background: 'radial-gradient(circle at top left, #fde68a 0%, rgba(245,158,11,0.18) 25%, rgba(15,23,42,1) 70%)' }}>
         {/* Animated Orbs Background */}
         <motion.div 
-          animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.5, 0.3] }}
+          animate={{ scale: [1, 1.2, 1], opacity: [0.25, 0.45, 0.25] }}
           transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
-          className="absolute -top-[20%] -left-[10%] h-[500px] w-[500px] rounded-full bg-blue-600/30 blur-[120px]" 
+          className="absolute -top-[20%] -left-[10%] h-[500px] w-[500px] rounded-full bg-[#facc15]/25 blur-[120px]" 
         />
         <motion.div 
-          animate={{ scale: [1, 1.5, 1], opacity: [0.2, 0.4, 0.2] }}
+          animate={{ scale: [1, 1.5, 1], opacity: [0.15, 0.3, 0.15] }}
           transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
-          className="absolute top-[40%] -right-[20%] h-[400px] w-[400px] rounded-full bg-purple-600/20 blur-[100px]" 
+          className="absolute top-[40%] -right-[20%] h-[400px] w-[400px] rounded-full bg-amber-500/15 blur-[100px]" 
         />
-        <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
+        <div className="absolute inset-0 opacity-15" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px)', backgroundSize: '36px 36px' }} />
 
-        <div className="relative z-10 flex min-h-screen flex-col items-center justify-center px-6 py-10">
+        <div className="relative z-10 flex min-h-screen flex-col items-center justify-center px-6" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 2.5rem)', paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 2.5rem)' }}>
           <div className="w-full max-w-[340px]">
             <motion.div
               initial={{ opacity: 0, y: -20 }}
@@ -85,14 +85,14 @@ export default function Login({ onLogin }: LoginProps) {
               transition={{ duration: 0.6, ease: 'easeOut' }}
               className="mb-10 flex flex-col items-center justify-center text-center"
             >
-              <div className="relative mb-6 flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-3xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-[0_0_40px_rgba(79,70,229,0.5)]">
+              <div className="relative mb-6 flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-3xl bg-[#facc15] text-slate-950 shadow-[0_0_40px_rgba(250,204,21,0.4)]">
                 <div className="absolute inset-x-0 -top-px mx-auto h-px w-1/2 bg-gradient-to-r from-transparent via-white/70 to-transparent" />
                 <Navigation size={32} strokeWidth={2.5} />
               </div>
               <h1 className="text-3xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-b from-white to-white/60">
                 GRID Pilot
               </h1>
-              <p className="mt-2 text-sm font-medium text-slate-400">
+              <p className="mt-2 text-sm font-medium text-white/50">
                 Connected infrastructure driving.
               </p>
             </motion.div>
@@ -112,7 +112,7 @@ export default function Login({ onLogin }: LoginProps) {
                       placeholder="Driver Email"
                       value={email}
                       onChange={(event) => setEmail(event.target.value)}
-                      className="peer relative w-full rounded-2xl border border-white/5 bg-white/[0.03] px-5 py-4 text-sm font-medium text-white placeholder-slate-500 shadow-inner backdrop-blur-xl outline-none ring-1 ring-transparent transition focus:bg-white/10 focus:ring-blue-500/50"
+                      className="peer relative w-full rounded-2xl border border-white/10 bg-white/[0.06] px-5 py-4 text-sm font-medium text-white placeholder-white/30 shadow-inner backdrop-blur-xl outline-none ring-1 ring-transparent transition focus:bg-white/10 focus:ring-[#facc15]/50"
                     />
                   </div>
                   <div className="group relative">
@@ -122,7 +122,7 @@ export default function Login({ onLogin }: LoginProps) {
                       placeholder="Access Code"
                       value={password}
                       onChange={(event) => setPassword(event.target.value)}
-                      className="peer relative w-full rounded-2xl border border-white/5 bg-white/[0.03] px-5 py-4 text-sm font-medium text-white placeholder-slate-500 shadow-inner backdrop-blur-xl outline-none ring-1 ring-transparent transition focus:bg-white/10 focus:ring-blue-500/50"
+                      className="peer relative w-full rounded-2xl border border-white/10 bg-white/[0.06] px-5 py-4 text-sm font-medium text-white placeholder-white/30 shadow-inner backdrop-blur-xl outline-none ring-1 ring-transparent transition focus:bg-white/10 focus:ring-[#facc15]/50"
                     />
                   </div>
                 </div>
@@ -140,11 +140,11 @@ export default function Login({ onLogin }: LoginProps) {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="group relative mt-2 flex w-full items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-[18px] text-sm font-bold tracking-wide text-white shadow-[0_10px_40px_-5px_rgba(79,70,229,0.5)] transition-all hover:scale-[1.02] hover:shadow-[0_15px_40px_-5px_rgba(79,70,229,0.7)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
+                  className="group relative mt-2 flex w-full items-center justify-center overflow-hidden rounded-2xl bg-[#facc15] px-4 py-[18px] text-sm font-black tracking-wide text-slate-950 shadow-[0_10px_40px_-5px_rgba(250,204,21,0.4)] transition-all hover:scale-[1.02] hover:shadow-[0_15px_40px_-5px_rgba(250,204,21,0.6)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
                 >
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] transition-transform duration-700 ease-in-out group-hover:translate-x-[100%]" />
-                  <span className="relative flex shadow-sm items-center gap-2">
-                    {isSubmitting ? 'Authenticating...' : 'Commence Shift'}
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent translate-x-[-100%] transition-transform duration-700 ease-in-out group-hover:translate-x-[100%]" />
+                  <span className="relative flex items-center gap-2">
+                    {isSubmitting ? 'Authenticating...' : 'Start Shift'}
                     {!isSubmitting && <ChevronRight size={18} className="transition-transform group-hover:translate-x-1" />}
                   </span>
                 </button>

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { motion } from 'motion/react';
 import { ArrowRight, Compass, Info, MapPin, Navigation, Play, SquareCheckBig } from 'lucide-react';
 
@@ -78,7 +79,7 @@ export default function GoForRide() {
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.24em] text-[var(--text-muted)]">Trip Dispatch</p>
-          <h1 className="mt-2 text-3xl font-black tracking-tight text-[var(--text-primary)]">Go For Ride</h1>
+          <h1 className={cn('font-black tracking-tight text-[var(--text-primary)]', Capacitor.isNativePlatform() ? 'text-xl mt-1' : 'mt-2 text-3xl')}>Go For Ride</h1>
           <p className="mt-1 text-[var(--text-secondary)]">
             {isOnline ? 'Live server-generated trip offers for the authenticated driver.' : 'Cached UI is active, but accepting new server offers requires connectivity.'}
           </p>
@@ -162,12 +163,19 @@ export default function GoForRide() {
               placeholder="Search area or destination"
               className="w-full rounded-2xl border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--primary)]"
             />
-            <div className="grid grid-cols-2 gap-2">
+            <div className={cn(
+              Capacitor.isNativePlatform()
+                ? 'flex gap-2 overflow-x-auto hide-scrollbar pb-1'
+                : 'grid grid-cols-2 gap-2'
+            )}>
               {['Airport', 'Brooklyn', 'Manhattan', 'Queens'].map((preset) => (
                 <button
                   key={preset}
                   onClick={() => setDestination(preset)}
-                  className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-bold text-[var(--text-secondary)] transition hover:border-[var(--primary)] hover:text-[var(--text-primary)]"
+                  className={cn(
+                    'rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-bold text-[var(--text-secondary)] transition hover:border-[var(--primary)] hover:text-[var(--text-primary)]',
+                    Capacitor.isNativePlatform() && 'whitespace-nowrap shrink-0',
+                  )}
                 >
                   {preset}
                 </button>
@@ -180,7 +188,7 @@ export default function GoForRide() {
           <div className="overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-2 shadow-[0_20px_40px_rgba(15,23,42,0.05)]">
             <MapComponent
               theme="light"
-              height="340px"
+              height={Capacitor.isNativePlatform() ? '200px' : '340px'}
               simplified={false}
               route={mapRoute}
               ridePins={ridePins}
@@ -212,18 +220,21 @@ export default function GoForRide() {
                         </div>
                       </div>
 
-                      <div className="grid gap-3 sm:grid-cols-3">
-                        <div className="rounded-2xl bg-[var(--background)] px-4 py-3">
+                      <div className={cn(
+                        'grid gap-3',
+                        Capacitor.isNativePlatform() ? 'grid-cols-3' : 'sm:grid-cols-3'
+                      )}>
+                        <div className={cn('rounded-2xl bg-[var(--background)]', Capacitor.isNativePlatform() ? 'px-3 py-2' : 'px-4 py-3')}>
                           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--text-muted)]">Fare</p>
-                          <p className="mt-1 text-xl font-black text-[var(--text-primary)]">${offer.estimated_fare.toFixed(2)}</p>
+                          <p className={cn('font-black text-[var(--text-primary)]', Capacitor.isNativePlatform() ? 'text-base mt-0.5' : 'mt-1 text-xl')}>${offer.estimated_fare.toFixed(2)}</p>
                         </div>
-                        <div className="rounded-2xl bg-[var(--background)] px-4 py-3">
+                        <div className={cn('rounded-2xl bg-[var(--background)]', Capacitor.isNativePlatform() ? 'px-3 py-2' : 'px-4 py-3')}>
                           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--text-muted)]">Distance</p>
-                          <p className="mt-1 text-xl font-black text-[var(--text-primary)]">{offer.distance_km.toFixed(1)} km</p>
+                          <p className={cn('font-black text-[var(--text-primary)]', Capacitor.isNativePlatform() ? 'text-base mt-0.5' : 'mt-1 text-xl')}>{offer.distance_km.toFixed(1)} km</p>
                         </div>
-                        <div className="rounded-2xl bg-[var(--background)] px-4 py-3">
+                        <div className={cn('rounded-2xl bg-[var(--background)]', Capacitor.isNativePlatform() ? 'px-3 py-2' : 'px-4 py-3')}>
                           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--text-muted)]">Direction</p>
-                          <p className="mt-1 text-xl font-black text-[var(--text-primary)]">{direction}</p>
+                          <p className={cn('font-black text-[var(--text-primary)]', Capacitor.isNativePlatform() ? 'text-base mt-0.5' : 'mt-1 text-xl')}>{direction}</p>
                         </div>
                       </div>
 

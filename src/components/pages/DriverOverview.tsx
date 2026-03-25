@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Capacitor } from '@capacitor/core';
 import {
   TrendingUp,
   DollarSign,
@@ -275,9 +276,17 @@ export default function DriverOverview({
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+      <div className={cn(
+        'grid gap-4',
+        Capacitor.isNativePlatform()
+          ? 'grid-cols-2'
+          : 'grid-cols-1 sm:grid-cols-2 md:grid-cols-4'
+      )}>
         {liveKpis.map((kpi, idx) => (
-          <div key={kpi.label} className="kpi-card">
+          <div key={kpi.label} className={cn(
+            'kpi-card',
+            Capacitor.isNativePlatform() && 'p-3'
+          )}>
             <div className="flex items-center justify-between mb-4">
               <div className="p-2 bg-primary/10 rounded-lg shrink-0">
                 {idx === 0 && <DollarSign className="text-primary w-5 h-5" />}
@@ -285,13 +294,15 @@ export default function DriverOverview({
                 {idx === 2 && <Percent className="text-warning w-5 h-5" />}
                 {idx === 3 && <Zap className="text-sky-500 w-5 h-5" />}
               </div>
-              <div className="flex items-center gap-1 text-xs font-medium text-success justify-end ml-3 min-w-0">
-                <TrendingUp size={14} className="shrink-0" />
-                <span className="truncate">{kpi.change}</span>
-              </div>
+              {!Capacitor.isNativePlatform() && (
+                <div className="flex items-center gap-1 text-xs font-medium text-success justify-end ml-3 min-w-0">
+                  <TrendingUp size={14} className="shrink-0" />
+                  <span className="truncate">{kpi.change}</span>
+                </div>
+              )}
             </div>
             <div>
-              <p className="kpi-label">{kpi.label}</p>
+              <p className={cn('kpi-label', Capacitor.isNativePlatform() && 'text-[9px]')}>{kpi.label}</p>
               <p className="kpi-value">{kpi.value}</p>
             </div>
           </div>
@@ -709,15 +720,22 @@ export default function DriverOverview({
                       <h3 className="text-lg font-bold text-[var(--text-primary)] border-b border-[var(--border)] pb-2 flex items-center gap-2">
                         <TrendingUp size={18} className="text-success" /> Recommended Targets
                       </h3>
-                      <div className="flex flex-col gap-2">
+                      <div className={Capacitor.isNativePlatform() ? 'flex flex-wrap gap-2' : 'flex flex-col gap-2'}>
                         {activePeriod?.recommended_zones.map((zone, idx) => (
-                          <div key={zone.zone_id} className="flex justify-between items-center p-3 rounded-xl bg-[var(--surface)] border border-[var(--border)] shadow-sm">
-                            <div className="flex items-center gap-3">
-                              <span className="w-6 h-6 rounded-full bg-success/10 text-success flex items-center justify-center text-xs font-black">{idx + 1}</span>
-                              <span className="font-bold text-[var(--text-primary)]">{zone.zone_name}</span>
+                          Capacitor.isNativePlatform() ? (
+                            <div key={zone.zone_id} className="flex items-center gap-2 px-3 py-2 rounded-full bg-success/10 border border-success/20">
+                              <span className="w-5 h-5 rounded-full bg-success/20 text-success flex items-center justify-center text-[10px] font-black">{idx + 1}</span>
+                              <span className="text-xs font-bold text-[var(--text-primary)]">{zone.zone_name}</span>
                             </div>
-                            <span className="text-sm font-bold text-[var(--text-secondary)]">{zone.expected_trips_per_hour.toFixed(0)} trips/hr</span>
-                          </div>
+                          ) : (
+                            <div key={zone.zone_id} className="flex justify-between items-center p-3 rounded-xl bg-[var(--surface)] border border-[var(--border)] shadow-sm">
+                              <div className="flex items-center gap-3">
+                                <span className="w-6 h-6 rounded-full bg-success/10 text-success flex items-center justify-center text-xs font-black">{idx + 1}</span>
+                                <span className="font-bold text-[var(--text-primary)]">{zone.zone_name}</span>
+                              </div>
+                              <span className="text-sm font-bold text-[var(--text-secondary)]">{zone.expected_trips_per_hour.toFixed(0)} trips/hr</span>
+                            </div>
+                          )
                         )) ?? <p className="text-sm text-[var(--text-muted)]">Loading target zones...</p>}
                       </div>
                     </div>

@@ -2,6 +2,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, Cell
 } from 'recharts';
+import { Capacitor } from '@capacitor/core';
 import { TrendingUp, DollarSign, Activity, Info, Sparkles, Trophy, Medal, Star, Award, Zap, Target } from 'lucide-react';
 import { DRIVER_EARNINGS, DRIVER_KPIS } from '../../constants';
 import { motion } from 'motion/react';
@@ -47,10 +48,15 @@ export default function DriverPerformance() {
       </div>
 
       {/* KPI Section */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className={cn(
+        'grid gap-6',
+        Capacitor.isNativePlatform()
+          ? 'grid-cols-2 gap-3'
+          : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4'
+      )}>
         {DRIVER_KPIS.map((kpi, idx) => (
-          <div key={idx} className="glass-card p-6">
-            <p className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">{kpi.label}</p>
+          <div key={idx} className={cn('glass-card', Capacitor.isNativePlatform() ? 'p-3' : 'p-6')}>
+            <p className={cn('font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1', Capacitor.isNativePlatform() ? 'text-[9px]' : 'text-xs')}>{kpi.label}</p>
             <div className="flex items-end justify-between">
               <p className="text-2xl font-black text-[var(--text-primary)]">{kpi.value}</p>
               <div className={`flex items-center gap-1 text-xs font-bold ${kpi.trend === 'up' ? 'text-success' : 'text-danger'}`}>
@@ -74,7 +80,7 @@ export default function DriverPerformance() {
             <button className="px-4 py-1.5 bg-[var(--background)] text-[var(--text-secondary)] text-xs font-bold rounded-lg border border-[var(--border)]">Monthly</button>
           </div>
         </div>
-        <div className="h-[350px] w-full">
+        <div className={cn('w-full', Capacitor.isNativePlatform() ? 'h-[200px]' : 'h-[350px]')}>
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={DRIVER_EARNINGS}>
               <defs>
@@ -103,7 +109,7 @@ export default function DriverPerformance() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="glass-card p-6">
           <h3 className="text-lg font-bold mb-6 text-[var(--text-primary)]">Acceptance Rate by Day</h3>
-          <div className="h-[250px]">
+          <div className={cn('w-full', Capacitor.isNativePlatform() ? 'h-[160px]' : 'h-[250px]')}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={DRIVER_EARNINGS}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
@@ -160,7 +166,11 @@ export default function DriverPerformance() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div className={cn(
+          Capacitor.isNativePlatform()
+            ? 'flex gap-3 overflow-x-auto hide-scrollbar pb-1'
+            : 'grid grid-cols-2 sm:grid-cols-3 gap-3'
+        )}>
           {BADGES.map((badge, idx) => (
             <motion.div
               key={badge.id}
@@ -169,6 +179,7 @@ export default function DriverPerformance() {
               transition={{ delay: idx * 0.06 }}
               className={cn(
                 'p-4 rounded-2xl border flex flex-col items-center text-center gap-2 transition-all',
+                Capacitor.isNativePlatform() && 'min-w-[130px] shrink-0 p-3',
                 badge.earned ? badge.bg : 'bg-[var(--background)] border-[var(--border)] opacity-40 grayscale'
               )}
             >
@@ -209,7 +220,8 @@ export default function DriverPerformance() {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: idx * 0.07 }}
               className={cn(
-                'flex items-center gap-4 p-4 rounded-2xl border transition-all',
+                'flex items-center gap-4 rounded-2xl border transition-all',
+                Capacitor.isNativePlatform() ? 'p-3' : 'p-4',
                 driver.highlight
                   ? 'bg-[var(--primary)]/10 border-[var(--primary)]/30 shadow-sm'
                   : 'bg-[var(--background)] border-[var(--border)]'

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { motion, AnimatePresence } from 'motion/react';
 import { Calendar, Clock, MapPin, Sparkles, AlertCircle, Cloud, Zap, BrainCircuit, Music, Trophy, Flame, Navigation } from 'lucide-react';
 import { cn } from '../../lib/utils';
@@ -157,71 +158,94 @@ export default function DemandPrediction() {
               <h2 className="text-xl font-semibold text-[var(--text-primary)]">Forecast Parameters</h2>
             </div>
 
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">Target Date</label>
-                <div className="relative">
-                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] w-4 h-4" />
-                  <input
-                    type="date"
-                    value={selectedDate}
-                    onChange={(event) => setSelectedDate(event.target.value)}
-                    className="w-full bg-[var(--background)] border border-[var(--border)] rounded-lg py-3 pl-10 pr-4 text-sm focus:outline-none focus:border-primary/50 transition-colors text-[var(--text-primary)]"
-                  />
+            <div className={cn(
+              'space-y-4',
+              Capacitor.isNativePlatform() && 'space-y-2'
+            )}>
+              <div className={cn(
+                Capacitor.isNativePlatform()
+                  ? 'grid grid-cols-3 gap-2'
+                  : 'space-y-4'
+              )}>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-medium text-[var(--text-secondary)] uppercase tracking-wider">Date</label>
+                  <div className="relative">
+                    {!Capacitor.isNativePlatform() && <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] w-4 h-4" />}
+                    <input
+                      type="date"
+                      value={selectedDate}
+                      onChange={(event) => setSelectedDate(event.target.value)}
+                      className={cn(
+                        'w-full bg-[var(--background)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-primary/50 transition-colors text-[var(--text-primary)]',
+                        Capacitor.isNativePlatform() ? 'py-2 px-2' : 'py-3 pl-10 pr-4',
+                      )}
+                    />
+                  </div>
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">Hour of Day</label>
-                <div className="relative">
-                  <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] w-4 h-4" />
-                  <select
-                    value={selectedHour}
-                    onChange={(event) => setSelectedHour(event.target.value)}
-                    className="w-full bg-[var(--background)] border border-[var(--border)] rounded-lg py-3 pl-10 pr-4 text-sm focus:outline-none focus:border-primary/50 transition-colors appearance-none text-[var(--text-primary)]"
-                  >
-                    <option value="live">Live Time</option>
-                    {Array.from({ length: 24 }, (_, i) => (
-                      <option key={i} value={String(i)}>{`${i}:00`}</option>
-                    ))}
-                  </select>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-medium text-[var(--text-secondary)] uppercase tracking-wider">Hour</label>
+                  <div className="relative">
+                    {!Capacitor.isNativePlatform() && <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] w-4 h-4" />}
+                    <select
+                      value={selectedHour}
+                      onChange={(event) => setSelectedHour(event.target.value)}
+                      className={cn(
+                        'w-full bg-[var(--background)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-primary/50 transition-colors appearance-none text-[var(--text-primary)]',
+                        Capacitor.isNativePlatform() ? 'py-2 px-2' : 'py-3 pl-10 pr-4',
+                      )}
+                    >
+                      <option value="live">Live</option>
+                      {Array.from({ length: 24 }, (_, i) => (
+                        <option key={i} value={String(i)}>{`${i}:00`}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">Target Zone</label>
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] w-4 h-4" />
-                  <select
-                    value={selectedZoneId}
-                    onChange={(event) => setSelectedZoneId(event.target.value)}
-                    disabled={isLoading}
-                    className="w-full bg-[var(--background)] border border-[var(--border)] rounded-lg py-3 pl-10 pr-4 text-sm focus:outline-none focus:border-primary/50 transition-colors appearance-none text-[var(--text-primary)]"
-                  >
-                    {topZones.map((zone) => (
-                      <option key={zone.zone_id} value={zone.zone_id}>{`${zone.zone_name} (${zone.borough})`}</option>
-                    ))}
-                  </select>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-medium text-[var(--text-secondary)] uppercase tracking-wider">Zone</label>
+                  <div className="relative">
+                    {!Capacitor.isNativePlatform() && <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] w-4 h-4" />}
+                    <select
+                      value={selectedZoneId}
+                      onChange={(event) => setSelectedZoneId(event.target.value)}
+                      disabled={isLoading}
+                      className={cn(
+                        'w-full bg-[var(--background)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-primary/50 transition-colors appearance-none text-[var(--text-primary)]',
+                        Capacitor.isNativePlatform() ? 'py-2 px-2' : 'py-3 pl-10 pr-4',
+                      )}
+                    >
+                      {topZones.map((zone) => (
+                        <option key={zone.zone_id} value={zone.zone_id}>{`${zone.zone_name} (${zone.borough})`}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
             </div>
 
             <div className="space-y-3">
               <p className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">Top Live Zones</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className={cn(
+                Capacitor.isNativePlatform()
+                  ? 'flex gap-2 overflow-x-auto hide-scrollbar pb-1'
+                  : 'grid grid-cols-1 sm:grid-cols-2 gap-2'
+              )}>
                 {topZones.slice(0, 4).map((zone) => (
                   <button
                     key={zone.zone_id}
                     onClick={() => setSelectedZoneId(zone.zone_id)}
                     className={cn(
                       'rounded-xl border px-3 py-3 text-left transition-colors',
+                      Capacitor.isNativePlatform() && 'whitespace-nowrap shrink-0 py-2',
                       selectedZoneId === zone.zone_id
                         ? 'border-primary bg-primary/10 text-[var(--text-primary)]'
                         : 'border-[var(--border)] bg-[var(--background)] text-[var(--text-secondary)] hover:border-primary/40'
                     )}
                   >
                     <p className="text-sm font-semibold">{zone.zone_name}</p>
-                    <p className="text-xs">{zone.predicted_demand.toFixed(1)} trips/hr</p>
+                    {!Capacitor.isNativePlatform() && <p className="text-xs">{zone.predicted_demand.toFixed(1)} trips/hr</p>}
                   </button>
                 ))}
               </div>
@@ -359,9 +383,16 @@ export default function DemandPrediction() {
             LIVE
           </span>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className={cn(
+          Capacitor.isNativePlatform()
+            ? 'flex gap-3 overflow-x-auto hide-scrollbar pb-1'
+            : 'grid grid-cols-1 sm:grid-cols-3 gap-3'
+        )}>
           {LIVE_EVENTS.map((event) => (
-            <div key={event.id} className={`p-4 rounded-2xl border ${event.bg}`}>
+            <div key={event.id} className={cn(
+              `p-4 rounded-2xl border ${event.bg}`,
+              Capacitor.isNativePlatform() && 'min-w-[220px] shrink-0 p-3',
+            )}>
               <div className="flex items-center gap-2 mb-2">
                 <event.icon size={16} className={event.color} />
                 <span className="text-xs font-black text-[var(--text-primary)] leading-tight">{event.name}</span>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Capacitor } from '@capacitor/core';
 import {
   Activity,
   BarChart3,
@@ -378,7 +379,7 @@ function AppShell() {
           )}
         >
           {userRole === 'driver' && (
-            <div className="lg:hidden fixed top-0 left-0 right-0 p-4 sm:p-6 flex justify-between items-center z-40 pointer-events-none gap-3">
+            <div className="lg:hidden fixed top-0 left-0 right-0 flex justify-between items-center z-40 pointer-events-none gap-3" style={{ padding: 'calc(env(safe-area-inset-top, 0px) + 1rem) 1rem 1rem 1rem' }}>
               <div className="flex items-center gap-2 pointer-events-auto shadow-md bg-white rounded-full p-1 pl-4 pr-1">
                 <MobileClock />
                 <div className="w-8 h-8 rounded-full bg-[var(--primary)] flex items-center justify-center">
@@ -411,7 +412,8 @@ function AppShell() {
           <main
             className={cn(
               'flex-1 w-full max-w-7xl mx-auto px-4 md:px-8 overflow-y-auto',
-              userRole === 'driver' ? 'pt-24 pb-32 lg:pb-8 lg:pt-12' : 'pt-12 pb-8',
+              userRole === 'driver' ? 'pb-32 lg:pb-8 lg:pt-12' : 'pt-12 pb-8',
+              userRole === 'driver' ? 'pt-[calc(env(safe-area-inset-top,0px)+6rem)]' : '',
             )}
           >
             <AnimatePresence mode="wait">
@@ -428,7 +430,38 @@ function AppShell() {
             </AnimatePresence>
           </main>
 
-          {userRole === 'driver' && (
+          {userRole === 'driver' && Capacitor.isNativePlatform() && (
+            <nav
+              className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-[var(--surface)] border-t border-[var(--border)] flex items-stretch justify-around"
+              style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+            >
+              {DRIVER_ITEMS.map((item) => {
+                const isActive = activePage === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => setActivePage(item.id)}
+                    className={cn(
+                      'flex-1 flex flex-col items-center justify-center gap-1 py-3 transition-colors',
+                      isActive ? 'text-[var(--primary-dark)]' : 'text-[var(--text-muted)]',
+                    )}
+                  >
+                    <div className={cn(
+                      'flex items-center justify-center w-16 h-8 rounded-full transition-all duration-200',
+                      isActive ? 'bg-[var(--primary)]/20' : '',
+                    )}>
+                      <item.icon size={20} strokeWidth={isActive ? 2.5 : 1.8} />
+                    </div>
+                    <span className={cn('text-[10px] font-bold leading-none', isActive && 'text-[var(--primary-dark)]')}>
+                      {item.label.length > 10 ? item.label.split(' ')[0] : item.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </nav>
+          )}
+
+          {userRole === 'driver' && !Capacitor.isNativePlatform() && (
             <div className="lg:hidden fixed bottom-4 sm:bottom-6 left-0 right-0 flex justify-center z-50 pointer-events-none px-3">
               <div className="nav-pill pointer-events-auto">
                 {DRIVER_ITEMS.map((item) => (
