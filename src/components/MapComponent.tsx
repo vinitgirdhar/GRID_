@@ -36,6 +36,8 @@ interface MapComponentProps {
   noBorderRadius?: boolean;
   zoom?: number;
   showYouAreHere?: boolean;
+  youAreHerePosition?: [number, number];
+  autoFit?: boolean;
 }
 
 function ThemeLayer({ theme }: { theme: Theme }) {
@@ -45,6 +47,34 @@ function ThemeLayer({ theme }: { theme: Theme }) {
     void map;
     void theme;
   }, [map, theme]);
+
+  return null;
+}
+
+function AutoFitView({
+  enabled,
+  points,
+}: {
+  enabled: boolean;
+  points: Array<[number, number]>;
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!enabled || points.length === 0) {
+      return;
+    }
+
+    if (points.length === 1) {
+      map.setView(points[0], map.getZoom());
+      return;
+    }
+
+    map.fitBounds(L.latLngBounds(points), {
+      padding: [32, 32],
+      maxZoom: 14,
+    });
+  }, [enabled, map, points]);
 
   return null;
 }
@@ -84,12 +114,16 @@ export default function MapComponent({
   noBorderRadius = false,
   zoom,
   showYouAreHere = false,
+  youAreHerePosition,
+  autoFit = false,
 }: MapComponentProps) {
   // When ride pins exist, center on driver location so spokes fan out naturally
   const center: [number, number] = route
     ? ridePins.length > 0
       ? route.start
       : [(route.start[0] + route.end[0]) / 2, (route.start[1] + route.end[1]) / 2]
+    : youAreHerePosition && showYouAreHere
+      ? youAreHerePosition
     : [40.73061, -73.935242];
 
   // Zoom 14 shows clear street names; fall back to 11 for the zone heatmap view
@@ -113,6 +147,14 @@ export default function MapComponent({
       ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
       : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
 
+  const autoFitPoints: Array<[number, number]> = [
+    ...(route ? [route.start, route.end] : []),
+    ...(showYouAreHere && youAreHerePosition ? [youAreHerePosition] : []),
+    ...hotspots.map((spot) => spot.position),
+    ...ridePins.map((pin) => pin.position),
+    ...zones.map((zone) => [zone.lat, zone.lng] as [number, number]),
+  ];
+
   return (
     <div
       style={{ height, width: '100%', borderRadius: noBorderRadius ? '0' : '12px', overflow: 'hidden' }}
@@ -132,6 +174,7 @@ export default function MapComponent({
           />
         )}
         <ThemeLayer theme={theme} />
+        <AutoFitView enabled={autoFit} points={autoFitPoints} />
 
         {route && (
           <>
@@ -164,7 +207,7 @@ export default function MapComponent({
         )}
 
         {showYouAreHere && (
-          <Marker position={center} icon={YOU_ARE_HERE_ICON}>
+          <Marker position={youAreHerePosition ?? center} icon={YOU_ARE_HERE_ICON}>
             <Popup>You are here</Popup>
           </Marker>
         )}

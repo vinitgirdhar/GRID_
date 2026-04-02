@@ -250,11 +250,9 @@ async function requestCameraStream(setLoadingStep: (value: string) => void) {
 
   const attempts: Array<{ step: string; constraints: MediaStreamConstraints }> = [
     {
-      step: 'Requesting camera (Primary: HD)...',
+      step: 'Requesting camera...',
       constraints: {
         video: {
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
           facingMode: 'user',
         },
         audio: false,
@@ -983,7 +981,7 @@ export default function LiveDrowsinessCamera({ isLive, onGoLive }: { isLive: boo
             muted
             playsInline
             className={cn(
-              'w-full h-full object-cover min-h-[260px] sm:min-h-[320px] scale-x-[-1]',
+              'w-full h-full object-contain min-h-[260px] sm:min-h-[320px] scale-x-[-1]',
               cameraState === 'active' ? 'opacity-100' : 'opacity-0',
             )}
           />

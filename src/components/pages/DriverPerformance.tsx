@@ -5,7 +5,7 @@ import { Activity, Award, Clock3, DollarSign, Gauge, Medal, Plus, Sparkles, Star
 import { DRIVER_EARNINGS } from '../../constants';
 import { cn } from '../../lib/utils';
 import { getActiveHotspotPeriod, getHotspots } from '../../services/apiService';
-import { HotspotPeriod, HotspotsResponse } from '../../types';
+import { HotspotPeriod, HotspotsResponse, RecommendedZone } from '../../types';
 
 type ShiftTrip = {
   id: string;
@@ -34,6 +34,13 @@ const FALLBACK_ZONES = [
   { zone_id: '142', zone_name: 'Midtown East', borough: 'Manhattan', expected_trips_per_hour: 78 },
   { zone_id: '68', zone_name: 'Downtown Brooklyn', borough: 'Brooklyn', expected_trips_per_hour: 72 },
 ];
+
+const FALLBACK_RECOMMENDED_ZONES: RecommendedZone[] = FALLBACK_ZONES.map((zone, index) => ({
+  zone_id: zone.zone_id,
+  zone_name: zone.zone_name,
+  rank: index + 1,
+  expected_trips_per_hour: zone.expected_trips_per_hour,
+}));
 
 const ZONE_FARE_GUIDE: Record<string, number> = {
   '68': 19,
@@ -162,7 +169,7 @@ function buildFallbackPeriod(): HotspotPeriod {
       event_intensity: zone.expected_trips_per_hour >= 85 ? 'High' : 'Medium',
       weather_condition: 'Cloudy',
     })),
-    recommended_zones: FALLBACK_ZONES,
+    recommended_zones: FALLBACK_RECOMMENDED_ZONES,
     avoid_zones: [],
   };
 }
@@ -462,8 +469,8 @@ export default function DriverPerformance() {
   const paceRatio = expectedNow > 0 ? totalEarned / expectedNow : tripCount > 0 ? 1.05 : 1;
   const status: PaceStatus = shiftSession ? (paceRatio >= 1.1 ? 'ahead' : paceRatio >= 0.9 ? 'on-track' : 'behind') : 'on-track';
   const statusVisual = getStatusVisual(status);
-  const leadZone = activePeriod.recommended_zones[0] ?? FALLBACK_ZONES[0];
-  const supportZone = activePeriod.recommended_zones[1] ?? FALLBACK_ZONES[1];
+  const leadZone = activePeriod.recommended_zones[0] ?? FALLBACK_RECOMMENDED_ZONES[0];
+  const supportZone = activePeriod.recommended_zones[1] ?? FALLBACK_RECOMMENDED_ZONES[1];
   const leadZoneFare = ZONE_FARE_GUIDE[leadZone.zone_id] ?? 20;
   const supportZoneFare = ZONE_FARE_GUIDE[supportZone.zone_id] ?? 18;
   const goalReached = goalAmount > 0 && totalEarned >= goalAmount;

@@ -536,7 +536,7 @@ function AppShell() {
                 ))}
                 <div
                   className="w-10 h-10 ml-2 rounded-full border-2 border-[var(--primary)] overflow-hidden cursor-pointer"
-                  onClick={handleLogout}
+                  onClick={() => setActivePage('profile')}
                 >
                   <img src="https://picsum.photos/seed/driver/100/100" alt="Profile" className="w-full h-full object-cover" />
                 </div>
