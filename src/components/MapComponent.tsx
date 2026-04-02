@@ -214,7 +214,7 @@ export default function MapComponent({
 
         {hotspots.map((spot) => {
           const color = spot.intensity === 'high' ? '#ef4444' : spot.intensity === 'medium' ? '#f59e0b' : '#3b82f6';
-          const radius = spot.intensity === 'high' ? 22 : spot.intensity === 'medium' ? 17 : 13;
+          const radius = spot.intensity === 'high' ? 44 : spot.intensity === 'medium' ? 34 : 26;
           return (
             <CircleMarker
               key={`hotspot-${spot.id}`}
@@ -265,7 +265,7 @@ export default function MapComponent({
           <CircleMarker
             key={zone.id}
             center={[zone.lat, zone.lng]}
-            radius={simplified ? 10 : 15}
+            radius={simplified ? 20 : 30}
             pathOptions={{
               fillColor: getDemandColor(zone.demandLevel),
               color: getDemandColor(zone.demandLevel),

@@ -57,7 +57,8 @@ export default function DriverOverview({
   const [theme, setTheme] = useState<Theme>('dark');
   const [expandedCard, setExpandedCard] = useState<'demand' | 'weather' | 'event' | null>(null);
   const [ecoMode, setEcoMode] = useState(false);
-  const [driverLocation, setDriverLocation] = useState<[number, number] | null>(null);
+  // Virtual driver location: Midtown Manhattan, NYC (fixed — no real GPS)
+  const VIRTUAL_DRIVER_LOCATION: [number, number] = [40.7549, -73.9840];
 
   useEffect(() => {
     let cancelled = false;
@@ -116,29 +117,7 @@ export default function DriverOverview({
     };
   }, []);
 
-  useEffect(() => {
-    if (typeof navigator === 'undefined' || !navigator.geolocation) {
-      return;
-    }
-
-    const watchId = navigator.geolocation.watchPosition(
-      ({ coords }) => {
-        setDriverLocation([coords.latitude, coords.longitude]);
-      },
-      () => {
-        // Keep hotspot-only framing when live location is unavailable.
-      },
-      {
-        enableHighAccuracy: true,
-        maximumAge: 30000,
-        timeout: 15000,
-      },
-    );
-
-    return () => {
-      navigator.geolocation.clearWatch(watchId);
-    };
-  }, []);
+  // Real geolocation removed — app operates in virtual NYC mode.
 
   const activePeriod = hotspots
     ? (activeHour < 15 ? hotspots.morning : hotspots.evening)
@@ -539,10 +518,9 @@ export default function DriverOverview({
           theme={theme} 
           height="450px" 
           simplified={true} 
-          zoom={13}
+          zoom={15}
           showYouAreHere={true}
-          youAreHerePosition={driverLocation ?? undefined}
-          autoFit
+          youAreHerePosition={VIRTUAL_DRIVER_LOCATION}
         />
       </div>
 
