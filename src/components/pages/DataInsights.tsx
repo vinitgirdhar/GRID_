@@ -4,6 +4,17 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
 import { Activity, Info } from 'lucide-react';
+import { InsightTooltip } from '../charts/InsightTooltip';
+import {
+  asNumber,
+  formatHourLabel,
+  formatRideCount,
+  formatTripsPerHour,
+  getDemandWindowInsight,
+  getPeriodIntensityInsight,
+  getZoneDemandInsight,
+  getZoneShareInsight,
+} from '../charts/insightTooltipUtils';
 import { getActiveHotspotPeriod, getForecast, getHotspots } from '../../services/apiService';
 import { ForecastResponse, HotspotsResponse } from '../../types';
 
@@ -62,6 +73,69 @@ export default function DataInsights() {
       value: Number(hotspots.evening.zones.reduce((sum, zone) => sum + zone.predicted_demand, 0).toFixed(0)),
     },
   ] : [];
+  const hourlyDemandMax = Math.max(0, ...hourlyDemand.map((item) => item.value));
+  const topZoneMax = Math.max(0, ...topZones.map((item) => item.value));
+  const hotspotShareTotal = hotspotShare.reduce((sum, item) => sum + item.value, 0);
+  const periodMax = Math.max(0, ...periodComparison.map((item) => item.value));
+
+  const hourlyDemandTooltip = {
+    title: 'Predicted Ride Volume',
+    contextLabel: 'Forecast Hour',
+    metricLabel: 'Predicted Rides',
+    description: 'An absolute demand count, so 450 means about 450 rides are expected during that hour.',
+    details: [
+      'X-axis: hour of day in the live 24-hour forecast',
+      'Y-axis: predicted number of rides in that hour',
+    ],
+    accentColor: '#F4B000',
+    labelFormatter: (label: string | number | undefined) => formatHourLabel(label),
+    valueFormatter: (value: number | string | undefined) => formatRideCount(value),
+    insightFormatter: (item: { value?: number | string }) => getDemandWindowInsight(asNumber(item.value), hourlyDemandMax),
+  };
+
+  const topZonesTooltip = {
+    title: 'Expected Demand (Trips/hr)',
+    contextLabel: 'Zone',
+    metricLabel: 'Trips / hr',
+    description: 'An absolute ride-demand rate, so 145 means roughly 145 ride requests per hour are expected in this zone.',
+    details: [
+      'X-axis: active hotspot zone',
+      'Y-axis: predicted trips per hour',
+    ],
+    accentColor: '#F4B000',
+    valueFormatter: (value: number | string | undefined) => formatTripsPerHour(value),
+    insightFormatter: (item: { value?: number | string }) => getZoneDemandInsight(asNumber(item.value), topZoneMax),
+  };
+
+  const hotspotShareTooltip = {
+    title: 'Hotspot Demand Share',
+    contextLabel: 'Zone',
+    metricLabel: 'Predicted Trips / hr',
+    description: 'Each slice shows how much of the active top-zone demand is concentrated in this zone.',
+    details: [
+      'Slice label: active hotspot zone',
+      'Slice size: predicted trips per hour within the top five zones',
+    ],
+    accentColor: '#F4B000',
+    valueFormatter: (value: number | string | undefined) => formatTripsPerHour(value),
+    insightFormatter: (item: { value?: number | string }) => getZoneShareInsight(asNumber(item.value), hotspotShareTotal),
+  };
+
+  const periodComparisonTooltip = {
+    title: 'Demand Window Intensity',
+    contextLabel: 'Dispatch Window',
+    metricLabel: 'Expected Trips / hr',
+    description: 'An absolute total across tracked zones, so higher values signal heavier dispatch pressure in that window.',
+    details: [
+      'X-axis: morning versus evening operating window',
+      'Y-axis: total predicted trips per hour across tracked zones',
+    ],
+    accentColor: '#2F9E6E',
+    valueFormatter: (value: number | string | undefined) => formatTripsPerHour(value),
+    insightFormatter: (item: { value?: number | string }, label: string | number | undefined) => {
+      return getPeriodIntensityInsight(String(label ?? 'This window'), asNumber(item.value), periodMax);
+    },
+  };
 
   return (
     <div className="space-y-8">
@@ -85,10 +159,7 @@ export default function DataInsights() {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 10 }} interval={3} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)' }}
-                  itemStyle={{ color: '#3B82F6' }}
-                />
+                <Tooltip content={<InsightTooltip config={hourlyDemandTooltip} />} />
                 <Line type="stepAfter" dataKey="value" stroke="#F4B000" strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
@@ -102,9 +173,7 @@ export default function DataInsights() {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 11 }} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)' }}
-                />
+                <Tooltip content={<InsightTooltip config={topZonesTooltip} />} />
                 <Bar dataKey="value" fill="#F4B000" radius={[4, 4, 0, 0]} barSize={34} />
               </BarChart>
             </ResponsiveContainer>
@@ -131,9 +200,7 @@ export default function DataInsights() {
                     <Cell key={entry.name} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip
-                  contentStyle={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)' }}
-                />
+                <Tooltip content={<InsightTooltip config={hotspotShareTooltip} />} />
                 <Legend verticalAlign="bottom" height={36} iconType="circle" />
               </PieChart>
             </ResponsiveContainer>
@@ -147,9 +214,7 @@ export default function DataInsights() {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)' }}
-                />
+                <Tooltip content={<InsightTooltip config={periodComparisonTooltip} />} />
                 <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={60}>
                   {periodComparison.map((entry, index) => (
                     <Cell key={entry.name} fill={index === 0 ? '#F4B000' : '#2F9E6E'} />

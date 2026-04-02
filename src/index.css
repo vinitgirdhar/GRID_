@@ -38,11 +38,15 @@
   --warning: #F59E0B;
   --danger: #EF4444;
 
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.05), 0 4px 6px -4px rgb(0 0 0 / 0.05);
-  --shadow-premium: 0 20px 25px -5px rgb(0 0 0 / 0.05), 0 8px 10px -6px rgb(0 0 0 / 0.05);
-  --shadow-pill: 0 10px 30px rgba(0, 0, 0, 0.08);
+  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.07), 0 1px 2px -1px rgb(0 0 0 / 0.04);
+  --shadow-md: 0 4px 12px -1px rgb(0 0 0 / 0.09), 0 2px 6px -2px rgb(0 0 0 / 0.04);
+  --shadow-lg: 0 10px 24px -3px rgb(0 0 0 / 0.09), 0 4px 8px -4px rgb(0 0 0 / 0.04);
+  --shadow-premium: 0 20px 40px -8px rgb(0 0 0 / 0.1), 0 8px 16px -6px rgb(0 0 0 / 0.05);
+  --shadow-pill: 0 8px 24px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @layer base {
@@ -50,15 +54,6 @@
     background-color: var(--background);
     color: var(--text-primary);
     @apply font-sans antialiased;
-  }
-
-  /* Smooth theme transition for all elements */
-  *,
-  *::before,
-  *::after {
-    transition-property: background-color, border-color, color, fill, stroke, box-shadow, transform, opacity;
-    transition-duration: 300ms;
-    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   }
 }
 
@@ -69,13 +64,12 @@
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: box-shadow 200ms var(--ease-out), border-color 150ms ease-out;
 }
 
 .glass-card:hover {
   box-shadow: var(--shadow-md);
   border-color: var(--border-hover);
-  transform: translateY(-1px);
 }
 
 /* Redesigned KPI cards for light theme */
@@ -84,7 +78,8 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-sm);
-  @apply p-5 flex flex-col justify-between transition-all duration-300 relative overflow-hidden;
+  transition: box-shadow 200ms var(--ease-out), border-color 150ms ease-out;
+  @apply p-5 flex flex-col justify-between relative overflow-hidden;
 }
 
 .kpi-card::after {
@@ -102,7 +97,6 @@
 }
 
 .kpi-card:hover {
-  transform: translateY(-2px);
   box-shadow: var(--shadow-md);
 }
 
@@ -192,9 +186,13 @@
   align-items: center;
   justify-content: center;
   color: var(--text-secondary);
-  transition: all 0.3s ease;
+  transition: background-color 150ms ease-out, color 150ms ease-out, box-shadow 150ms ease-out, transform 100ms ease-out;
   cursor: pointer;
   flex: 0 0 auto;
+}
+
+.nav-pill-item:active {
+  transform: scale(0.88);
 }
 
 .nav-pill-item.active {
@@ -229,7 +227,7 @@
   font-size: 14px;
   font-weight: 500;
   color: var(--text-primary);
-  transition: all 0.2s ease;
+  transition: border-color 150ms ease-out, box-shadow 150ms ease-out, background-color 150ms ease-out;
 }
 
 .input-clean:focus {

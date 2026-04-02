@@ -11,3 +11,6 @@ coverage/
 grid_ml/data/
 grid_ml/models/*.pkl
 grid_ml/notebooks/.ipynb_checkpoints/
+
+# Local Netlify folder
+.netlify

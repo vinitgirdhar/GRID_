@@ -1,5 +1,7 @@
 import { processSyncQueueEntries, SyncAction, SyncQueueEntry } from './syncEngine';
-import { readAuthTokens } from './secureStorage';
+import { API_BASE_URL } from '../config/api';
+import { mockPostDriverSession, mockPostDrowsinessStatus } from './mockApi';
+import { DriverSessionTogglePayload, DrowsinessUpdatePayload } from '../types';
 
 export type CacheStoreName = 'hotspots' | 'metrics' | 'forecast';
 
@@ -20,8 +22,6 @@ const DB_NAME = 'grid-driver-offline';
 const DB_VERSION = 1;
 const SYNC_QUEUE_STORE = 'sync_queue';
 const CACHE_STORES: CacheStoreName[] = ['hotspots', 'metrics', 'forecast'];
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api';
-
 export const OFFLINE_QUEUE_EVENT = 'grid-offline-queue-changed';
 
 function hasIndexedDb() {
@@ -30,6 +30,24 @@ function hasIndexedDb() {
 
 function isBrowserOnline() {
   return typeof navigator === 'undefined' ? true : navigator.onLine;
+}
+
+function isRecoverableSyncError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const message = error.message.toLowerCase();
+  return (
+    message.includes('failed to fetch') ||
+    message.includes('network') ||
+    message.includes('offline') ||
+    message.includes('load failed') ||
+    message.includes('status 404') ||
+    message.includes('status 500') ||
+    message.includes('status 502') ||
+    message.includes('status 503')
+  );
 }
 
 function requestToPromise<T>(request: IDBRequest<T>) {
@@ -184,34 +202,39 @@ class OfflineService {
 
   private async sendQueuedRequest(entry: SyncQueueEntry) {
     let path = '';
+    let mockFallback: (() => Promise<unknown>) | null = null;
 
     switch (entry.action) {
       case 'driver-drowsiness':
-        path = '/driver/telemetry/drowsiness';
+        path = '/driver/drowsiness';
+        mockFallback = () => mockPostDrowsinessStatus(entry.payload as DrowsinessUpdatePayload);
         break;
       case 'driver-session':
         path = '/driver/session';
+        mockFallback = () => mockPostDriverSession(entry.payload as DriverSessionTogglePayload);
         break;
       default:
         throw new Error(`Unsupported sync action: ${entry.action}`);
     }
 
-    const tokens = await readAuthTokens();
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-    if (tokens?.accessToken) {
-      headers.Authorization = `Bearer ${tokens.accessToken}`;
-    }
+    try {
+      const response = await fetch(`${API_BASE_URL}${path}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(entry.payload),
+      });
 
-    const response = await fetch(`${API_BASE_URL}${path}`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(entry.payload),
-    });
+      if (!response.ok) {
+        throw new Error(`Sync failed with status ${response.status}`);
+      }
+    } catch (error) {
+      if (!mockFallback || !isRecoverableSyncError(error)) {
+        throw error;
+      }
 
-    if (!response.ok) {
-      throw new Error(`Sync failed with status ${response.status}`);
+      await mockFallback();
     }
   }
 

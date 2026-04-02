@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Heart, X, Wind, Shield, Coffee, Leaf } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { getWellnessStatus } from '../services/apiService';
 
 type ZenPhase = 'idle' | 'inhale' | 'hold' | 'exhale' | 'done';
 
@@ -49,10 +50,8 @@ export default function SafetyZen({ isLive }: { isLive?: boolean }) {
   useEffect(() => {
     const fetchWellness = async () => {
       try {
-        const res = await fetch('http://localhost:8000/api/driver/wellness');
-        if (!res.ok) return;
-        const data = await res.json();
-        
+        const data = await getWellnessStatus();
+
         setDriveMinutes(data.drive_minutes);
         setIsFilling(data.is_filling);
         setProgress(data.progress);

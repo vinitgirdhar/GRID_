@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(find . -maxdepth 2 -name README* -o -name *.md)",
+      "Bash(npx tsc:*)",
+      "Bash(find 'd:/DOING STUFF/GRID FRONTEND/GRID/node_modules/@mediapipe/tasks-vision' -name *.task)",
+      "Bash(node -e \":*)"
+    ]
+  }
+}

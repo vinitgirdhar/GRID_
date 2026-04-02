@@ -4,6 +4,14 @@ import {
   AreaChart, Area
 } from 'recharts';
 import { Shield, Target, Zap, Info } from 'lucide-react';
+import { InsightTooltip } from '../charts/InsightTooltip';
+import {
+  asNumber,
+  formatInfluenceScore,
+  formatR2Score,
+  getFeatureInfluenceInsight,
+  getR2Insight,
+} from '../charts/insightTooltipUtils';
 import { getMetrics } from '../../services/apiService';
 import { MetricsResponse } from '../../types';
 
@@ -73,6 +81,7 @@ export default function ModelPerformance() {
     name: formatFeatureName(item.name),
     value: Number(item.value.toFixed(3)),
   })) ?? [];
+  const featureMax = Math.max(0, ...featureImportance.map((item) => item.value));
 
   const activeVariant = metrics?.model_variants.find((item) => item.key === metrics.current_model_key);
   const baselineVariant = metrics?.model_variants.find((item) => item.key === 'baseline');
@@ -82,6 +91,44 @@ export default function ModelPerformance() {
   const r2Gain = baselineVariant && activeVariant
     ? ((activeVariant.test_r2 - baselineVariant.test_r2) * 100)
     : null;
+
+  const r2Tooltip = {
+    title: 'R² Accuracy Score',
+    contextLabel: 'Model Variant',
+    metricLabel: 'R² Accuracy',
+    description: 'A normalized fit score, so 0.8900 means the model explains about 89% of demand variance in evaluation.',
+    details: [
+      'X-axis: evaluated model version in the rollout progression',
+      'Y-axis: R² score on a 0 to 1 scale',
+    ],
+    accentColor: '#F4B000',
+    labelFormatter: (label: string | number | undefined, item: { payload?: Record<string, unknown> }) => {
+      const variantLabel = typeof label === 'string'
+        ? label
+        : typeof item.payload?.label === 'string'
+          ? item.payload.label
+          : 'Model';
+      const iterationLabel = typeof item.payload?.name === 'string' ? item.payload.name : null;
+
+      return iterationLabel ? `${variantLabel} (${iterationLabel})` : variantLabel;
+    },
+    valueFormatter: (value: number | string | undefined) => formatR2Score(value),
+    insightFormatter: (item: { value?: number | string }) => getR2Insight(asNumber(item.value)),
+  };
+
+  const featureTooltip = {
+    title: 'Influence Score',
+    contextLabel: 'Feature',
+    metricLabel: 'Influence Score',
+    description: 'A normalized importance score, so 0.240 means this feature materially shapes the model output.',
+    details: [
+      'X-axis: relative influence score used by the model',
+      'Y-axis: feature contributing to the demand forecast',
+    ],
+    accentColor: '#F4B000',
+    valueFormatter: (value: number | string | undefined) => formatInfluenceScore(value),
+    insightFormatter: (item: { value?: number | string }) => getFeatureInfluenceInsight(asNumber(item.value), featureMax),
+  };
 
   return (
     <div className="space-y-8">
@@ -132,9 +179,7 @@ export default function ModelPerformance() {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
                 <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} domain={[0.9, 1]} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)' }}
-                />
+                <Tooltip content={<InsightTooltip config={r2Tooltip} />} />
                 <Area type="monotone" dataKey="value" stroke="#F4B000" strokeWidth={3} fillOpacity={1} fill="url(#colorR2)" />
               </AreaChart>
             </ResponsiveContainer>
@@ -155,9 +200,7 @@ export default function ModelPerformance() {
                   tick={{ fill: 'var(--text-secondary)', fontSize: 12 }}
                   width={150}
                 />
-                <Tooltip
-                  contentStyle={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)' }}
-                />
+                <Tooltip content={<InsightTooltip config={featureTooltip} />} />
                 <Bar dataKey="value" fill="#F4B000" radius={[0, 4, 4, 0]} barSize={20} />
               </BarChart>
             </ResponsiveContainer>

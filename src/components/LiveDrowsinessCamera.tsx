@@ -4,35 +4,48 @@ import { motion } from 'motion/react';
 
 import { cn } from '../lib/utils';
 import { postDrowsinessStatus } from '../services/apiService';
-import {
-  blendshapeScore,
-  buildDrowsinessPayload,
-  BUZZ_INTERVAL_MS,
-  CLOSED_FRAME_THRESHOLD,
-  CLOSED_SECONDS_THRESHOLD,
-  computeEar,
-  computeMouthRatio,
-  createFaceLandmarker,
-  DEFAULT_THRESHOLD,
-  EYE_RING,
-  FaceLandmarkerInstance,
-  FaceLandmarkerResult,
-  formatLogTime,
-  JAW_OPEN_THRESHOLD,
-  LEFT_EYE,
-  MOUTH,
-  POST_INTERVAL_MS,
-  requestCameraStream,
-  RIGHT_EYE,
-  waitForVideoMetadata,
-  withTimeout,
-  YAWN_SUSTAINED_SECONDS,
-  YAWN_THRESHOLD,
-} from '../services/drowsinessService';
-import { useDriverStore } from '../stores/driverStore';
 import { DrowsinessResponse, DrowsinessSeverity, DrowsinessUpdatePayload } from '../types';
-const CAMERA_START_TIMEOUT_MS = 12000;
-const FACE_MESH_LOAD_TIMEOUT_MS = 15000;
+
+
+const VISION_WASM_URL = '/mediapipe-wasm';
+const FACE_LANDMARKER_MODEL_URL =
+  '/mediapipe-models/face_landmarker.task';
+
+const LEFT_EYE = [33, 160, 158, 133, 153, 144] as const;
+const RIGHT_EYE = [362, 385, 387, 263, 373, 380] as const;
+const EYE_RING = [0, 1, 2, 3, 4, 5, 0] as const;
+const MOUTH = [78, 81, 13, 311, 308, 402, 14, 178, 78] as const;
+const DEFAULT_THRESHOLD = 0.23;
+const YAWN_THRESHOLD = 0.5;
+const JAW_OPEN_THRESHOLD = 0.7;
+const YAWN_SUSTAINED_SECONDS = 1.5;
+const CLOSED_FRAME_THRESHOLD = 20;
+const CLOSED_SECONDS_THRESHOLD = 2;
+const POST_INTERVAL_MS = 900;
+const BUZZ_INTERVAL_MS = 1100;
+const CAMERA_START_TIMEOUT_MS = 15000;
+const VISION_BUNDLE_TIMEOUT_MS = 30000;
+const FACE_MESH_LOAD_TIMEOUT_MS = 45000;
+
+type Landmark = { x: number; y: number; z?: number };
+type BlendshapeCategory = { categoryName: string; score: number };
+type FaceLandmarkerResult = {
+  faceLandmarks?: Landmark[][];
+  faceBlendshapes?: Array<{ categories: BlendshapeCategory[] }>;
+};
+type FaceLandmarkerInstance = {
+  detectForVideo: (video: HTMLVideoElement, timestampMs: number) => FaceLandmarkerResult;
+  close?: () => void;
+};
+type VisionBundleModule = {
+  FilesetResolver: { forVisionTasks: (wasmRoot: string) => Promise<unknown> };
+  FaceLandmarker: {
+    createFromOptions: (
+      vision: unknown,
+      options: Record<string, unknown>,
+    ) => Promise<FaceLandmarkerInstance>;
+  };
+};
 
 type SafetyLogTone = 'critical' | 'warning';
 type SafetyLogEntry = {
@@ -41,6 +54,42 @@ type SafetyLogEntry = {
   label: string;
   tone: SafetyLogTone;
 };
+
+
+function distance(a: { x: number; y: number }, b: { x: number; y: number }) {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+
+function computeEar(points: { x: number; y: number }[]) {
+  const verticalOne = distance(points[1], points[5]);
+  const verticalTwo = distance(points[2], points[4]);
+  const horizontal = distance(points[0], points[3]);
+  if (!horizontal) {
+    return 0;
+  }
+  return (verticalOne + verticalTwo) / (2 * horizontal);
+}
+
+
+function computeMouthRatio(points: { x: number; y: number }[]) {
+  const vertical = distance(points[2], points[6]);
+  const horizontal = distance(points[0], points[4]);
+  if (!horizontal) {
+    return 0;
+  }
+  return vertical / horizontal;
+}
+
+
+function blendshapeScore(result: FaceLandmarkerResult | null, name: string) {
+  const categories = result?.faceBlendshapes?.[0]?.categories;
+  if (!categories) {
+    return 0;
+  }
+  return categories.find((category) => category.categoryName === name)?.score ?? 0;
+}
+
 
 function severityClasses(severity: DrowsinessSeverity) {
   if (severity === 'critical') {
@@ -142,9 +191,145 @@ function drawStatusChip(
 }
 
 
+function buildPayload(
+  next: Partial<DrowsinessResponse> & Pick<DrowsinessUpdatePayload, 'status' | 'severity'>,
+): DrowsinessUpdatePayload {
+  return {
+    status: next.status,
+    severity: next.severity,
+    ear: next.ear ?? null,
+    threshold: next.threshold ?? DEFAULT_THRESHOLD,
+    consecutive_closed_frames: next.consecutive_closed_frames ?? 0,
+    eyes_closed_seconds: next.eyes_closed_seconds ?? 0,
+    alarm_active: next.alarm_active ?? false,
+    assistant_response: next.assistant_response ?? null,
+    source: next.source ?? 'browser-camera',
+    updated_at: new Date().toISOString(),
+  };
+}
 
-export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
-  const activeTrip = useDriverStore((state) => state.activeTrip);
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string) {
+  return new Promise<T>((resolve, reject) => {
+    const timeoutId = window.setTimeout(() => reject(new Error(message)), timeoutMs);
+    promise
+      .then((value) => {
+        window.clearTimeout(timeoutId);
+        resolve(value);
+      })
+      .catch((error) => {
+        window.clearTimeout(timeoutId);
+        reject(error);
+      });
+  });
+}
+
+function formatLogTime(date: Date) {
+  return date.toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+}
+
+
+async function requestCameraStream(setLoadingStep: (value: string) => void) {
+  console.log('[Camera] Starting stream request sequence...');
+  
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const videoDevices = devices.filter(d => d.kind === 'videoinput');
+    console.log('[Camera] Available video devices:', videoDevices);
+    
+    if (videoDevices.length === 0) {
+      throw new Error('No webcam devices found on this system.');
+    }
+  } catch (e) {
+    console.warn('[Camera] Failed to enumerate devices:', e);
+  }
+
+  const attempts: Array<{ step: string; constraints: MediaStreamConstraints }> = [
+    {
+      step: 'Requesting camera (Primary: HD)...',
+      constraints: {
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          facingMode: 'user',
+        },
+        audio: false,
+      },
+    },
+    {
+      step: 'Retrying camera (Basic)...',
+      constraints: {
+        video: true,
+        audio: false,
+      },
+    },
+  ];
+
+  let lastError: unknown = null;
+  for (const attempt of attempts) {
+    try {
+      console.log(`[Camera] Attempting: ${attempt.step}`, attempt.constraints);
+      setLoadingStep(attempt.step);
+      
+      const stream = await withTimeout(
+        navigator.mediaDevices.getUserMedia(attempt.constraints),
+        CAMERA_START_TIMEOUT_MS,
+        `Timed out at step: ${attempt.step}`,
+      );
+      
+      console.log('[Camera] Stream successfully obtained!', stream.id);
+      return stream;
+    } catch (error) {
+      console.error(`[Camera] Attempt failed (${attempt.step}):`, error);
+      lastError = error;
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error('Unable to open the webcam after multiple attempts.');
+}
+
+
+function waitForVideoMetadata(video: HTMLVideoElement, timeoutMs: number) {
+  return new Promise<void>((resolve, reject) => {
+    if (video.readyState >= 1 || video.videoWidth > 0) {
+      resolve();
+      return;
+    }
+
+    const cleanup = () => {
+      window.clearTimeout(timeoutId);
+      video.removeEventListener('loadedmetadata', onLoadedMetadata);
+      video.removeEventListener('loadeddata', onLoadedMetadata);
+      video.removeEventListener('error', onVideoError);
+    };
+
+    const onLoadedMetadata = () => {
+      cleanup();
+      resolve();
+    };
+
+    const onVideoError = () => {
+      cleanup();
+      reject(new Error('The webcam stream opened but the video element failed to load it.'));
+    };
+
+    const timeoutId = window.setTimeout(() => {
+      cleanup();
+      reject(new Error('The webcam stream opened, but video frames never started.'));
+    }, timeoutMs);
+
+    video.addEventListener('loadedmetadata', onLoadedMetadata, { once: true });
+    video.addEventListener('loadeddata', onLoadedMetadata, { once: true });
+    video.addEventListener('error', onVideoError, { once: true });
+  });
+}
+
+
+export default function LiveDrowsinessCamera({ isLive, onGoLive }: { isLive: boolean; onGoLive?: () => void }) {
   const [cameraState, setCameraState] = useState<'idle' | 'loading' | 'active' | 'error'>('idle');
   const [loadingStep, setLoadingStep] = useState<string>('');
   const [eventLogs, setEventLogs] = useState<SafetyLogEntry[]>([]);
@@ -256,17 +441,12 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
   }
 
   async function postStatus(payload: DrowsinessUpdatePayload) {
-    const payloadWithTrip = {
-      ...payload,
-      trip_id: activeTrip?.id ?? null,
-    };
     const signature = JSON.stringify([
-      payloadWithTrip.status,
-      payloadWithTrip.severity,
-      payloadWithTrip.ear,
-      payloadWithTrip.consecutive_closed_frames,
-      payloadWithTrip.alarm_active,
-      payloadWithTrip.trip_id,
+      payload.status,
+      payload.severity,
+      payload.ear,
+      payload.consecutive_closed_frames,
+      payload.alarm_active,
     ]);
     const now = Date.now();
     if (signature === lastPostedSignatureRef.current && now - lastPostedAtRef.current < POST_INTERVAL_MS) {
@@ -277,13 +457,13 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
     lastPostedAtRef.current = now;
 
     try {
-      const saved = await postDrowsinessStatus(payloadWithTrip);
+      const saved = await postDrowsinessStatus(payload);
       if (isMountedRef.current) {
         setStatus(saved);
       }
     } catch {
       if (isMountedRef.current) {
-        setStatus((current) => ({ ...current, ...payloadWithTrip }));
+        setStatus((current) => ({ ...current, ...payload }));
       }
     }
   }
@@ -350,6 +530,15 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
       y: landmark.y * height,
     }));
 
+    const leftEye = LEFT_EYE.map((index) => points[index]);
+    const rightEye = RIGHT_EYE.map((index) => points[index]);
+    const mouth = MOUTH.map((index) => points[index]);
+
+    // Flip context horizontally so landmark mesh matches the CSS-mirrored video feed
+    context.save();
+    context.translate(width, 0);
+    context.scale(-1, 1);
+
     context.fillStyle = next.alarm_active ? 'rgba(248, 113, 113, 0.95)' : 'rgba(125, 211, 252, 0.92)';
     for (const point of points) {
       context.beginPath();
@@ -357,19 +546,20 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
       context.fill();
     }
 
-    const leftEye = LEFT_EYE.map((index) => points[index]);
-    const rightEye = RIGHT_EYE.map((index) => points[index]);
-    const mouth = MOUTH.map((index) => points[index]);
     drawEyePath(context, leftEye, next.alarm_active ? '#fb7185' : '#f59e0b');
     drawEyePath(context, rightEye, next.alarm_active ? '#fb7185' : '#f59e0b');
     drawEyePath(context, mouth, '#22c55e');
 
-    const leftEyeAnchor = leftEye[0];
-    const rightEyeAnchor = rightEye[3];
+    // Restore normal (unflipped) context before drawing any text so it stays readable
+    context.restore();
+
+    // Draw eye labels at mirrored screen-space positions (width - x) so they sit over the correct eye
+    const leftEyeScreenX = width - leftEye[0].x;
+    const rightEyeScreenX = width - rightEye[3].x;
     context.fillStyle = '#f8fafc';
     context.font = '700 11px Segoe UI';
-    context.fillText('LEFT EYE', leftEyeAnchor.x - 8, leftEyeAnchor.y - 14);
-    context.fillText('RIGHT EYE', rightEyeAnchor.x - 22, rightEyeAnchor.y - 14);
+    context.fillText('LEFT EYE', leftEyeScreenX - 8, leftEye[0].y - 14);
+    context.fillText('RIGHT EYE', rightEyeScreenX - 22, rightEye[3].y - 14);
 
     if (next.alarm_active) {
       context.strokeStyle = 'rgba(239, 68, 68, 0.95)';
@@ -429,7 +619,7 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
       latestResultRef.current = result;
     }
 
-    const next = buildDrowsinessPayload({
+    const next = buildPayload({
       status: 'No face detected',
       severity: 'warning',
       ear: null,
@@ -576,14 +766,14 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
 
       console.log('[Camera] Step 4: Waiting for metadata');
       setLoadingStep('Waiting for video frames...');
-      await waitForVideoMetadata(video, 10000);
+      await waitForVideoMetadata(video, CAMERA_START_TIMEOUT_MS);
       
       console.log('[Camera] Step 5: Starting playback');
       await video.play().catch(e => console.warn('[Camera] Play failed but continuing:', e));
 
       console.log('[Camera] Step 6: Initializing MediaPipe');
       await postStatus(
-        buildDrowsinessPayload({
+        buildPayload({
           status: 'Camera live, loading AI...',
           severity: 'warning',
           ear: null,
@@ -595,8 +785,34 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
       );
 
       setLoadingStep('Loading face mesh bundle...');
-      setLoadingStep('Loading local face tracking assets...');
-      const faceLandmarker = await createFaceLandmarker();
+      const vision = (await withTimeout(
+        import('@mediapipe/tasks-vision'),
+        VISION_BUNDLE_TIMEOUT_MS,
+        'Face mesh bundle did not load. Check internet access and reload the page.',
+      )) as VisionBundleModule;
+
+      setLoadingStep('Initializing vision runtime...');
+      const visionFiles = await withTimeout(
+        vision.FilesetResolver.forVisionTasks(VISION_WASM_URL),
+        FACE_MESH_LOAD_TIMEOUT_MS,
+        'Face mesh runtime did not initialize from the bundled site assets.',
+      );
+
+      setLoadingStep('Loading bundled face tracking model...');
+      const faceLandmarker = await withTimeout(
+        vision.FaceLandmarker.createFromOptions(visionFiles, {
+          baseOptions: { modelAssetPath: FACE_LANDMARKER_MODEL_URL },
+          outputFaceBlendshapes: true,
+          outputFacialTransformationMatrixes: true,
+          runningMode: 'VIDEO',
+          minFaceDetectionConfidence: 0.25,
+          minFacePresenceConfidence: 0.25,
+          minTrackingConfidence: 0.25,
+          numFaces: 1,
+        }),
+        FACE_MESH_LOAD_TIMEOUT_MS,
+        'Face mesh model did not load from the bundled site assets. Please refresh and try again.',
+      );
 
       if (!isMountedRef.current) {
         faceLandmarker.close?.();
@@ -605,7 +821,7 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
 
       faceLandmarkerRef.current = faceLandmarker;
 
-      const startingPayload = buildDrowsinessPayload({
+      const startingPayload = buildPayload({
         status: 'Face mesh live',
         severity: 'normal',
         ear: null,
@@ -623,7 +839,7 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
       setCameraState(hasLiveVideo ? 'active' : 'error');
 
       await postStatus(
-        buildDrowsinessPayload({
+        buildPayload({
           status: hasLiveVideo ? 'Camera live, face mesh failed' : 'Camera unavailable',
           severity: 'warning',
           ear: null,
@@ -669,7 +885,7 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
     setError(null);
 
     await postStatus(
-      buildDrowsinessPayload({
+      buildPayload({
         status: isLive ? 'Camera stopped' : 'Driver offline',
         severity: 'warning',
         ear: null,
@@ -692,46 +908,64 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       className={cn(
-        'glass-card p-5 sm:p-6 border overflow-hidden bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.96))]',
+        'glass-card p-4 sm:p-5 border overflow-hidden bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.96))]',
         visual.border,
         visual.glow,
       )}
     >
-      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <ShieldAlert className={cn('w-5 h-5', visual.accent)} />
-            <h3 className="font-bold text-[var(--text-primary)]">Live Drowsiness Camera</h3>
+      {/* Header */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex items-start gap-2.5 min-w-0">
+          <ShieldAlert className={cn('w-5 h-5 mt-0.5 shrink-0', visual.accent)} />
+          <div className="min-w-0">
+            <h3 className="font-bold text-[var(--text-primary)] leading-tight">Live Drowsiness Camera</h3>
+            <p className="text-xs text-[var(--text-secondary)] mt-0.5 leading-snug">
+              Open the camera to see live face mesh, eye tracking, and buzzer alerts.
+            </p>
           </div>
-          <p className="text-sm text-[var(--text-secondary)] mt-1 max-w-2xl">
-            Open the camera to see your live face mesh, eye tracking, and buzzer alerts directly on screen.
-          </p>
         </div>
 
-        <div className="flex gap-2">
+        <div className="shrink-0">
           {cameraState !== 'active' ? (
-            <button
-              type="button"
-              disabled={isBusy || !isLive}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                void startCamera();
-              }}
-              className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold bg-[var(--primary)] text-white disabled:opacity-60"
-            >
-              {isBusy ? (
-                <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-              ) : (
+            !isLive && onGoLive ? (
+              <button
+                type="button"
+                disabled={isBusy}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onGoLive();
+                  setTimeout(() => void startCamera(), 300);
+                }}
+                className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold bg-[var(--success)] text-white shadow-lg shadow-[var(--success)]/20 hover:shadow-xl transition-all whitespace-nowrap"
+              >
                 <Camera className="w-4 h-4" />
-              )}
-              {isBusy ? (loadingStep || 'Opening...') : 'Open Camera'}
-            </button>
+                Go Live & Open Camera
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled={isBusy || !isLive}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  void startCamera();
+                }}
+                className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold bg-[var(--primary)] text-white disabled:opacity-60 whitespace-nowrap"
+              >
+                {isBusy ? (
+                  <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                ) : (
+                  <Camera className="w-4 h-4" />
+                )}
+                {isBusy ? (loadingStep || 'Opening...') : 'Open Camera'}
+              </button>
+            )
           ) : (
             <button
               type="button"
               onClick={() => void stopCamera()}
-              className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold bg-[var(--danger)] text-white"
+              className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold bg-[var(--danger)] text-white whitespace-nowrap"
             >
               <CameraOff className="w-4 h-4" />
               Stop Camera
@@ -740,14 +974,16 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
         </div>
       </div>
 
-      <div className="mt-5 grid grid-cols-1 xl:grid-cols-[minmax(0,1.5fr)_320px] gap-5">
-        <div className="relative rounded-[24px] overflow-hidden border border-[var(--border)] bg-slate-950 min-h-[340px]">
+      {/* Camera + Stats: stacked on mobile, side-by-side from lg */}
+      <div className="mt-4 flex flex-col lg:flex-row gap-4">
+        {/* Camera feed */}
+        <div className="relative rounded-2xl overflow-hidden border border-[var(--border)] bg-slate-950 w-full lg:flex-1 min-h-[260px] sm:min-h-[320px]">
           <video
             ref={videoRef}
             muted
             playsInline
             className={cn(
-              'w-full h-full object-cover min-h-[340px] scale-x-[-1]',
+              'w-full h-full object-cover min-h-[260px] sm:min-h-[320px] scale-x-[-1]',
               cameraState === 'active' ? 'opacity-100' : 'opacity-0',
             )}
           />
@@ -756,72 +992,75 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
           {cameraState !== 'active' && (
             <div className="absolute inset-0 flex items-center justify-center bg-[linear-gradient(180deg,rgba(15,23,42,0.92),rgba(30,41,59,0.86))]">
               <div className="text-center px-6" style={{ minWidth: 0 }}>
-                <div className="w-16 h-16 rounded-full bg-white/10 border border-white/10 flex items-center justify-center mx-auto mb-4">
+                <div className="w-14 h-14 rounded-full bg-white/10 border border-white/10 flex items-center justify-center mx-auto mb-3">
                   {isBusy ? (
-                    <div className="w-8 h-8 rounded-full border-4 border-white/20 border-t-white animate-spin" />
+                    <div className="w-7 h-7 rounded-full border-4 border-white/20 border-t-white animate-spin" />
                   ) : (
-                    <Camera className="w-8 h-8 text-white" />
+                    <Camera className="w-7 h-7 text-white" />
                   )}
                 </div>
-                <p className="text-lg font-bold text-white">
+                <p className="text-base font-bold text-white">
                   {isBusy ? (loadingStep || 'Starting webcam...') : 'Camera preview ready'}
                 </p>
-                <p className="text-sm text-slate-300 mt-2">
+                <p className="text-xs text-slate-300 mt-1.5 max-w-[200px] mx-auto leading-snug">
                   {isLive
-                    ? (loadingStep.includes('permission') ? 'Please check the permission popup in your browser.' : 'Stay in frame for live landmark tracking.')
-                    : 'Switch the driver session to LIVE first.'}
+                    ? (loadingStep.includes('permission') ? 'Check the permission popup in your browser.' : 'Stay in frame for live landmark tracking.')
+                    : 'Tap "Go Live & Open Camera" above to start.'}
                 </p>
               </div>
             </div>
           )}
 
           {status.alarm_active && (
-            <div className="absolute top-4 right-4 px-4 py-2 rounded-full bg-[var(--danger)] text-white text-xs font-black tracking-widest shadow-lg animate-pulse">
+            <div className="absolute top-3 right-3 px-3 py-1.5 rounded-full bg-[var(--danger)] text-white text-[10px] font-black tracking-widest shadow-lg animate-pulse">
               DROWSY
             </div>
           )}
         </div>
 
-        <div className="space-y-4">
-          <div className="rounded-[24px] border border-[var(--border)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.95))] p-5 shadow-[0_12px_40px_rgba(15,23,42,0.08)]">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[11px] font-black uppercase tracking-[0.25em] text-[var(--text-muted)]">Driver Status</p>
-                <p className="text-2xl font-black text-[var(--text-primary)] mt-1">{status.status}</p>
+        {/* Stats sidebar */}
+        <div className="flex flex-col gap-3 lg:w-[300px] lg:shrink-0">
+          {/* Status card */}
+          <div className="rounded-2xl border border-[var(--border)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.95))] p-4 shadow-[0_8px_24px_rgba(15,23,42,0.07)]">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)]">Driver Status</p>
+                <p className="text-base font-black text-[var(--text-primary)] mt-1 leading-tight break-words">{status.status}</p>
               </div>
-              <span className={cn('px-3 py-2 rounded-full text-xs font-black tracking-widest', visual.badge)}>
+              <span className={cn('shrink-0 px-2.5 py-1.5 rounded-full text-[10px] font-black tracking-widest whitespace-nowrap', visual.badge)}>
                 {status.severity.toUpperCase()}
               </span>
             </div>
 
-            <div className="grid grid-cols-3 gap-3 mt-5">
-              <div className="rounded-2xl bg-[var(--secondary)]/60 px-4 py-3">
-                <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)]">EAR</p>
-                <p className="text-3xl font-black text-[var(--text-primary)] mt-1">
+            <div className="grid grid-cols-3 gap-2 mt-4">
+              <div className="rounded-xl bg-[var(--secondary)]/60 px-3 py-2.5">
+                <p className="text-[9px] font-black uppercase tracking-[0.18em] text-[var(--text-muted)]">EAR</p>
+                <p className="text-lg font-black text-[var(--text-primary)] mt-0.5 tabular-nums">
                   {typeof status.ear === 'number' ? status.ear.toFixed(3) : '--'}
                 </p>
               </div>
-              <div className="rounded-2xl bg-[var(--secondary)]/60 px-4 py-3">
-                <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)]">Closed</p>
-                <p className="text-3xl font-black text-[var(--text-primary)] mt-1">{status.eyes_closed_seconds.toFixed(1)}s</p>
+              <div className="rounded-xl bg-[var(--secondary)]/60 px-3 py-2.5">
+                <p className="text-[9px] font-black uppercase tracking-[0.18em] text-[var(--text-muted)]">Closed</p>
+                <p className="text-lg font-black text-[var(--text-primary)] mt-0.5 tabular-nums">{status.eyes_closed_seconds.toFixed(1)}s</p>
               </div>
-              <div className="rounded-2xl bg-[var(--secondary)]/60 px-4 py-3">
-                <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)]">Events</p>
-                <p className="text-3xl font-black text-[var(--text-primary)] mt-1">{fatigueEventCount}</p>
+              <div className="rounded-xl bg-[var(--secondary)]/60 px-3 py-2.5">
+                <p className="text-[9px] font-black uppercase tracking-[0.18em] text-[var(--text-muted)]">Events</p>
+                <p className="text-lg font-black text-[var(--text-primary)] mt-0.5 tabular-nums">{fatigueEventCount}</p>
               </div>
             </div>
           </div>
 
-          <div className="rounded-[24px] border border-[var(--border)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.95))] p-5 shadow-[0_12px_40px_rgba(15,23,42,0.08)]">
+          {/* Live feedback card */}
+          <div className="rounded-2xl border border-[var(--border)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.95))] p-4 shadow-[0_8px_24px_rgba(15,23,42,0.07)]">
             <div className="flex items-center gap-2">
               {status.alarm_active ? (
-                <AlertTriangle className="w-4 h-4 text-[var(--danger)]" />
+                <AlertTriangle className="w-4 h-4 text-[var(--danger)] shrink-0" />
               ) : (
-                <Camera className="w-4 h-4 text-[var(--primary)]" />
+                <Camera className="w-4 h-4 text-[var(--primary)] shrink-0" />
               )}
-              <p className="font-bold text-[var(--text-primary)]">Live feedback</p>
+              <p className="font-bold text-sm text-[var(--text-primary)]">Live feedback</p>
             </div>
-            <p className="text-sm text-[var(--text-secondary)] mt-3 leading-relaxed">
+            <p className="text-xs text-[var(--text-secondary)] mt-2.5 leading-relaxed">
               {error
                 ? error
                 : status.assistant_response ?? 'Open the camera to start live facial landmark tracking and drowsiness detection.'}
@@ -830,41 +1069,42 @@ export default function LiveDrowsinessCamera({ isLive }: { isLive: boolean }) {
         </div>
       </div>
 
-      <div className="mt-5 rounded-[24px] border border-[var(--border)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.95))] p-5 shadow-[0_12px_40px_rgba(15,23,42,0.08)]">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      {/* Safety log */}
+      <div className="mt-4 rounded-2xl border border-[var(--border)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.95))] p-4 shadow-[0_8px_24px_rgba(15,23,42,0.07)]">
+        <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-[11px] font-black uppercase tracking-[0.24em] text-[var(--text-muted)]">Driver Safety Log</p>
-            <p className="text-sm text-[var(--text-secondary)] mt-1">
-              Live session events captured from the camera detector.
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)]">Driver Safety Log</p>
+            <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+              Live session events from the camera detector.
             </p>
           </div>
-          <span className="text-xs font-bold text-[var(--text-secondary)]">
+          <span className="text-xs font-bold text-[var(--text-secondary)] shrink-0">
             {eventLogs.length} event{eventLogs.length === 1 ? '' : 's'}
           </span>
         </div>
 
-        <div className="mt-4 space-y-3">
+        <div className="mt-3 space-y-2">
           {eventLogs.length > 0 ? (
             eventLogs.map((entry) => (
               <div
                 key={entry.id}
-                className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--border)] bg-[var(--background)]/80 px-4 py-3"
+                className="flex items-center justify-between gap-3 rounded-xl border border-[var(--border)] bg-[var(--background)]/80 px-3 py-2.5"
               >
-                <div className="flex items-center gap-3 min-w-0">
+                <div className="flex items-center gap-2.5 min-w-0">
                   <span
                     className={cn(
-                      'w-2.5 h-2.5 rounded-full shrink-0',
+                      'w-2 h-2 rounded-full shrink-0',
                       entry.tone === 'critical' ? 'bg-[var(--danger)]' : 'bg-sky-500',
                     )}
                   />
                   <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{entry.label}</p>
                 </div>
-                <span className="text-sm font-bold text-[var(--text-secondary)] shrink-0">{entry.time}</span>
+                <span className="text-xs font-bold text-[var(--text-secondary)] shrink-0">{entry.time}</span>
               </div>
             ))
           ) : (
-            <div className="rounded-2xl border border-dashed border-[var(--border)] px-4 py-6 text-sm text-[var(--text-secondary)] text-center">
-              No safety events yet. Open the camera and the log will record drowsiness, yawning, and distraction events with timestamps.
+            <div className="rounded-xl border border-dashed border-[var(--border)] px-4 py-5 text-xs text-[var(--text-secondary)] text-center leading-relaxed">
+              No safety events yet. Open the camera to record drowsiness, yawning, and distraction events.
             </div>
           )}
         </div>

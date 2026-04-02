@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
 import { MapPin, Layers, AlertCircle, TrendingUp, Activity } from 'lucide-react';
 import { getPredictionData } from '../../services/predictionService';
 import { PredictionState, Theme } from '../../types';
@@ -30,25 +31,41 @@ export default function HotspotMap() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-end justify-between">
+      <motion.div
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
+        className="flex items-end justify-between"
+      >
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-[var(--text-primary)]">Hotspot Map</h1>
           <p className="text-[var(--text-secondary)] mt-1">Geospatial visualization of predicted ride demand across NYC</p>
         </div>
         <div className="flex gap-2">
-          <button className="bg-[var(--card)] hover:bg-primary/10 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors text-[var(--text-primary)] border border-[var(--border)]">
+          <button
+            className="bg-[var(--card)] hover:bg-primary/10 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 text-[var(--text-primary)] border border-[var(--border)] active:scale-[0.97]"
+            style={{ transition: 'background-color 150ms ease-out, border-color 150ms ease-out, transform 100ms ease-out' }}
+          >
             <Layers size={16} />
             Layers
           </button>
-          <button className="bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-lg shadow-primary/20">
+          <button
+            className="bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-lg shadow-primary/20 active:scale-[0.97]"
+            style={{ transition: 'opacity 150ms ease-out, transform 100ms ease-out' }}
+          >
             <MapPin size={16} />
             Reset View
           </button>
         </div>
-      </div>
+      </motion.div>
 
-      <div className="glass-card relative overflow-hidden group p-1">
-        <MapComponent zones={data.zones} theme={theme} height="600px" />
+      <motion.div
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.22, delay: 0.06, ease: [0.23, 1, 0.32, 1] }}
+        className="glass-card relative overflow-hidden group p-1"
+      >
+        <MapComponent zones={data.zones} theme={theme} height="600px" zoom={14} showYouAreHere />
 
         {/* Legend Overlay */}
         <div className="absolute bottom-6 right-6 glass-card p-4 border-[var(--border)] z-[1000]">
@@ -68,36 +85,30 @@ export default function HotspotMap() {
             </div>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="glass-card p-4 flex items-center gap-4">
-          <div className="w-10 h-10 bg-danger/10 rounded-xl flex items-center justify-center">
-            <AlertCircle className="text-danger w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-xs text-[var(--text-secondary)] font-medium">Top Hotspot</p>
-            <p className="text-sm font-bold text-[var(--text-primary)]">Midtown Manhattan</p>
-          </div>
-        </div>
-        <div className="glass-card p-4 flex items-center gap-4">
-          <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
-            <TrendingUp className="text-primary w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-xs text-[var(--text-secondary)] font-medium">Growth Area</p>
-            <p className="text-sm font-bold text-[var(--text-primary)]">Williamsburg</p>
-          </div>
-        </div>
-        <div className="glass-card p-4 flex items-center gap-4">
-          <div className="w-10 h-10 bg-success/10 rounded-xl flex items-center justify-center">
-            <Activity className="text-success w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-xs text-[var(--text-secondary)] font-medium">Data Freshness</p>
-            <p className="text-sm font-bold text-[var(--text-primary)]">Updated 2m ago</p>
-          </div>
-        </div>
+        {[
+          { icon: AlertCircle, color: 'danger', bg: 'bg-danger/10', label: 'Top Hotspot', value: 'Midtown Manhattan' },
+          { icon: TrendingUp, color: 'primary', bg: 'bg-primary/10', label: 'Growth Area', value: 'Williamsburg' },
+          { icon: Activity, color: 'success', bg: 'bg-success/10', label: 'Data Freshness', value: 'Updated 2m ago' },
+        ].map((stat, idx) => (
+          <motion.div
+            key={stat.label}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2, delay: 0.14 + idx * 0.04, ease: [0.23, 1, 0.32, 1] }}
+            className="glass-card p-4 flex items-center gap-4"
+          >
+            <div className={`w-10 h-10 ${stat.bg} rounded-xl flex items-center justify-center`}>
+              <stat.icon className={`text-${stat.color} w-5 h-5`} />
+            </div>
+            <div>
+              <p className="text-xs text-[var(--text-secondary)] font-medium">{stat.label}</p>
+              <p className="text-sm font-bold text-[var(--text-primary)]">{stat.value}</p>
+            </div>
+          </motion.div>
+        ))}
       </div>
     </div>
   );

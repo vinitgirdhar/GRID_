@@ -18,9 +18,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
 from .config import get_settings
-from .driver_api import bootstrap_mobile_data, router as driver_router
 from .schemas import (
     AvoidZone,
+    DriverLoginRequest,
+    DriverProfile,
+    DriverStatusUpdate,
     DrowsinessResponse,
     DrowsinessUpdate,
     FeatureImportancePoint,
@@ -44,13 +46,55 @@ from .schemas import (
 # Wellness State (Accelerated for demo)
 # 1 real minute = 15 simulated driver minutes (approx 10 mins to reach "Take Break")
 DRIVER_SESSION = {
-    "is_live": True,
+    "is_live": False,
     "start_time": datetime.utcnow(),
     "acceleration": 60
 }
 
 STATE_LOCK = Lock()
 DROWSINESS_STATE = DrowsinessResponse()
+
+# ── In-memory driver fleet ────────────────────────────────────────────────────
+_DRIVER_SEED = [
+    ("Alex Thompson",   "Manhattan",     "gold",   4.9, 1240,  4520),
+    ("Sarah Jenkins",   "Brooklyn",      "silver",  4.8,  850,  3100),
+    ("Michael Chen",    "Queens",        "gold",   4.7, 2100,  7800),
+    ("Elena Rodriguez", "Bronx",         "bronze",  4.6,  420,  1200),
+    ("David Wilson",    "Manhattan",     "gold",   4.9, 1560,  5900),
+    ("Lisa Park",       "Brooklyn",      "silver",  4.8,  980,  3400),
+    ("James Miller",    "Staten Island", "bronze",  4.5,  310,   950),
+    ("Priya Sharma",    "Queens",        "silver",  4.7,  730,  2600),
+    ("Carlos Rivera",   "Manhattan",     "gold",   4.8, 1890,  6700),
+    ("Aisha Johnson",   "Brooklyn",      "silver",  4.6,  640,  2200),
+    ("Thomas Brown",    "Bronx",         "bronze",  4.4,  280,   820),
+    ("Mei Lin",         "Queens",        "gold",   4.9, 2340,  8900),
+    ("Kevin O'Brien",   "Manhattan",     "silver",  4.7,  920,  3300),
+    ("Fatima Hassan",   "Brooklyn",      "bronze",  4.5,  380,  1100),
+    ("Andre Martin",    "Queens",        "gold",   4.8, 1670,  6200),
+    ("Sophie Turner",   "Manhattan",     "silver",  4.7,  810,  2900),
+    ("Ravi Patel",      "Staten Island", "bronze",  4.3,  190,   580),
+    ("Naomi Clark",     "Bronx",         "silver",  4.6,  560,  1900),
+    ("Omar Khalil",     "Queens",        "gold",   4.9, 3100, 11500),
+    ("Yuki Tanaka",     "Brooklyn",      "silver",  4.8, 1050,  3800),
+]
+
+DRIVERS_LOCK = Lock()
+DRIVERS: dict[str, dict] = {
+    str(i): {
+        "id": str(i),
+        "phone": f"{i:010d}",
+        "password": "qwerty",
+        "name": name,
+        "tier": tier,
+        "status": "offline",
+        "avatar": f"https://picsum.photos/seed/{name.split()[0].lower()}/100/100",
+        "borough": borough,
+        "rating": rating,
+        "trips": trips,
+        "earnings": earnings,
+    }
+    for i, (name, borough, tier, rating, trips, earnings) in enumerate(_DRIVER_SEED, 1)
+}
 LOCAL_ASSISTANT_STATE: dict[str, Any] = {
     "last_response": None,
     "last_source": "idle",
@@ -59,6 +103,109 @@ LOCAL_ASSISTANT_STATE: dict[str, Any] = {
 
 
 settings = get_settings()
+
+# ==============================================================================
+# DRIVER STORE (in-memory, 20 mock drivers)
+# ==============================================================================
+
+_DRIVER_SEED: List[tuple] = [
+    ("Alex Thompson",   "Manhattan",    "gold",   4.9, 1240, 4520),
+    ("Sarah Jenkins",   "Brooklyn",     "silver", 4.8,  850, 3100),
+    ("Michael Chen",    "Queens",       "gold",   4.7, 2100, 7800),
+    ("Elena Rodriguez", "Bronx",        "bronze", 4.6,  420, 1200),
+    ("David Wilson",    "Manhattan",    "gold",   4.9, 1560, 5900),
+    ("Lisa Park",       "Brooklyn",     "silver", 4.8,  980, 3400),
+    ("James Miller",    "Staten Island","bronze", 4.5,  310,  950),
+    ("Priya Sharma",    "Queens",       "silver", 4.7,  730, 2600),
+    ("Carlos Rivera",   "Manhattan",    "gold",   4.8, 1890, 6700),
+    ("Aisha Johnson",   "Brooklyn",     "silver", 4.6,  640, 2200),
+    ("Thomas Brown",    "Bronx",        "bronze", 4.4,  280,  820),
+    ("Mei Lin",         "Queens",       "gold",   4.9, 2340, 8900),
+    ("Kevin O'Brien",   "Manhattan",    "silver", 4.7,  920, 3300),
+    ("Fatima Hassan",   "Brooklyn",     "bronze", 4.5,  380, 1100),
+    ("Andre Martin",    "Queens",       "gold",   4.8, 1670, 6200),
+    ("Sophie Turner",   "Manhattan",    "silver", 4.7,  810, 2900),
+    ("Ravi Patel",      "Staten Island","bronze", 4.3,  190,  580),
+    ("Naomi Clark",     "Bronx",        "silver", 4.6,  560, 1900),
+    ("Omar Khalil",     "Queens",       "gold",   4.9, 3100, 11500),
+    ("Yuki Tanaka",     "Brooklyn",     "silver", 4.8, 1050, 3800),
+]
+
+DRIVERS_LOCK = Lock()
+DRIVERS: Dict[str, Dict[str, Any]] = {}
+
+_DRIVER_CAR_MODELS = [
+    "Toyota Camry Hybrid",
+    "Honda Accord",
+    "Hyundai Sonata",
+    "Tesla Model 3",
+    "Nissan Altima",
+    "Toyota RAV4 Hybrid",
+    "Kia K5",
+    "Chevrolet Malibu",
+]
+
+_DRIVER_STYLE_SNIPPETS = [
+    "airport pickups",
+    "late-night demand windows",
+    "smooth downtown handoffs",
+    "high-density commuter corridors",
+    "surge-ready event routing",
+    "fast turnaround dispatches",
+]
+
+
+def _build_driver_record(
+    index: int,
+    name: str,
+    borough: str,
+    tier: str,
+    rating: float,
+    trips: int,
+    earnings: int,
+) -> Dict[str, Any]:
+    email_slug = re.sub(r"[^a-z0-9]+", ".", name.lower()).strip(".")
+    experience = max(1, min(12, 2 + (index % 6) + (1 if tier == "gold" else 0)))
+    joined_year = max(2016, datetime.utcnow().year - experience)
+    joined_month = ((index * 2) % 12) + 1
+    joined_day = ((index * 3) % 27) + 1
+    cancellation_rate = round(
+        min(
+            6.4,
+            1.4 + (index % 5) * 0.45 + (0.4 if tier == "bronze" else 0.15 if tier == "silver" else 0.0),
+        ),
+        1,
+    )
+    online_hours = round(38 + (trips / 110) + ((index % 4) * 2.75), 1)
+    tone = "calm, premium" if tier == "gold" else "reliable, efficient" if tier == "silver" else "steady, neighborhood-first"
+    seed = name.split()[0].lower()
+
+    return {
+        "id": str(index),
+        "phone": f"{index:010d}",
+        "password": "qwerty",
+        "name": name,
+        "email": f"{email_slug}@gridfleet.com",
+        "joinedDate": datetime(joined_year, joined_month, joined_day).date().isoformat(),
+        "carModel": _DRIVER_CAR_MODELS[(index - 1) % len(_DRIVER_CAR_MODELS)],
+        "licensePlate": f"NYC-{index:02d}{(trips // 10) % 100:02d}",
+        "bio": f"{borough}-based driver focused on {_DRIVER_STYLE_SNIPPETS[(index - 1) % len(_DRIVER_STYLE_SNIPPETS)]} with a {tone} service style.",
+        "experience": experience,
+        "completedTrips": trips,
+        "cancellationRate": cancellation_rate,
+        "onlineHours": online_hours,
+        "tier": tier,
+        "status": "offline",
+        "avatar": f"https://picsum.photos/seed/{seed}/100/100",
+        "borough": borough,
+        "rating": rating,
+        "trips": trips,
+        "earnings": earnings,
+    }
+
+
+for _i, (_name, _borough, _tier, _rating, _trips, _earnings) in enumerate(_DRIVER_SEED, 1):
+    DRIVERS[str(_i)] = _build_driver_record(_i, _name, _borough, _tier, _rating, _trips, _earnings)
 
 ZONE_CATALOG: dict[str, dict[str, float | str]] = {
     "132": {"name": "Zone 132", "borough": "Manhattan", "lat": 40.7580, "lng": -73.9855, "avg_distance": 3.8, "avg_fare": 19.5, "multiplier": 1.18},
@@ -398,7 +545,6 @@ def _predict_for_zone(app: FastAPI, prediction_time: datetime, zone_id: str) -> 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    bootstrap_mobile_data()
     models_dir = settings.models_dir
     outputs_dir = settings.outputs_dir
 
@@ -449,12 +595,11 @@ app = FastAPI(title=settings.app_name, lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.allowed_origins,
-    allow_origin_regex=r"^(https?://.+|capacitor://.+|vscode-webview://.+|null)$",
+    allow_origin_regex=r"^(https?://.+|vscode-webview://.+|null)$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-app.include_router(driver_router)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -462,10 +607,10 @@ def home() -> str:
     api = settings.api_prefix
     return f"""
 <!doctype html>
-<html lang="en">
+<html lang=\"en\">
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta charset=\"utf-8\" />
+    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />
     <title>{settings.app_name}</title>
     <style>
         :root {{
@@ -516,17 +661,17 @@ def home() -> str:
     </style>
 </head>
 <body>
-    <main class="card">
+    <main class=\"card\">
         <h1>{settings.app_name} Backend</h1>
         <p>The API is running. Use the links below to test endpoints quickly.</p>
         <ul>
-            <li><a href="/health">Health Check</a> <code>/health</code></li>
-            <li><a href="/docs">Swagger UI</a> <code>/docs</code></li>
-            <li><a href="{api}/metrics">Model Metrics</a> <code>{api}/metrics</code></li>
-            <li><a href="{api}/forecast">24-Hour Forecast</a> <code>{api}/forecast</code></li>
-            <li><a href="{api}/hotspots">Hotspots</a> <code>{api}/hotspots</code></li>
-            <li><a href="{api}/predictions">Predictions</a> <code>{api}/predictions</code></li>
-            <li><a href="{api}/weather">Weather</a> <code>{api}/weather</code></li>
+            <li><a href=\"/health\">Health Check</a> <code>/health</code></li>
+            <li><a href=\"/docs\">Swagger UI</a> <code>/docs</code></li>
+            <li><a href=\"{api}/metrics\">Model Metrics</a> <code>{api}/metrics</code></li>
+            <li><a href=\"{api}/forecast\">24-Hour Forecast</a> <code>{api}/forecast</code></li>
+            <li><a href=\"{api}/hotspots\">Hotspots</a> <code>{api}/hotspots</code></li>
+            <li><a href=\"{api}/predictions\">Predictions</a> <code>{api}/predictions</code></li>
+            <li><a href=\"{api}/weather\">Weather</a> <code>{api}/weather</code></li>
         </ul>
     </main>
 </body>
@@ -935,3 +1080,55 @@ def toggle_session(toggle: SessionToggle):
         DROWSINESS_STATE = DrowsinessResponse()
 
     return {"status": "updated", "is_live": toggle.is_live}
+
+
+# ==============================================================================
+# DRIVER AUTH & FLEET ENDPOINTS
+# ==============================================================================
+
+@app.post(f"{settings.api_prefix}/drivers/login", response_model=DriverProfile)
+def driver_login(payload: DriverLoginRequest) -> DriverProfile:
+    with DRIVERS_LOCK:
+        for driver in DRIVERS.values():
+            if driver["phone"] == payload.phone and driver["password"] == payload.password:
+                driver["status"] = "online"
+                # Reset wellness session so each driver starts with a clean timer
+                DRIVER_SESSION["is_live"] = False
+                DRIVER_SESSION["start_time"] = datetime.utcnow()
+                with STATE_LOCK:
+                    global DROWSINESS_STATE
+                    DROWSINESS_STATE = DrowsinessResponse()
+                return DriverProfile(**{k: v for k, v in driver.items() if k != "password"})
+    raise HTTPException(status_code=401, detail="Invalid phone number or password.")
+
+
+@app.post(f"{settings.api_prefix}/drivers/{{driver_id}}/logout")
+def driver_logout(driver_id: str) -> dict:
+    with DRIVERS_LOCK:
+        if driver_id not in DRIVERS:
+            raise HTTPException(status_code=404, detail=f"Driver {driver_id} not found.")
+        DRIVERS[driver_id]["status"] = "offline"
+    # Reset wellness session on logout
+    DRIVER_SESSION["is_live"] = False
+    DRIVER_SESSION["start_time"] = datetime.utcnow()
+    return {"ok": True}
+
+
+@app.get(f"{settings.api_prefix}/drivers", response_model=list[DriverProfile])
+def list_drivers() -> list[DriverProfile]:
+    with DRIVERS_LOCK:
+        return [
+            DriverProfile(**{k: v for k, v in d.items() if k != "password"})
+            for d in DRIVERS.values()
+        ]
+
+
+@app.post(f"{settings.api_prefix}/drivers/{{driver_id}}/status")
+def update_driver_status(driver_id: str, payload: DriverStatusUpdate) -> dict:
+    if payload.status not in ("online", "driving", "offline"):
+        raise HTTPException(status_code=400, detail="status must be 'online', 'driving', or 'offline'.")
+    with DRIVERS_LOCK:
+        if driver_id not in DRIVERS:
+            raise HTTPException(status_code=404, detail=f"Driver {driver_id} not found.")
+        DRIVERS[driver_id]["status"] = payload.status
+    return {"ok": True}

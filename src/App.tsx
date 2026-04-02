@@ -1,5 +1,4 @@
-import { useEffect, useState } from 'react';
-import { Capacitor } from '@capacitor/core';
+import { useEffect, useRef, useState } from 'react';
 import {
   Activity,
   BarChart3,
@@ -12,6 +11,7 @@ import {
   LayoutDashboard,
   LineChart as LineChartIcon,
   LogOut,
+  TrendingDown,
   Navigation,
   Search,
   ShieldAlert,
@@ -33,14 +33,33 @@ import DriverOverview from './components/pages/DriverOverview';
 import DriverPerformance from './components/pages/DriverPerformance';
 import Drivers from './components/pages/Drivers';
 import GoForRide from './components/pages/GoForRide';
+import MissedOpportunities from './components/pages/MissedOpportunities';
 import ModelPerformance from './components/pages/ModelPerformance';
 import Overview from './components/pages/Overview';
+import Profile from './components/pages/Profile';
 import WeatherInsights from './components/pages/WeatherInsights';
 import { OfflineProvider, useOffline } from './OfflineContext';
 import { cn } from './lib/utils';
-import { usePresenceHeartbeat } from './services/presenceService';
-import { useDriverStore } from './stores/driverStore';
-import { Page, UserRole } from './types';
+import { Driver, Page, UserRole } from './types';
+import {
+  getAll,
+  startBackgroundScanner,
+  subscribe,
+} from './services/opportunityService';
+import {
+  logoutDriver,
+  postDriverSession as syncDriverSession,
+  updateDriverStatus,
+} from './services/apiService';
+
+function postDriverStatus(driverId: string, status: 'online' | 'offline') {
+  updateDriverStatus(driverId, status).catch(() => {});
+}
+
+function postDriverSession(payload: { is_live: boolean }): Promise<void> {
+  return syncDriverSession(payload).then(() => {}).catch(() => {});
+}
+
 
 const ADMIN_ITEMS = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -56,6 +75,7 @@ const DRIVER_ITEMS = [
   { id: 'drowsiness-camera', label: 'Drowsiness Camera', icon: ShieldAlert },
   { id: 'where-next', label: 'Where should I go next', icon: BrainCircuit },
   { id: 'driver-performance', label: 'Performance', icon: LineChartIcon },
+  { id: 'missed-opportunities', label: 'Missed Opportunities', icon: TrendingDown },
 ] as const;
 
 function MobileClock() {
@@ -76,26 +96,31 @@ function MobileClock() {
 
 function AppShell() {
   const { isOnline, isSyncing, pendingCount } = useOffline();
-  const { driver, initialize, isLive, logout, setLive } = useDriverStore();
   const [userRole, setUserRole] = useState<UserRole | null>(null);
+  const [currentDriver, setCurrentDriver] = useState<Driver | null>(null);
+  const [selectedDriverProfile, setSelectedDriverProfile] = useState<Driver | null>(null);
+  const currentDriverRef = useRef<Driver | null>(null);
   const [activePage, setActivePage] = useState<Page>('overview');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [currentHour, setCurrentHour] = useState(() => new Date().getHours());
   const [copilotDest, setCopilotDest] = useState<string | null>(null);
+  const [isLive, setIsLive] = useState(true);
+  const [missedCount, setMissedCount] = useState(0);
 
-  usePresenceHeartbeat();
-
+  // Start opportunity scanner + subscribe to count changes when driver is logged in
   useEffect(() => {
-    void initialize();
-  }, [initialize]);
+    if (userRole !== 'driver') return;
+    const update = () => setMissedCount(getAll().filter((o) => o.resolved).length);
+    update();
+    const stopScanner = startBackgroundScanner();
+    const unsub = subscribe(update);
+    return () => { stopScanner(); unsub(); };
+  }, [userRole]);
 
+  // Keep ref in sync so event handlers always see the latest driver
   useEffect(() => {
-    if (driver) {
-      setUserRole('driver');
-    } else if (userRole === 'driver') {
-      setUserRole(null);
-    }
-  }, [driver, userRole]);
+    currentDriverRef.current = currentDriver;
+  }, [currentDriver]);
 
   useEffect(() => {
     const handleCopilotNav = (e: any) => {
@@ -110,10 +135,14 @@ function AppShell() {
       }
     };
 
-      const handleDriverSessionToggle = (e: any) => {
-        if (typeof e.detail?.isLive === 'boolean') {
-          setLive(e.detail.isLive);
+    const handleDriverSessionToggle = (e: any) => {
+      if (typeof e.detail?.isLive === 'boolean') {
+        setIsLive(e.detail.isLive);
+        const driver = currentDriverRef.current;
+        if (driver) {
+          postDriverStatus(driver.id, e.detail.isLive ? 'online' : 'offline');
         }
+      }
 
       if (e.detail?.page) {
         setActivePage(e.detail.page);
@@ -129,7 +158,7 @@ function AppShell() {
       window.removeEventListener('grid-navigate-page', handlePageNavigation);
       window.removeEventListener('grid-driver-session-toggle', handleDriverSessionToggle);
     };
-  }, [setLive]);
+  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -139,16 +168,30 @@ function AppShell() {
     return () => clearInterval(timer);
   }, []);
 
-  const handleLogin = (role: UserRole) => {
+  const handleLogin = (role: UserRole, driver?: Driver) => {
     setUserRole(role);
+    setCurrentDriver(role === 'driver' ? driver ?? null : null);
+    setSelectedDriverProfile(null);
+    if (driver) {
+      postDriverStatus(driver.id, 'online');
+      // Reset the wellness heart timer so this driver starts from zero
+      postDriverSession({ is_live: false }).catch(() => {});
+    }
+    setIsLive(false);
     setActivePage('overview');
   };
 
   const handleLogout = () => {
-    if (userRole === 'driver') {
-      void logout();
+    const driver = currentDriverRef.current;
+    if (driver) {
+      logoutDriver(driver.id).catch(() => {});
     }
+    // Reset wellness session so next login always starts fresh
+    postDriverSession({ is_live: false }).catch(() => {});
+    setIsLive(false);
     setUserRole(null);
+    setCurrentDriver(null);
+    setSelectedDriverProfile(null);
   };
 
   const connectivityLabel = isSyncing ? 'Syncing...' : isOnline ? 'Online' : 'Offline';
@@ -173,6 +216,8 @@ function AppShell() {
   }
 
   const sidebarItems = userRole === 'admin' ? ADMIN_ITEMS : DRIVER_ITEMS;
+  const isSidebarItemActive = (itemId: string) =>
+    activePage === itemId || (userRole === 'admin' && activePage === 'profile' && itemId === 'drivers');
 
   const renderPage = () => {
     if (userRole === 'admin') {
@@ -186,7 +231,16 @@ function AppShell() {
         case 'performance':
           return <ModelPerformance />;
         case 'drivers':
-          return <Drivers />;
+          return (
+            <Drivers
+              onSelectDriver={(driver) => {
+                setSelectedDriverProfile(driver);
+                setActivePage('profile');
+              }}
+            />
+          );
+        case 'profile':
+          return <Profile driver={selectedDriverProfile} viewerRole="admin" onBack={() => setActivePage('drivers')} />;
         default:
           return <Overview />;
       }
@@ -194,17 +248,34 @@ function AppShell() {
 
     switch (activePage) {
       case 'overview':
-        return <DriverOverview currentHour={currentHour} isLive={isLive} setIsLive={setLive} />;
+        return <DriverOverview currentHour={currentHour} isLive={isLive} setIsLive={setIsLive} />;
       case 'go-for-ride':
         return <GoForRide copilotZoneId={copilotDest} />;
+      case 'profile':
+        return (
+          <Profile
+            driver={currentDriver}
+            viewerRole="driver"
+            onSave={(updates) => {
+              setCurrentDriver((prev) => (prev ? { ...prev, ...updates } : prev));
+            }}
+          />
+        );
       case 'drowsiness-camera':
-        return <LiveDrowsinessCamera isLive={Boolean(isLive)} />;
+        return <LiveDrowsinessCamera isLive={Boolean(isLive)} onGoLive={() => {
+          setIsLive(true);
+          postDriverSession({ is_live: true }).catch(() => {});
+          const driver = currentDriverRef.current;
+          if (driver) postDriverStatus(driver.id, 'online');
+        }} />;
       case 'where-next':
         return <DemandPrediction />;
+      case 'missed-opportunities':
+        return <MissedOpportunities />;
       case 'driver-performance':
         return <DriverPerformance />;
       default:
-        return <DriverOverview currentHour={currentHour} isLive={isLive} setIsLive={setLive} />;
+        return <DriverOverview currentHour={currentHour} isLive={isLive} setIsLive={setIsLive} />;
     }
   };
 
@@ -231,6 +302,7 @@ function AppShell() {
         <motion.aside
           initial={false}
           animate={{ width: isSidebarCollapsed ? 80 : 260 }}
+          transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
           className={cn(
             'fixed left-0 top-0 h-full bg-[var(--surface)] border-r border-[var(--border)] z-50 flex-col shadow-sm',
             userRole === 'driver' ? 'hidden lg:flex' : 'flex',
@@ -239,8 +311,9 @@ function AppShell() {
           <div className="p-6 flex items-center justify-between">
             {!isSidebarCollapsed && (
               <motion.div
-                initial={{ opacity: 0, x: -20 }}
+                initial={{ opacity: 0, x: -8 }}
                 animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
                 className="flex items-center gap-3"
               >
                 <div className="w-10 h-10 bg-[var(--primary)] rounded-full flex items-center justify-center shadow-sm">
@@ -258,37 +331,57 @@ function AppShell() {
             )}
             <button
               onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-              className="p-2 hover:bg-[var(--secondary)] rounded-full transition-all duration-300 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              className="p-2 hover:bg-[var(--secondary)] rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              style={{ transition: 'background-color 150ms ease-out, color 150ms ease-out' }}
             >
               {isSidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
             </button>
           </div>
 
-          <nav className="flex-1 px-4 space-y-2 py-6">
-            {sidebarItems.map((item, index) => (
-              <motion.button
-                key={item.id}
-                onClick={() => setActivePage(item.id as Page)}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.05 }}
-                className={cn(
-                  'w-full flex items-center gap-4 px-4 py-3 rounded-[16px] transition-all duration-300 group',
-                  activePage === item.id
-                    ? 'bg-[var(--primary)] text-[var(--text-primary)] shadow-sm font-semibold'
-                    : 'text-[var(--text-secondary)] hover:bg-[var(--secondary)] hover:text-[var(--text-primary)]',
-                )}
-              >
-                <item.icon
-                  size={20}
+          <nav className="flex-1 min-h-0 overflow-y-auto px-4 space-y-2 py-6">
+            {sidebarItems.map((item, index) => {
+              const isActive = isSidebarItemActive(item.id);
+
+              return (
+                <motion.button
+                  key={item.id}
+                  onClick={() => setActivePage(item.id as Page)}
+                  initial={{ opacity: 0, x: -12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.2, delay: index * 0.03, ease: [0.23, 1, 0.32, 1] }}
                   className={cn(
-                    'shrink-0 transition-colors duration-300',
-                    activePage === item.id ? 'text-[var(--text-primary)]' : 'group-hover:text-[var(--text-primary)]',
+                    'w-full flex items-center gap-4 px-4 py-3 rounded-[16px] group',
+                    'transition-[background-color,color,box-shadow] duration-150 ease-out',
+                    isActive
+                      ? 'bg-[var(--primary)] text-[var(--text-primary)] shadow-sm font-semibold'
+                      : 'text-[var(--text-secondary)] hover:bg-[var(--secondary)] hover:text-[var(--text-primary)]',
                   )}
-                />
-                {!isSidebarCollapsed && <span className="font-medium text-sm">{item.label}</span>}
-              </motion.button>
-            ))}
+                >
+                  <div className="relative shrink-0">
+                    <item.icon
+                      size={20}
+                      className={cn(
+                        'transition-colors duration-300',
+                        isActive ? 'text-[var(--text-primary)]' : 'group-hover:text-[var(--text-primary)]',
+                      )}
+                    />
+                    {isSidebarCollapsed && userRole === 'driver' && item.id === 'overview' && missedCount > 0 && (
+                      <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-danger border-2 border-[var(--surface)]" />
+                    )}
+                  </div>
+                  {!isSidebarCollapsed && (
+                    <>
+                      <span className="font-medium text-sm truncate">{item.label}</span>
+                      {userRole === 'driver' && item.id === 'overview' && missedCount > 0 && (
+                        <span className="ml-auto min-w-[1.1rem] h-[1.1rem] rounded-full bg-danger text-white text-[10px] font-black flex items-center justify-center px-1">
+                          {missedCount}
+                        </span>
+                      )}
+                    </>
+                  )}
+                </motion.button>
+              );
+            })}
           </nav>
 
           <div className="p-4 border-t border-[var(--border)] flex flex-col gap-3">
@@ -324,8 +417,6 @@ function AppShell() {
               <div className="flex items-center justify-between px-2">
                 <span className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">System</span>
                 <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
                   className="w-8 h-8 flex items-center justify-center bg-[var(--surface)] shadow-sm hover:shadow-md border border-[var(--border)] rounded-full relative text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all duration-300"
                 >
                   <Bell size={14} />
@@ -334,18 +425,17 @@ function AppShell() {
               </div>
             )}
 
-            <motion.div
-              whileHover={{ scale: 1.02 }}
-              className="flex items-center gap-3 p-3 rounded-[16px] bg-[var(--surface)] border border-[var(--border)] shadow-sm hover:shadow-md hover:border-[var(--primary)]/30 transition-all duration-300 cursor-pointer group relative"
+            <div
+              onClick={() => setActivePage('profile')}
+              className="flex items-center gap-3 p-3 rounded-[16px] bg-[var(--surface)] border border-[var(--border)] shadow-sm hover:shadow-md hover:border-[var(--primary)]/30 cursor-pointer group relative"
+              style={{ transition: 'border-color 150ms ease-out, box-shadow 150ms ease-out' }}
             >
               <div className="w-10 h-10 rounded-full bg-[var(--primary)]/20 flex items-center justify-center shrink-0 border border-[var(--primary)]/30">
                 <User size={18} className="text-[var(--primary-dark)]" />
               </div>
               {!isSidebarCollapsed && (
                 <div className="flex flex-col flex-1 overflow-hidden">
-                  <span className="text-sm font-bold truncate text-[var(--text-primary)] capitalize">
-                    {userRole === 'driver' ? driver?.full_name ?? userRole : userRole}
-                  </span>
+                  <span className="text-sm font-bold truncate text-[var(--text-primary)] capitalize">{currentDriver?.name ?? userRole}</span>
                   <span className={cn('text-xs font-semibold flex items-center gap-1.5 mt-0.5', connectivityTextClass)}>
                     <span className={cn('w-1.5 h-1.5 rounded-full', connectivityDotClass)}></span>
                     {connectivityLabel}
@@ -353,22 +443,22 @@ function AppShell() {
                 </div>
               )}
               {!isSidebarCollapsed && (
-                <motion.button
-                  onClick={handleLogout}
-                  whileHover={{ scale: 1.1, backgroundColor: 'var(--danger)', color: 'white' }}
-                  whileTap={{ scale: 0.9 }}
-                  className="p-2 text-[var(--text-muted)] hover:text-white rounded-full transition-all duration-300 ml-auto"
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleLogout(); }}
+                  className="p-2 text-[var(--text-muted)] hover:text-white hover:bg-[var(--danger)] rounded-full ml-auto"
+                  style={{ transition: 'background-color 150ms ease-out, color 150ms ease-out, transform 100ms ease-out' }}
                 >
                   <LogOut size={16} />
-                </motion.button>
+                </button>
               )}
-            </motion.div>
+            </div>
           </div>
         </motion.aside>
 
         <div
+          style={{ transition: 'margin-left 220ms cubic-bezier(0.32, 0.72, 0, 1)' }}
           className={cn(
-            'flex-1 flex flex-col min-h-screen transition-all duration-300 relative',
+            'flex-1 flex flex-col min-h-screen relative',
             userRole === 'driver'
               ? isSidebarCollapsed
                 ? 'lg:ml-[80px]'
@@ -379,7 +469,7 @@ function AppShell() {
           )}
         >
           {userRole === 'driver' && (
-            <div className="lg:hidden fixed top-0 left-0 right-0 flex justify-between items-center z-40 pointer-events-none gap-3" style={{ padding: 'calc(env(safe-area-inset-top, 0px) + 1rem) 1rem 1rem 1rem' }}>
+            <div className="lg:hidden fixed top-0 left-0 right-0 p-4 sm:p-6 flex justify-between items-center z-40 pointer-events-none gap-3">
               <div className="flex items-center gap-2 pointer-events-auto shadow-md bg-white rounded-full p-1 pl-4 pr-1">
                 <MobileClock />
                 <div className="w-8 h-8 rounded-full bg-[var(--primary)] flex items-center justify-center">
@@ -412,17 +502,16 @@ function AppShell() {
           <main
             className={cn(
               'flex-1 w-full max-w-7xl mx-auto px-4 md:px-8 overflow-y-auto',
-              userRole === 'driver' ? 'pb-32 lg:pb-8 lg:pt-12' : 'pt-12 pb-8',
-              userRole === 'driver' ? 'pt-[calc(env(safe-area-inset-top,0px)+6rem)]' : '',
+              userRole === 'driver' ? 'pt-24 pb-32 lg:pb-8 lg:pt-12' : 'pt-12 pb-8',
             )}
           >
             <AnimatePresence mode="wait">
               <motion.div
                 key={`${userRole}-${activePage}`}
-                initial={{ opacity: 0, y: 10, scale: 0.99 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -10, scale: 0.99 }}
-                transition={{ duration: 0.2 }}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
                 className="h-full"
               >
                 {renderPage()}
@@ -430,47 +519,19 @@ function AppShell() {
             </AnimatePresence>
           </main>
 
-          {userRole === 'driver' && Capacitor.isNativePlatform() && (
-            <nav
-              className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-[var(--surface)] border-t border-[var(--border)] flex items-stretch justify-around"
-              style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
-            >
-              {DRIVER_ITEMS.map((item) => {
-                const isActive = activePage === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => setActivePage(item.id)}
-                    className={cn(
-                      'flex-1 flex flex-col items-center justify-center gap-1 py-3 transition-colors',
-                      isActive ? 'text-[var(--primary-dark)]' : 'text-[var(--text-muted)]',
-                    )}
-                  >
-                    <div className={cn(
-                      'flex items-center justify-center w-16 h-8 rounded-full transition-all duration-200',
-                      isActive ? 'bg-[var(--primary)]/20' : '',
-                    )}>
-                      <item.icon size={20} strokeWidth={isActive ? 2.5 : 1.8} />
-                    </div>
-                    <span className={cn('text-[10px] font-bold leading-none', isActive && 'text-[var(--primary-dark)]')}>
-                      {item.label.length > 10 ? item.label.split(' ')[0] : item.label}
-                    </span>
-                  </button>
-                );
-              })}
-            </nav>
-          )}
-
-          {userRole === 'driver' && !Capacitor.isNativePlatform() && (
+          {userRole === 'driver' && (
             <div className="lg:hidden fixed bottom-4 sm:bottom-6 left-0 right-0 flex justify-center z-50 pointer-events-none px-3">
               <div className="nav-pill pointer-events-auto">
                 {DRIVER_ITEMS.map((item) => (
                   <div
                     key={item.id}
-                    className={cn('nav-pill-item text-[var(--text-secondary)]', activePage === item.id && 'active text-white bg-[var(--primary)]')}
-                    onClick={() => setActivePage(item.id)}
+                    className={cn('nav-pill-item text-[var(--text-secondary)] relative', activePage === item.id && 'active text-white bg-[var(--primary)]')}
+                    onClick={() => setActivePage(item.id as Page)}
                   >
                     <item.icon size={20} strokeWidth={activePage === item.id ? 2.5 : 2} className="transition-all" />
+                    {item.id === 'overview' && missedCount > 0 && (
+                      <span className="absolute top-0.5 right-0.5 w-2.5 h-2.5 rounded-full bg-[var(--danger)] border-2 border-white" />
+                    )}
                   </div>
                 ))}
                 <div

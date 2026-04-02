@@ -15,6 +15,16 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { InsightTooltip } from '../charts/InsightTooltip';
+import {
+  asNumber,
+  formatBucketLabel,
+  formatHourLabel,
+  formatRideCount,
+  formatTripsPerHour,
+  getDemandWindowInsight,
+  getZoneDemandInsight,
+} from '../charts/insightTooltipUtils';
 import { getActiveHotspotPeriod, getForecast, getHotspots, getMetrics } from '../../services/apiService';
 import { ForecastResponse, HotspotsResponse, MetricsResponse } from '../../types';
 
@@ -27,21 +37,6 @@ const ACTIVE_DRIVERS_PREVIEW = [
   { name: 'Elena Rodriguez', borough: 'Bronx', tier: 'bronze', avatar: 'https://picsum.photos/seed/elena/100/100' },
   { name: 'David Wilson', borough: 'Manhattan', tier: 'gold', avatar: 'https://picsum.photos/seed/david/100/100' },
 ];
-
-function CustomTooltip({ active, payload, label }: any) {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-white px-5 py-4 rounded-2xl shadow-xl border border-gray-100">
-        <p className="text-sm font-bold text-gray-800 mb-1">{label}</p>
-        <p className="text-sm text-gray-600">
-          Rides : <span className="font-bold text-gray-900">{payload[0].value.toLocaleString()}</span>
-        </p>
-      </div>
-    );
-  }
-
-  return null;
-}
 
 export default function Overview() {
   const [forecast, setForecast] = useState<ForecastResponse | null>(null);
@@ -92,6 +87,53 @@ export default function Overview() {
     name: zone.zone_name,
     value: Math.round(zone.predicted_demand),
   })) ?? [];
+  const demandBucketMax = Math.max(0, ...demandBuckets.map((item) => item.value));
+  const zoneDemandMax = Math.max(0, ...zoneDistribution.map((item) => item.value));
+  const hourlyDemandMax = Math.max(0, ...hourlyDemand.map((item) => item.value));
+
+  const demandBucketTooltip = {
+    title: 'Predicted Ride Volume',
+    contextLabel: 'Time Window',
+    metricLabel: 'Predicted Rides',
+    description: 'An absolute demand count, so 450 means about 450 rides are forecast in this 4-hour block.',
+    details: [
+      'X-axis: 4-hour forecast bucket across the next 24 hours',
+      'Y-axis: predicted number of rides inside that bucket',
+    ],
+    accentColor: '#eab308',
+    labelFormatter: (label: string | number | undefined) => formatBucketLabel(label),
+    valueFormatter: (value: number | string | undefined) => formatRideCount(value),
+    insightFormatter: (item: { value?: number | string }) => getDemandWindowInsight(asNumber(item.value), demandBucketMax),
+  };
+
+  const zoneTooltip = {
+    title: 'Expected Demand (Trips/hr)',
+    contextLabel: 'Zone',
+    metricLabel: 'Trips / hr',
+    description: 'An absolute ride-demand rate, so 145 means roughly 145 ride requests per hour are expected in this zone.',
+    details: [
+      'X-axis: predicted trips per hour',
+      'Y-axis: active hotspot zone',
+    ],
+    accentColor: '#facc15',
+    valueFormatter: (value: number | string | undefined) => formatTripsPerHour(value),
+    insightFormatter: (item: { value?: number | string }) => getZoneDemandInsight(asNumber(item.value), zoneDemandMax),
+  };
+
+  const hourlyDemandTooltip = {
+    title: 'Predicted Ride Volume',
+    contextLabel: 'Forecast Hour',
+    metricLabel: 'Predicted Rides',
+    description: 'An absolute demand count, so 450 means about 450 rides are expected during that hour.',
+    details: [
+      'X-axis: hour of day in the live 24-hour forecast',
+      'Y-axis: predicted number of rides in that hour',
+    ],
+    accentColor: '#eab308',
+    labelFormatter: (label: string | number | undefined) => formatHourLabel(label),
+    valueFormatter: (value: number | string | undefined) => formatRideCount(value),
+    insightFormatter: (item: { value?: number | string }) => getDemandWindowInsight(asNumber(item.value), hourlyDemandMax),
+  };
 
   const summaryCards = [
     {
@@ -106,7 +148,7 @@ export default function Overview() {
       value: forecast ? forecast.summary.total_horizon_demand.toLocaleString() : '--',
       meta: '24h horizon',
       icon: Activity,
-      color: 'var(--secondary)',
+      color: 'var(--primary-dark)',
     },
     {
       label: 'Top Zone Demand',
@@ -157,7 +199,7 @@ export default function Overview() {
 
   return (
     <div className="space-y-8">
-      <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="text-center py-6">
+      <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }} className="text-center py-6">
         <h1 className="text-3xl font-bold tracking-tight text-gradient mb-2">GRID Cab Dashboard</h1>
         <p className="text-[var(--text-secondary)] text-base font-medium max-w-2xl mx-auto leading-relaxed">
           Live forecast, hotspot, and model-quality telemetry from the FastAPI ML backend.
@@ -170,10 +212,10 @@ export default function Overview() {
         {summaryCards.map((card, index) => (
           <motion.div
             key={card.label}
-            initial={{ opacity: 0, y: 15 }}
+            initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 + (index * 0.1) }}
-            className="glass-card p-5 flex items-center gap-4 hover:scale-[1.01] transition-transform duration-200"
+            transition={{ duration: 0.22, delay: index * 0.04, ease: [0.23, 1, 0.32, 1] }}
+            className="glass-card p-5 flex items-center gap-4"
           >
             <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${card.color}20` }}>
               <card.icon size={20} style={{ color: card.color }} />
@@ -194,9 +236,9 @@ export default function Overview() {
         {liveKpis.map((kpi, idx) => (
           <motion.div
             key={kpi.label}
-            initial={{ opacity: 0, y: 15 }}
+            initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 + idx * 0.1 }}
+            transition={{ duration: 0.22, delay: 0.06 + idx * 0.03, ease: [0.23, 1, 0.32, 1] }}
             className="kpi-card"
           >
             <div className="flex items-start justify-between mb-3">
@@ -215,7 +257,7 @@ export default function Overview() {
         ))}
       </div>
 
-      <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.9 }} className="glass-card p-6">
+      <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22, delay: 0.1, ease: [0.23, 1, 0.32, 1] }} className="glass-card p-6">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-lg font-bold text-[var(--text-primary)]">Forecast Volume</h2>
@@ -234,7 +276,7 @@ export default function Overview() {
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" opacity={0.5} />
               <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#9ca3af', fontSize: 12, fontWeight: 500 }} dy={10} />
               <YAxis axisLine={false} tickLine={false} tick={{ fill: '#9ca3af', fontSize: 12, fontWeight: 500 }} />
-              <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#facc15', strokeWidth: 1, strokeDasharray: '4 4' }} />
+              <Tooltip content={<InsightTooltip config={demandBucketTooltip} />} cursor={{ stroke: '#facc15', strokeWidth: 1, strokeDasharray: '4 4' }} />
               <Area type="basis" dataKey="value" stroke="#eab308" strokeWidth={3} fillOpacity={1} fill="url(#colorValue)" activeDot={{ r: 6, fill: '#facc15', stroke: '#fff', strokeWidth: 3 }} />
             </AreaChart>
           </ResponsiveContainer>
@@ -242,7 +284,7 @@ export default function Overview() {
       </motion.div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.0 }} className="glass-card p-5">
+        <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22, delay: 0.12, ease: [0.23, 1, 0.32, 1] }} className="glass-card p-5">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-base font-bold text-[var(--text-primary)]">Top Live Zones</h2>
@@ -258,7 +300,7 @@ export default function Overview() {
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e5e7eb" opacity={0.3} />
                 <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: '#9ca3af', fontSize: 11, fontWeight: 500 }} />
                 <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fill: '#374151', fontSize: 13, fontWeight: 600 }} width={110} />
-                <Tooltip content={<CustomTooltip />} cursor={{ fill: '#f3f4f6', radius: 8 }} />
+                <Tooltip content={<InsightTooltip config={zoneTooltip} />} cursor={{ fill: '#f3f4f6', radius: 8 }} />
                 <Bar dataKey="value" radius={[0, 10, 10, 0]} barSize={28}>
                   {zoneDistribution.map((entry, index) => (
                     <Cell key={entry.name} fill={BAR_COLORS[index % BAR_COLORS.length]} />
@@ -269,7 +311,7 @@ export default function Overview() {
           </div>
         </motion.div>
 
-        <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.1 }} className="glass-card p-5">
+        <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22, delay: 0.12, ease: [0.23, 1, 0.32, 1] }} className="glass-card p-5">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-base font-bold text-[var(--text-primary)]">Hourly Patterns</h2>
@@ -285,7 +327,7 @@ export default function Overview() {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" opacity={0.5} />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#9ca3af', fontSize: 10, fontWeight: 500 }} interval={3} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fill: '#9ca3af', fontSize: 12, fontWeight: 500 }} />
-                <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#facc15', strokeWidth: 1, strokeDasharray: '4 4' }} />
+                <Tooltip content={<InsightTooltip config={hourlyDemandTooltip} />} cursor={{ stroke: '#facc15', strokeWidth: 1, strokeDasharray: '4 4' }} />
                 <Line type="basis" dataKey="value" stroke="#eab308" strokeWidth={3} dot={false} activeDot={{ r: 6, fill: '#facc15', stroke: '#fff', strokeWidth: 3 }} />
               </LineChart>
             </ResponsiveContainer>
@@ -293,7 +335,7 @@ export default function Overview() {
         </motion.div>
       </div>
 
-      <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.2 }} className="glass-card p-6">
+      <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22, delay: 0.14, ease: [0.23, 1, 0.32, 1] }} className="glass-card p-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-lg bg-[var(--success)]/10 border border-[var(--success)]/20">
@@ -304,18 +346,22 @@ export default function Overview() {
               <p className="text-sm text-[var(--text-muted)] mt-1">Team preview alongside the live dispatch model</p>
             </div>
           </div>
-          <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="text-sm font-bold text-[var(--primary)] hover:text-[var(--primary-light)] flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-[var(--primary)]/5 transition-all duration-200 border border-transparent hover:border-[var(--primary)]/20">
+          <button
+            className="text-sm font-bold text-[var(--primary)] flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-[var(--primary)]/5 border border-transparent hover:border-[var(--primary)]/20 active:scale-[0.97]"
+            style={{ transition: 'background-color 150ms ease-out, border-color 150ms ease-out, transform 100ms ease-out' }}
+          >
             View All Drivers <ChevronRight size={14} />
-          </motion.button>
+          </button>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
           {ACTIVE_DRIVERS_PREVIEW.map((driver, idx) => (
             <motion.div
               key={driver.name}
-              initial={{ opacity: 0, y: 15 }}
+              initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 1.3 + idx * 0.05 }}
-              className="p-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)]/80 hover:bg-[var(--surface)] transition-all duration-200"
+              transition={{ duration: 0.2, delay: 0.16 + idx * 0.025, ease: [0.23, 1, 0.32, 1] }}
+              className="p-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)]/80 hover:bg-[var(--surface)]"
+              style={{ transition: 'background-color 150ms ease-out' }}
             >
               <div className="flex items-center gap-3 mb-3">
                 <img src={driver.avatar} alt={driver.name} className="w-10 h-10 rounded-full object-cover" />

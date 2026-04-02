@@ -1,256 +1,657 @@
-import { FormEvent, useState } from 'react';
-import { Capacitor } from '@capacitor/core';
-import { motion } from 'motion/react';
-import { BarChart3, ChevronRight, Navigation, ShieldCheck } from 'lucide-react';
-
-import { getResolvedApiBaseUrl } from '../services/apiService';
-import { useDriverStore } from '../stores/driverStore';
-import { UserRole } from '../types';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import {
+  Navigation, BarChart3, Shield, Zap, Globe, TrendingUp,
+  ArrowRight, ArrowLeft, Phone, Lock, AlertCircle, Loader2,
+  User, Car, MapPin, CheckCircle2,
+} from 'lucide-react';
+import { UserRole, Driver } from '../types';
+import { loginDriver, registerDriver } from '../services/apiService';
 
 interface LoginProps {
-  onLogin: (role: UserRole) => void;
+  onLogin: (role: UserRole, driver?: Driver) => void;
 }
 
-export default function Login({ onLogin }: LoginProps) {
-  const { login, authError } = useDriverStore();
-  const [email, setEmail] = useState('driver@grid.local');
-  const [password, setPassword] = useState('grid-driver-123');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [localError, setLocalError] = useState<string | null>(null);
-  const isNativePlatform = Capacitor.isNativePlatform();
-  const errorMessage = localError ?? authError;
+const NYC_BOROUGHS = ['Manhattan', 'Brooklyn', 'Queens', 'Bronx', 'Staten Island'];
 
-  async function handleDriverLogin(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setLocalError(null);
+const CAR_MODELS = [
+  'Toyota Camry Hybrid',
+  'Honda Accord',
+  'Hyundai Sonata',
+  'Tesla Model 3',
+  'Nissan Altima',
+  'Toyota RAV4 Hybrid',
+  'Kia K5',
+  'Chevrolet Malibu',
+];
 
-    setIsSubmitting(true);
-    try {
-      await login(email, password);
-      onLogin('driver');
-    } catch (error) {
-      setLocalError(error instanceof Error ? error.message : 'Unable to sign in.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
-
-  const formFields = (
-    <>
-      <div className="space-y-2">
-        <label className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--text-muted)]">Email</label>
-        <input
-          type="email"
-          inputMode="email"
-          autoComplete="username"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          className="w-full rounded-2xl border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--primary)]"
+/* ─── Animated grid background for the branding panel ─── */
+const GridBackground = () => (
+  <div className="absolute inset-0 overflow-hidden">
+    <div className="absolute inset-0 bg-gradient-to-br from-[#0c1222] via-[#111827] to-[#0f172a]" />
+    <div
+      className="absolute inset-0 opacity-[0.07]"
+      style={{
+        backgroundImage: `linear-gradient(rgba(250,204,21,0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(250,204,21,0.4) 1px, transparent 1px)`,
+        backgroundSize: '60px 60px',
+      }}
+    />
+    <motion.div
+      animate={{ opacity: [0.15, 0.35, 0.15] }}
+      transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+      className="absolute top-[20%] left-[10%] w-[80%] h-[60%]"
+    >
+      <svg viewBox="0 0 400 300" className="w-full h-full" fill="none">
+        <motion.path
+          d="M 50 250 Q 100 100 200 150 T 350 80"
+          stroke="rgba(250,204,21,0.3)"
+          strokeWidth="2"
+          strokeDasharray="8 6"
+          initial={{ pathLength: 0 }}
+          animate={{ pathLength: 1 }}
+          transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
         />
-      </div>
-      <div className="space-y-2">
-        <label className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--text-muted)]">Password</label>
-        <input
-          type="password"
-          autoComplete="current-password"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          className="w-full rounded-2xl border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--primary)]"
+        <motion.path
+          d="M 30 80 Q 150 200 250 120 T 380 200"
+          stroke="rgba(250,204,21,0.2)"
+          strokeWidth="1.5"
+          strokeDasharray="6 8"
+          initial={{ pathLength: 0 }}
+          animate={{ pathLength: 1 }}
+          transition={{ duration: 4, delay: 1, repeat: Infinity, ease: 'linear' }}
         />
+        <motion.circle cx="200" cy="150" r="4" fill="rgba(250,204,21,0.5)"
+          animate={{ r: [3, 6, 3], opacity: [0.5, 1, 0.5] }}
+          transition={{ duration: 2, repeat: Infinity }}
+        />
+        <motion.circle cx="100" cy="80" r="3" fill="rgba(250,204,21,0.4)"
+          animate={{ r: [2, 5, 2], opacity: [0.4, 0.8, 0.4] }}
+          transition={{ duration: 2.5, delay: 0.5, repeat: Infinity }}
+        />
+        <motion.circle cx="320" cy="120" r="3" fill="rgba(250,204,21,0.4)"
+          animate={{ r: [2, 5, 2], opacity: [0.3, 0.7, 0.3] }}
+          transition={{ duration: 3, delay: 1, repeat: Infinity }}
+        />
+      </svg>
+    </motion.div>
+    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[#facc15]/5 blur-[120px] rounded-full" />
+  </div>
+);
+
+const FeaturePill = ({ icon: Icon, text, delay }: { icon: React.ElementType; text: string; delay: number }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 10 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ delay, duration: 0.5 }}
+    className="flex items-center justify-center sm:justify-start gap-2.5 px-4 py-2.5 rounded-full border border-white/10 bg-white/5 backdrop-blur-sm min-w-0"
+  >
+    <Icon size={14} className="text-[#facc15]" />
+    <span className="text-xs font-medium text-white/70">{text}</span>
+  </motion.div>
+);
+
+/* ─── Input field helper ─── */
+function Field({
+  label, icon: Icon, error, children,
+}: {
+  label: string;
+  icon: React.ElementType;
+  error?: string | null;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <label className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">{label}</label>
+      <div className="relative">
+        <Icon size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] z-10 pointer-events-none" />
+        {children}
       </div>
-    </>
+      {error && (
+        <p className="text-xs text-red-500 flex items-center gap-1">
+          <AlertCircle size={11} /> {error}
+        </p>
+      )}
+    </div>
   );
+}
 
-  if (isNativePlatform) {
-    return (
-      <div className="relative min-h-screen overflow-hidden text-white font-sans" style={{ background: 'radial-gradient(circle at top left, #fde68a 0%, rgba(245,158,11,0.18) 25%, rgba(15,23,42,1) 70%)' }}>
-        {/* Animated Orbs Background */}
-        <motion.div 
-          animate={{ scale: [1, 1.2, 1], opacity: [0.25, 0.45, 0.25] }}
-          transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
-          className="absolute -top-[20%] -left-[10%] h-[500px] w-[500px] rounded-full bg-[#facc15]/25 blur-[120px]" 
-        />
-        <motion.div 
-          animate={{ scale: [1, 1.5, 1], opacity: [0.15, 0.3, 0.15] }}
-          transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
-          className="absolute top-[40%] -right-[20%] h-[400px] w-[400px] rounded-full bg-amber-500/15 blur-[100px]" 
-        />
-        <div className="absolute inset-0 opacity-15" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px)', backgroundSize: '36px 36px' }} />
+const inputCls =
+  'w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl py-3 pl-10 pr-4 text-sm focus:outline-none focus:border-[var(--primary)]/60 focus:ring-1 focus:ring-[var(--primary)]/30 transition-all text-[var(--text-primary)] placeholder:text-[var(--text-muted)] disabled:opacity-60';
 
-        <div className="relative z-10 flex min-h-screen flex-col items-center justify-center px-6" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 2.5rem)', paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 2.5rem)' }}>
-          <div className="w-full max-w-[340px]">
-            <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, ease: 'easeOut' }}
-              className="mb-10 flex flex-col items-center justify-center text-center"
-            >
-              <div className="relative mb-6 flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-3xl bg-[#facc15] text-slate-950 shadow-[0_0_40px_rgba(250,204,21,0.4)]">
-                <div className="absolute inset-x-0 -top-px mx-auto h-px w-1/2 bg-gradient-to-r from-transparent via-white/70 to-transparent" />
-                <Navigation size={32} strokeWidth={2.5} />
-              </div>
-              <h1 className="text-3xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-b from-white to-white/60">
-                GRID Pilot
-              </h1>
-              <p className="mt-2 text-sm font-medium text-white/50">
-                Connected infrastructure driving.
-              </p>
-            </motion.div>
+/* ─── Driver Login Form ─── */
+function DriverLoginForm({
+  onBack,
+  onSuccess,
+  onRegister,
+}: {
+  onBack: () => void;
+  onSuccess: (driver: Driver) => void;
+  onRegister: () => void;
+}) {
+  const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-            <motion.section
-              initial={{ opacity: 0, y: 30, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ duration: 0.5, delay: 0.1, ease: 'easeOut' }}
-            >
-              <form className="space-y-4" onSubmit={handleDriverLogin}>
-                <div className="space-y-3">
-                  <div className="group relative">
-                    <input
-                      type="email"
-                      inputMode="email"
-                      autoComplete="username"
-                      placeholder="Driver Email"
-                      value={email}
-                      onChange={(event) => setEmail(event.target.value)}
-                      className="peer relative w-full rounded-2xl border border-white/10 bg-white/[0.06] px-5 py-4 text-sm font-medium text-white placeholder-white/30 shadow-inner backdrop-blur-xl outline-none ring-1 ring-transparent transition focus:bg-white/10 focus:ring-[#facc15]/50"
-                    />
-                  </div>
-                  <div className="group relative">
-                    <input
-                      type="password"
-                      autoComplete="current-password"
-                      placeholder="Access Code"
-                      value={password}
-                      onChange={(event) => setPassword(event.target.value)}
-                      className="peer relative w-full rounded-2xl border border-white/10 bg-white/[0.06] px-5 py-4 text-sm font-medium text-white placeholder-white/30 shadow-inner backdrop-blur-xl outline-none ring-1 ring-transparent transition focus:bg-white/10 focus:ring-[#facc15]/50"
-                    />
-                  </div>
-                </div>
-
-                {errorMessage && (
-                  <motion.div 
-                    initial={{ opacity: 0, height: 0 }} 
-                    animate={{ opacity: 1, height: 'auto' }}
-                    className="overflow-hidden rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-center text-[13px] font-medium text-red-300 backdrop-blur-md"
-                  >
-                    {errorMessage}
-                  </motion.div>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="group relative mt-2 flex w-full items-center justify-center overflow-hidden rounded-2xl bg-[#facc15] px-4 py-[18px] text-sm font-black tracking-wide text-slate-950 shadow-[0_10px_40px_-5px_rgba(250,204,21,0.4)] transition-all hover:scale-[1.02] hover:shadow-[0_15px_40px_-5px_rgba(250,204,21,0.6)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent translate-x-[-100%] transition-transform duration-700 ease-in-out group-hover:translate-x-[100%]" />
-                  <span className="relative flex items-center gap-2">
-                    {isSubmitting ? 'Authenticating...' : 'Start Shift'}
-                    {!isSubmitting && <ChevronRight size={18} className="transition-transform group-hover:translate-x-1" />}
-                  </span>
-                </button>
-              </form>
-            </motion.section>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    try {
+      const driver = await loginDriver(phone, password);
+      onSuccess(driver);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Login failed. Demo API could not be reached.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <div className="min-h-screen grid lg:grid-cols-[1.2fr_0.8fr] bg-[var(--background)]">
-      <section className="relative overflow-hidden bg-[radial-gradient(circle_at_top_left,#fde68a_0%,rgba(245,158,11,0.18)_25%,rgba(15,23,42,1)_70%)] p-8 lg:p-14 text-white">
-        <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.12) 1px, transparent 1px)', backgroundSize: '48px 48px' }} />
-        <div className="relative z-10 flex h-full flex-col justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#facc15] text-slate-950">
-              <Navigation size={20} />
-            </div>
-            <div>
-              <p className="text-sm font-black uppercase tracking-[0.28em] text-white/60">GRID</p>
-              <p className="text-lg font-bold">Android Driver Console</p>
-            </div>
+    <motion.div
+      key="driver-form"
+      initial={{ opacity: 0, x: 30 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -30 }}
+      transition={{ duration: 0.3 }}
+      className="w-full max-w-md space-y-8 relative z-10"
+    >
+      <div className="space-y-2">
+        <button
+          onClick={onBack}
+          className="flex items-center gap-1.5 text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors mb-4"
+        >
+          <ArrowLeft size={16} /> Back
+        </button>
+        <div className="flex items-center gap-3 mb-1">
+          <div className="w-10 h-10 rounded-xl bg-[var(--primary)]/10 flex items-center justify-center">
+            <Navigation size={20} className="text-[var(--primary)]" />
           </div>
-
-          <div className="max-w-xl space-y-6 py-16">
-            <motion.h1
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="text-4xl font-black leading-tight lg:text-6xl"
-            >
-              Production driver operations, not a browser demo.
-            </motion.h1>
-            <p className="max-w-lg text-base text-white/72 lg:text-lg">
-              Authenticated trip offers, persistent telemetry, local MediaPipe assets, and Android-ready service boundaries are now wired into the app.
-            </p>
-            <div className="flex flex-wrap gap-3 text-sm font-semibold text-white/80">
-              <div className="rounded-full border border-white/15 bg-white/8 px-4 py-2">Foreground drowsiness only for V1</div>
-              <div className="rounded-full border border-white/15 bg-white/8 px-4 py-2">Background GPS-ready backend</div>
-              <div className="rounded-full border border-white/15 bg-white/8 px-4 py-2">JWT session flow</div>
-            </div>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-3xl border border-white/10 bg-white/6 p-4 backdrop-blur">
-              <ShieldCheck className="mb-3 text-[#fde68a]" />
-              <p className="text-xs font-black uppercase tracking-[0.24em] text-white/50">Security</p>
-              <p className="mt-2 text-sm font-semibold">JWT auth with secure token storage hooks.</p>
-            </div>
-            <div className="rounded-3xl border border-white/10 bg-white/6 p-4 backdrop-blur">
-              <Navigation className="mb-3 text-[#fde68a]" />
-              <p className="text-xs font-black uppercase tracking-[0.24em] text-white/50">Trips</p>
-              <p className="mt-2 text-sm font-semibold">Server-generated offers and persistent trip lifecycle.</p>
-            </div>
-            <div className="rounded-3xl border border-white/10 bg-white/6 p-4 backdrop-blur">
-              <BarChart3 className="mb-3 text-[#fde68a]" />
-              <p className="text-xs font-black uppercase tracking-[0.24em] text-white/50">Telemetry</p>
-              <p className="mt-2 text-sm font-semibold">Presence and drowsiness events stored for audit.</p>
-            </div>
-          </div>
+          <h2 className="text-3xl font-bold text-[var(--text-primary)] tracking-tight">Driver Login</h2>
         </div>
-      </section>
+        <p className="text-[var(--text-secondary)] text-sm">Enter your phone number and password.</p>
+      </div>
 
-      <section className="flex items-center justify-center p-6 lg:p-14">
-        <div className="w-full max-w-md rounded-[32px] border border-[var(--border)] bg-[var(--surface)] p-7 shadow-[0_30px_80px_rgba(15,23,42,0.08)]">
-          <div className="space-y-2">
-            <p className="text-xs font-black uppercase tracking-[0.24em] text-[var(--text-muted)]">Driver Sign In</p>
-            <h2 className="text-3xl font-black text-[var(--text-primary)]">Start shift</h2>
-            <p className="text-sm text-[var(--text-secondary)]">Use the seeded driver account or switch to admin mode for the legacy analytics console.</p>
-          </div>
+      <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
+        <Field label="Phone Number" icon={Phone}>
+          <input
+            type="tel"
+            inputMode="numeric"
+            placeholder="Phone number"
+            autoComplete="off"
+            name="grid-driver-phone"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+            maxLength={10}
+            required
+            disabled={loading}
+            className={`${inputCls} font-mono tracking-widest`}
+          />
+        </Field>
 
-          <form className="mt-8 space-y-4" onSubmit={handleDriverLogin}>
-            {formFields}
+        <Field label="Password" icon={Lock}>
+          <input
+            type="password"
+            placeholder="••••••"
+            autoComplete="new-password"
+            name="grid-driver-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            disabled={loading}
+            className={inputCls}
+          />
+        </Field>
 
-            {errorMessage && (
-              <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-                {errorMessage}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="flex w-full items-center justify-center rounded-2xl bg-[var(--primary)] px-4 py-3 text-sm font-black text-slate-950 transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isSubmitting ? 'Signing in...' : 'Continue as Driver'}
-            </button>
-          </form>
-
-          <div className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--background)] p-4 text-sm text-[var(--text-secondary)]">
-            <p className="font-bold text-[var(--text-primary)]">Seeded credentials</p>
-            <p className="mt-1 font-mono text-xs">driver@grid.local / grid-driver-123</p>
-            <p className="mt-2 text-[11px]">
-              API target: <span className="font-mono">{getResolvedApiBaseUrl()}</span>
-            </p>
-          </div>
-
-          <button
-            onClick={() => onLogin('admin')}
-            className="mt-5 w-full rounded-2xl border border-[var(--border)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] transition hover:border-[var(--primary)] hover:bg-[var(--background)]"
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center gap-2.5 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-sm"
           >
-            Continue to Admin Demo
-          </button>
+            <AlertCircle size={16} className="shrink-0" />
+            {error}
+          </motion.div>
+        )}
+
+        <motion.button
+          type="submit"
+          disabled={loading}
+          whileHover={{ y: -1, scale: 1.01 }}
+          whileTap={{ scale: 0.99 }}
+          className="w-full flex items-center justify-center gap-2 py-3.5 px-6 rounded-xl bg-[var(--primary)] text-[#0f172a] font-bold text-sm shadow-lg shadow-[var(--primary)]/20 hover:shadow-xl hover:shadow-[var(--primary)]/30 transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          {loading ? <><Loader2 size={16} className="animate-spin" /> Signing in...</> : <><Navigation size={16} /> Sign In</>}
+        </motion.button>
+      </form>
+    </motion.div>
+  );
+}
+
+/* ─── Driver Registration Form ─── */
+function DriverRegisterForm({
+  onBack,
+  onSuccess,
+}: {
+  onBack: () => void;
+  onSuccess: (driver: Driver) => void;
+}) {
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [borough, setBorough] = useState('');
+  const [carModel, setCarModel] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  const validate = () => {
+    const errs: Record<string, string> = {};
+    if (!name.trim() || name.trim().split(' ').length < 2) errs.name = 'Enter your full name (first and last).';
+    if (phone.length !== 10) errs.phone = 'Must be exactly 10 digits.';
+    if (password.length < 6) errs.password = 'At least 6 characters.';
+    if (password !== confirmPassword) errs.confirmPassword = 'Passwords do not match.';
+    if (!borough) errs.borough = 'Select your home borough.';
+    if (!carModel) errs.carModel = 'Select your vehicle.';
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validate()) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const driver = await registerDriver({ name: name.trim(), phone, password, borough, carModel });
+      onSuccess(driver);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Registration failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <motion.div
+      key="register-form"
+      initial={{ opacity: 0, x: 30 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -30 }}
+      transition={{ duration: 0.3 }}
+      className="w-full max-w-md relative z-10"
+    >
+      <div className="space-y-2 mb-6">
+        <button
+          onClick={onBack}
+          className="flex items-center gap-1.5 text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors mb-4"
+        >
+          <ArrowLeft size={16} /> Back to login
+        </button>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-[var(--primary)]/10 flex items-center justify-center">
+            <CheckCircle2 size={20} className="text-[var(--primary)]" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">Join as a Driver</h2>
+            <p className="text-[var(--text-secondary)] text-sm">Create your GRID account in seconds.</p>
+          </div>
         </div>
-      </section>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-3" autoComplete="off">
+        <Field label="Full Name" icon={User} error={fieldErrors.name}>
+          <input
+            type="text"
+            placeholder="e.g. Alex Thompson"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            disabled={loading}
+            className={inputCls}
+          />
+        </Field>
+
+        <Field label="Phone Number" icon={Phone} error={fieldErrors.phone}>
+          <input
+            type="tel"
+            inputMode="numeric"
+            placeholder="10-digit phone number"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+            maxLength={10}
+            required
+            disabled={loading}
+            className={`${inputCls} font-mono tracking-widest`}
+          />
+        </Field>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Password" icon={Lock} error={fieldErrors.password}>
+            <input
+              type="password"
+              placeholder="Min 6 chars"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              disabled={loading}
+              className={inputCls}
+            />
+          </Field>
+          <Field label="Confirm" icon={Lock} error={fieldErrors.confirmPassword}>
+            <input
+              type="password"
+              placeholder="Repeat"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              disabled={loading}
+              className={inputCls}
+            />
+          </Field>
+        </div>
+
+        <Field label="Home Borough" icon={MapPin} error={fieldErrors.borough}>
+          <select
+            value={borough}
+            onChange={(e) => setBorough(e.target.value)}
+            required
+            disabled={loading}
+            className={`${inputCls} appearance-none`}
+          >
+            <option value="">Select borough…</option>
+            {NYC_BOROUGHS.map((b) => <option key={b} value={b}>{b}</option>)}
+          </select>
+        </Field>
+
+        <Field label="Vehicle" icon={Car} error={fieldErrors.carModel}>
+          <select
+            value={carModel}
+            onChange={(e) => setCarModel(e.target.value)}
+            required
+            disabled={loading}
+            className={`${inputCls} appearance-none`}
+          >
+            <option value="">Select vehicle…</option>
+            {CAR_MODELS.map((m) => <option key={m} value={m}>{m}</option>)}
+          </select>
+        </Field>
+
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center gap-2.5 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-sm"
+          >
+            <AlertCircle size={16} className="shrink-0" />
+            {error}
+          </motion.div>
+        )}
+
+        <motion.button
+          type="submit"
+          disabled={loading}
+          whileHover={{ y: -1, scale: 1.01 }}
+          whileTap={{ scale: 0.99 }}
+          className="w-full flex items-center justify-center gap-2 py-3.5 px-6 rounded-xl bg-[var(--primary)] text-[#0f172a] font-bold text-sm shadow-lg shadow-[var(--primary)]/20 hover:shadow-xl hover:shadow-[var(--primary)]/30 transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed mt-2"
+        >
+          {loading
+            ? <><Loader2 size={16} className="animate-spin" /> Creating account…</>
+            : <><CheckCircle2 size={16} /> Create Driver Account</>}
+        </motion.button>
+      </form>
+    </motion.div>
+  );
+}
+
+/* ─── Role selector (desktop left / mobile bottom sheet) ─── */
+function RoleSelector({
+  onDriverLogin,
+  onAdmin,
+}: {
+  onDriverLogin: () => void;
+  onAdmin: () => void;
+}) {
+  return (
+    <motion.div
+      key="select"
+      initial={{ opacity: 0, x: 30 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -30 }}
+      transition={{ duration: 0.3 }}
+      className="w-full max-w-md space-y-6 sm:space-y-8 relative z-10"
+    >
+      <div className="space-y-1">
+        <h2 className="text-2xl sm:text-3xl font-bold text-[var(--text-primary)] tracking-tight">Welcome to GRID</h2>
+        <p className="text-[var(--text-secondary)] text-sm">Select your role to continue.</p>
+      </div>
+
+      <div className="space-y-3">
+        <motion.button
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, duration: 0.5 }}
+          whileHover={{ y: -2, scale: 1.01 }}
+          whileTap={{ scale: 0.99 }}
+          onClick={onDriverLogin}
+          className="group w-full flex items-center gap-4 p-5 rounded-2xl border border-[var(--border)] bg-[var(--surface)] hover:border-[var(--primary)] hover:shadow-lg hover:shadow-[var(--primary)]/5 transition-all duration-300 text-left"
+        >
+          <div className="w-12 h-12 rounded-xl bg-[var(--primary)]/10 flex items-center justify-center shrink-0 group-hover:bg-[var(--primary)] transition-all duration-300">
+            <Navigation size={20} className="text-[var(--primary)] group-hover:text-[#0f172a] transition-colors duration-300" />
+          </div>
+          <div className="flex-1">
+            <p className="font-semibold text-[var(--text-primary)] text-sm group-hover:text-[var(--primary-dark)] transition-colors">Driver Login</p>
+            <p className="text-xs text-[var(--text-muted)] mt-0.5">Sign in with your credentials</p>
+          </div>
+          <ArrowRight size={16} className="text-[var(--text-muted)] group-hover:text-[var(--primary)] group-hover:translate-x-1 transition-all duration-300" />
+        </motion.button>
+
+        <motion.button
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4, duration: 0.5 }}
+          whileHover={{ y: -2, scale: 1.01 }}
+          whileTap={{ scale: 0.99 }}
+          onClick={onAdmin}
+          className="group w-full flex items-center gap-4 p-5 rounded-2xl border border-[var(--border)] bg-[var(--surface)] hover:border-[var(--primary)] hover:shadow-lg hover:shadow-[var(--primary)]/5 transition-all duration-300 text-left"
+        >
+          <div className="w-12 h-12 rounded-xl bg-[var(--primary)]/10 flex items-center justify-center shrink-0 group-hover:bg-[var(--primary)] transition-all duration-300">
+            <BarChart3 size={20} className="text-[var(--primary)] group-hover:text-[#0f172a] transition-colors duration-300" />
+          </div>
+          <div className="flex-1">
+            <p className="font-semibold text-[var(--text-primary)] text-sm group-hover:text-[var(--primary-dark)] transition-colors">Admin Access</p>
+            <p className="text-xs text-[var(--text-muted)] mt-0.5">Manage fleet and analytics</p>
+          </div>
+          <ArrowRight size={16} className="text-[var(--text-muted)] group-hover:text-[var(--primary)] group-hover:translate-x-1 transition-all duration-300" />
+        </motion.button>
+      </div>
+
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.7, duration: 0.5 }}
+        className="pt-4 border-t border-[var(--border)] flex items-center justify-between"
+      >
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 bg-[var(--success)] rounded-full animate-pulse" />
+          <span className="text-xs text-[var(--text-muted)] font-medium">All systems operational</span>
+        </div>
+        <span className="text-xs text-[var(--text-muted)]">v2.0</span>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+/* ─── Main Login Component ─── */
+export default function Login({ onLogin }: LoginProps) {
+  type Step = 'select' | 'driver-login' | 'driver-register';
+  const [step, setStep] = useState<Step>('select');
+
+  const handleDriverSuccess = (driver: Driver) => onLogin('driver', driver);
+
+  return (
+    <div className="min-h-screen flex flex-col lg:flex-row bg-[var(--background)]">
+
+      <div className="relative lg:flex-[3] flex flex-col justify-between overflow-hidden
+                      pt-8 pb-16 px-5 sm:p-10
+                      lg:min-h-screen lg:p-16">
+        <GridBackground />
+
+        <div className="relative z-10 flex-shrink-0">
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.6 }}
+            className="flex items-center gap-3"
+          >
+            <div className="w-10 h-10 bg-[#facc15] rounded-xl flex items-center justify-center shadow-lg shadow-[#facc15]/20">
+              <Navigation size={20} className="text-[#0f172a]" />
+            </div>
+            <span className="text-xl font-bold text-white tracking-tight">GRID</span>
+          </motion.div>
+        </div>
+
+        <div className="relative z-10 mt-8 sm:mt-12 lg:my-auto lg:py-0 flex-1 flex flex-col justify-center">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2, duration: 0.7 }}
+            className="space-y-3 sm:space-y-4 max-w-lg"
+          >
+            <h1 className="text-[2.25rem] leading-[1.05] sm:text-4xl lg:text-5xl xl:text-6xl font-extrabold text-white tracking-tight">
+              The OS for <br className="lg:hidden" />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#facc15] to-[#fbbf24]">
+                Modern Mobility
+              </span>
+            </h1>
+            <p className="text-sm sm:text-base lg:text-lg text-white/55 leading-relaxed max-w-[280px] sm:max-w-sm">
+              Command your fleet. Empower your drivers. Predict demand before it happens.
+            </p>
+          </motion.div>
+
+          {/* Markers */}
+          <div className="grid grid-cols-2 gap-2 mt-6 sm:flex sm:gap-2.5 sm:overflow-x-auto sm:pb-1 lg:flex-wrap lg:overflow-visible no-scrollbar max-w-md">
+            <FeaturePill icon={Globe} text="Live Fleet" delay={0.5} />
+            <FeaturePill icon={TrendingUp} text="Demand AI" delay={0.6} />
+            <FeaturePill icon={Shield} text="Safety" delay={0.7} />
+            <FeaturePill icon={Zap} text="Real-time" delay={0.8} />
+          </div>
+
+          {/* Mobile Stats */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.9, duration: 0.6 }}
+            className="grid grid-cols-3 gap-2 mt-5 max-w-md lg:hidden"
+          >
+            <div className="rounded-2xl border border-white/5 bg-white/[0.02] backdrop-blur-sm px-3 py-3 flex flex-col items-center justify-center text-center">
+              <p className="text-lg font-bold text-white tracking-tight">1.2M+</p>
+              <p className="text-[9px] font-semibold uppercase tracking-[0.1em] text-white/40 mt-0.5">Rides</p>
+            </div>
+            <div className="rounded-2xl border border-white/5 bg-white/[0.02] backdrop-blur-sm px-3 py-3 flex flex-col items-center justify-center text-center">
+              <p className="text-lg font-bold text-white tracking-tight">99.9%</p>
+              <p className="text-[9px] font-semibold uppercase tracking-[0.1em] text-white/40 mt-0.5">Uptime</p>
+            </div>
+            <div className="rounded-2xl border border-white/5 bg-white/[0.02] backdrop-blur-sm px-3 py-3 flex flex-col items-center justify-center text-center">
+              <p className="text-lg font-bold text-white tracking-tight">24/7</p>
+              <p className="text-[9px] font-semibold uppercase tracking-[0.1em] text-white/40 mt-0.5">Support</p>
+            </div>
+          </motion.div>
+
+          {/* Driver CTA */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 1, duration: 0.8 }}
+            className="relative z-10 mt-6 sm:mt-8 lg:mt-14 group"
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-[#facc15]/10 to-transparent blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 rounded-3xl" />
+            <div className="relative flex items-center gap-4 lg:gap-5 p-4 lg:p-6 rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-md hover:border-[#facc15]/30 hover:bg-white/[0.06] transition-all duration-500 max-w-sm lg:max-w-md cursor-pointer shadow-[0_8px_32px_rgba(0,0,0,0.12)]"
+                 onClick={() => setStep('driver-register')}>
+              <div className="w-12 h-12 lg:w-14 lg:h-14 rounded-2xl bg-[#facc15]/15 flex items-center justify-center shrink-0 group-hover:scale-105 group-hover:-rotate-3 transition-transform duration-500 border border-[#facc15]/20">
+                 <div className="relative">
+                    <Car size={24} className="text-[#facc15] lg:w-7 lg:h-7" />
+                    <div className="absolute -top-1 -right-1 w-2.5 h-2.5 lg:w-3 lg:h-3 bg-green-500 rounded-full border-2 border-[#0c1222] animate-pulse" />
+                 </div>
+              </div>
+              <div className="space-y-1 lg:space-y-1.5 flex-1">
+                <h3 className="text-white font-bold text-sm lg:text-lg tracking-tight">Become a Grid Driver</h3>
+                <p className="text-white/40 text-[11px] lg:text-sm leading-relaxed hidden sm:block">
+                  Join 1,000+ drivers earning on the grid. Dynamic matching & instant payouts.
+                </p>
+                <div className="flex items-center justify-between mt-1 lg:mt-2">
+                  <span className="text-[#facc15] font-bold text-xs lg:text-sm flex items-center gap-1.5">
+                    Start Registration
+                    <motion.div animate={{ x: [0, 4, 0] }} transition={{ duration: 1.5, repeat: Infinity }}>
+                      <ArrowRight size={14} />
+                    </motion.div>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1.2, duration: 0.5 }}
+          className="hidden lg:flex relative z-10 items-center gap-8 text-white/30 text-xs font-medium"
+        >
+          <div className="flex flex-col">
+            <span className="text-xl font-bold text-white/80">1.2M+</span>
+            <span>Rides Managed</span>
+          </div>
+          <div className="w-px h-8 bg-white/10" />
+          <div className="flex flex-col">
+            <span className="text-xl font-bold text-white/80">99.9%</span>
+            <span>Uptime SLA</span>
+          </div>
+          <div className="w-px h-8 bg-white/10" />
+          <div className="flex flex-col">
+            <span className="text-xl font-bold text-white/80">24/7</span>
+            <span>Live Support</span>
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Auth Panel - Bottom Sheet on Mobile */}
+      <div className="flex-1 lg:flex-[2] bg-[var(--background)] flex items-start lg:items-center justify-center
+                      px-4 pb-8 -mt-6 sm:-mt-10 lg:mt-0 lg:p-16
+                      relative z-20">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--primary)]/5 blur-[100px] rounded-full pointer-events-none" />
+
+        <div className="w-full max-w-md overflow-y-auto rounded-[28px] border border-[var(--border)] bg-[var(--surface)] shadow-[0_-8px_40px_rgba(0,0,0,0.4)] sm:shadow-[0_18px_50px_rgba(0,0,0,0.3)] p-6 sm:p-8 lg:rounded-none lg:border-0 lg:bg-transparent lg:shadow-none lg:p-0">
+          <AnimatePresence mode="wait">
+            {step === 'select' && (
+              <React.Fragment key="select">
+                <RoleSelector
+                  onDriverLogin={() => setStep('driver-login')}
+                  onAdmin={() => onLogin('admin')}
+                />
+              </React.Fragment>
+            )}
+            {step === 'driver-login' && (
+              <React.Fragment key="driver-login">
+                <DriverLoginForm
+                  onBack={() => setStep('select')}
+                  onSuccess={handleDriverSuccess}
+                  onRegister={() => setStep('driver-register')}
+                />
+              </React.Fragment>
+            )}
+            {step === 'driver-register' && (
+              <React.Fragment key="driver-register">
+                <DriverRegisterForm
+                  onBack={() => setStep('driver-login')}
+                  onSuccess={handleDriverSuccess}
+                />
+              </React.Fragment>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
     </div>
   );
 }

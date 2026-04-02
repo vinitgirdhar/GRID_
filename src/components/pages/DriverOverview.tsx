@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { Capacitor } from '@capacitor/core';
 import {
   TrendingUp,
   DollarSign,
@@ -11,6 +10,7 @@ import {
   Wind,
   Calendar,
   MapPin,
+  Clock,
   X,
   Leaf,
   AlertTriangle
@@ -20,6 +20,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { getActiveHotspotPeriod, getForecast, getHotspots, getWeather, postDriverSession } from '../../services/apiService';
 import { ForecastResponse, HotspotsResponse, Theme, WeatherResponse, ZoneDemand } from '../../types';
 import MapComponent from '../MapComponent';
+import MissedOpportunityFeed from '../MissedOpportunityFeed';
 import { cn } from '../../lib/utils';
 
 const REFRESH_INTERVAL_MS = 20000;
@@ -56,6 +57,7 @@ export default function DriverOverview({
   const [theme, setTheme] = useState<Theme>('dark');
   const [expandedCard, setExpandedCard] = useState<'demand' | 'weather' | 'event' | null>(null);
   const [ecoMode, setEcoMode] = useState(false);
+  const [driverLocation, setDriverLocation] = useState<[number, number] | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -111,6 +113,30 @@ export default function DriverOverview({
       if (intervalId) {
         clearInterval(intervalId);
       }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      return;
+    }
+
+    const watchId = navigator.geolocation.watchPosition(
+      ({ coords }) => {
+        setDriverLocation([coords.latitude, coords.longitude]);
+      },
+      () => {
+        // Keep hotspot-only framing when live location is unavailable.
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 30000,
+        timeout: 15000,
+      },
+    );
+
+    return () => {
+      navigator.geolocation.clearWatch(watchId);
     };
   }, []);
 
@@ -276,17 +302,9 @@ export default function DriverOverview({
         </div>
       )}
 
-      <div className={cn(
-        'grid gap-4',
-        Capacitor.isNativePlatform()
-          ? 'grid-cols-2'
-          : 'grid-cols-1 sm:grid-cols-2 md:grid-cols-4'
-      )}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         {liveKpis.map((kpi, idx) => (
-          <div key={kpi.label} className={cn(
-            'kpi-card',
-            Capacitor.isNativePlatform() && 'p-3'
-          )}>
+          <div key={kpi.label} className="kpi-card">
             <div className="flex items-center justify-between mb-4">
               <div className="p-2 bg-primary/10 rounded-lg shrink-0">
                 {idx === 0 && <DollarSign className="text-primary w-5 h-5" />}
@@ -294,15 +312,13 @@ export default function DriverOverview({
                 {idx === 2 && <Percent className="text-warning w-5 h-5" />}
                 {idx === 3 && <Zap className="text-sky-500 w-5 h-5" />}
               </div>
-              {!Capacitor.isNativePlatform() && (
-                <div className="flex items-center gap-1 text-xs font-medium text-success justify-end ml-3 min-w-0">
-                  <TrendingUp size={14} className="shrink-0" />
-                  <span className="truncate">{kpi.change}</span>
-                </div>
-              )}
+              <div className="flex items-center gap-1 text-xs font-medium text-success justify-end ml-3 min-w-0">
+                <TrendingUp size={14} className="shrink-0" />
+                <span className="truncate">{kpi.change}</span>
+              </div>
             </div>
             <div>
-              <p className={cn('kpi-label', Capacitor.isNativePlatform() && 'text-[9px]')}>{kpi.label}</p>
+              <p className="kpi-label">{kpi.label}</p>
               <p className="kpi-value">{kpi.value}</p>
             </div>
           </div>
@@ -344,36 +360,34 @@ export default function DriverOverview({
               </div>
             </div>
 
-            <div className="h-[120px] w-full mt-4 relative">
+            <div className="h-[100px] w-full mt-4">
               <p className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-widest mb-2">3 Hour Trend</p>
-              <div className="absolute inset-0 pt-6">
-                <ResponsiveContainer width="100%" height="100%" debounce={100}>
-                  <AreaChart data={trendData} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="colorDemand" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.6} />
-                        <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <Area
-                      type="basis"
-                      dataKey="value"
-                      stroke="var(--primary-dark)"
-                      fillOpacity={1}
-                      fill="url(#colorDemand)"
-                      strokeWidth={3}
-                      activeDot={{ r: 4, fill: "var(--primary)", stroke: "var(--surface)", strokeWidth: 2 }}
-                    />
-                    <XAxis dataKey="name" hide />
-                    <YAxis hide domain={['dataMin - 500', 'dataMax + 500']} />
-                    <Tooltip
-                      contentStyle={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', fontSize: '11px', boxShadow: 'var(--shadow-md)' }}
-                      itemStyle={{ color: 'var(--text-primary)', fontWeight: 'bold' }}
-                      cursor={{ stroke: 'var(--border)', strokeWidth: 1, strokeDasharray: '3 3' }}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={trendData} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorDemand" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.6} />
+                      <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <Area
+                    type="basis"
+                    dataKey="value"
+                    stroke="var(--primary-dark)"
+                    fillOpacity={1}
+                    fill="url(#colorDemand)"
+                    strokeWidth={3}
+                    activeDot={{ r: 4, fill: "var(--primary)", stroke: "var(--surface)", strokeWidth: 2 }}
+                  />
+                  <XAxis dataKey="name" hide />
+                  <YAxis hide domain={['dataMin - 500', 'dataMax + 500']} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', fontSize: '11px', boxShadow: 'var(--shadow-md)' }}
+                    itemStyle={{ color: 'var(--text-primary)', fontWeight: 'bold' }}
+                    cursor={{ stroke: 'var(--border)', strokeWidth: 1, strokeDasharray: '3 3' }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
             </div>
           </div>
 
@@ -401,7 +415,7 @@ export default function DriverOverview({
           <div className="flex-1 space-y-6">
             <div className="space-y-4">
               <div className="flex items-start justify-between">
-                <p className="text-lg font-black text-[var(--secondary)] text-slate-700 leading-tight">Weather-Adjusted Demand</p>
+                <p className="text-lg font-black text-[var(--accent)] leading-tight">Weather-Adjusted Demand</p>
                 <span className="px-2 py-1 bg-slate-100 text-slate-600 text-[10px] font-black rounded uppercase border border-slate-200">Active Alert</span>
               </div>
 
@@ -521,7 +535,16 @@ export default function DriverOverview({
           </div>
         </div>
 
-        <MapComponent zones={mapZones} theme={theme} height="450px" simplified={true} />
+        <MapComponent 
+          zones={mapZones} 
+          theme={theme} 
+          height="450px" 
+          simplified={true} 
+          zoom={13}
+          showYouAreHere={true}
+          youAreHerePosition={driverLocation ?? undefined}
+          autoFit
+        />
       </div>
 
       <div className="glass-card p-6">
@@ -538,8 +561,8 @@ export default function DriverOverview({
           </div>
         </div>
 
-        <div className="h-[250px] w-full relative">
-          <ResponsiveContainer width="100%" height="100%" debounce={100}>
+        <div className="h-[250px] w-full">
+          <ResponsiveContainer width="100%" height="100%">
             <BarChart data={formulaData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
               <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
@@ -553,6 +576,9 @@ export default function DriverOverview({
           </ResponsiveContainer>
         </div>
       </div>
+
+      {/* Missed Opportunity Feed */}
+      <MissedOpportunityFeed onCountChange={() => {}} />
 
       {/* Dynamic Details Modal */}
       {expandedCard && (
@@ -630,8 +656,8 @@ export default function DriverOverview({
                   
                   <div className="space-y-4">
                     <h3 className="text-lg font-bold text-[var(--text-primary)] border-b border-[var(--border)] pb-2">Extended 4-Hour Trend Detail</h3>
-                    <div className="h-[250px] w-full relative">
-                      <ResponsiveContainer width="100%" height="100%" debounce={100}>
+                    <div className="h-[250px] w-full">
+                      <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={trendData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
                           <defs>
                             <linearGradient id="colorDemandLarge" x1="0" y1="0" x2="0" y2="1">
@@ -688,9 +714,9 @@ export default function DriverOverview({
                     </div>
                   </div>
                   
-                  <div className="p-6 rounded-2xl bg-sky-50 border border-sky-100 dark:bg-sky-900/10 dark:border-sky-800/20">
-                    <h3 className="text-lg font-bold text-sky-950 dark:text-sky-100 mb-2">Weather Strategy Guidance</h3>
-                    <p className="text-sky-900 dark:text-sky-200 leading-relaxed font-medium">
+                  <div className="p-6 rounded-2xl bg-sky-50 border border-sky-200/60">
+                    <h3 className="text-lg font-bold text-sky-900 mb-2">Weather Strategy Guidance</h3>
+                    <p className="text-sky-800 leading-relaxed font-semibold">
                       Current conditions ({weather?.condition ?? primaryZone?.weather_condition ?? 'Unknown'}) are providing a 
                       {(weatherLift > 0 ? ' positive ' : ' neutral ')} influence on baseline demand calculations. As weather intensity 
                       grows, fewer competitive vehicles typically remain on network—generating supply choke points near transit hubs. Keep 
@@ -701,46 +727,71 @@ export default function DriverOverview({
               )}
 
               {expandedCard === 'event' && (
-                <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-bold text-[var(--text-primary)] border-b border-[var(--border)] pb-2 flex items-center gap-2">
-                         <MapPin size={18} className="text-warning" /> Avoid Zones 
-                      </h3>
-                      <div className="flex flex-wrap gap-2">
-                        {activePeriod?.avoid_zones.map((zone) => (
-                          <span key={zone.zone_id} className="px-3 py-1.5 bg-[var(--secondary)] border border-[var(--border)] rounded-full text-sm font-bold text-[var(--text-secondary)] shadow-sm">
-                            Zone {zone.zone_id}
-                          </span>
-                        )) ?? <p className="text-sm text-[var(--text-muted)]">No active avoid zones currently.</p>}
+                <div className="space-y-5">
+                  {/* Avoid Zones — danger strip */}
+                  <div className="rounded-2xl border border-danger/20 bg-danger/5 p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-5 h-5 rounded-full bg-danger/15 flex items-center justify-center shrink-0">
+                        <MapPin size={11} className="text-danger" />
                       </div>
+                      <span className="text-xs font-black text-danger uppercase tracking-widest">Avoid Zones</span>
+                      {activePeriod?.avoid_zones.length ? (
+                        <span className="ml-auto text-[10px] font-black text-danger bg-danger/10 border border-danger/20 px-2 py-0.5 rounded-full">
+                          {activePeriod.avoid_zones.length} zones
+                        </span>
+                      ) : null}
                     </div>
-                    
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-bold text-[var(--text-primary)] border-b border-[var(--border)] pb-2 flex items-center gap-2">
-                        <TrendingUp size={18} className="text-success" /> Recommended Targets
-                      </h3>
-                      <div className={Capacitor.isNativePlatform() ? 'flex flex-wrap gap-2' : 'flex flex-col gap-2'}>
-                        {activePeriod?.recommended_zones.map((zone, idx) => (
-                          Capacitor.isNativePlatform() ? (
-                            <div key={zone.zone_id} className="flex items-center gap-2 px-3 py-2 rounded-full bg-success/10 border border-success/20">
-                              <span className="w-5 h-5 rounded-full bg-success/20 text-success flex items-center justify-center text-[10px] font-black">{idx + 1}</span>
-                              <span className="text-xs font-bold text-[var(--text-primary)]">{zone.zone_name}</span>
-                            </div>
-                          ) : (
-                            <div key={zone.zone_id} className="flex justify-between items-center p-3 rounded-xl bg-[var(--surface)] border border-[var(--border)] shadow-sm">
-                              <div className="flex items-center gap-3">
-                                <span className="w-6 h-6 rounded-full bg-success/10 text-success flex items-center justify-center text-xs font-black">{idx + 1}</span>
-                                <span className="font-bold text-[var(--text-primary)]">{zone.zone_name}</span>
-                              </div>
-                              <span className="text-sm font-bold text-[var(--text-secondary)]">{zone.expected_trips_per_hour.toFixed(0)} trips/hr</span>
-                            </div>
-                          )
-                        )) ?? <p className="text-sm text-[var(--text-muted)]">Loading target zones...</p>}
-                      </div>
+                    <div className="flex flex-wrap gap-2">
+                      {activePeriod?.avoid_zones.map((zone) => (
+                        <span key={zone.zone_id} className="px-3 py-1.5 bg-white border border-danger/25 rounded-full text-xs font-bold text-danger">
+                          Zone {zone.zone_id}
+                        </span>
+                      )) ?? <p className="text-sm text-[var(--text-muted)]">No active avoid zones.</p>}
                     </div>
                   </div>
-                </>
+
+                  {/* Recommended Targets — full-width ranked list */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-5 h-5 rounded-full bg-success/15 flex items-center justify-center shrink-0">
+                        <TrendingUp size={11} className="text-success" />
+                      </div>
+                      <span className="text-xs font-black text-success uppercase tracking-widest">Recommended Targets</span>
+                      {activePeriod?.recommended_zones.length ? (
+                        <span className="ml-auto text-[10px] font-black text-success bg-success/10 border border-success/20 px-2 py-0.5 rounded-full">
+                          {activePeriod.recommended_zones.length} zones
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="space-y-2">
+                      {activePeriod?.recommended_zones.map((zone, idx) => {
+                        const maxTrips = activePeriod.recommended_zones[0]?.expected_trips_per_hour ?? 1;
+                        const pct = Math.round((zone.expected_trips_per_hour / maxTrips) * 100);
+                        const rankBadge =
+                          idx === 0 ? 'bg-yellow-400 text-yellow-900' :
+                          idx === 1 ? 'bg-slate-300 text-slate-700' :
+                          idx === 2 ? 'bg-amber-500/80 text-amber-900' :
+                          'bg-[var(--secondary)] text-[var(--text-muted)]';
+                        return (
+                          <div key={zone.zone_id} className="flex items-center gap-3 px-4 py-3 rounded-xl bg-[var(--surface)] border border-[var(--border)]">
+                            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${rankBadge}`}>
+                              {idx + 1}
+                            </span>
+                            <span className="font-bold text-[var(--text-primary)] text-sm flex-1 truncate">{zone.zone_name}</span>
+                            <div className="flex items-center gap-3 shrink-0">
+                              <div className="w-16 h-1 rounded-full bg-[var(--border)] overflow-hidden">
+                                <div className="h-full rounded-full bg-success" style={{ width: `${pct}%` }} />
+                              </div>
+                              <span className="text-xs font-bold text-[var(--text-secondary)] w-20 text-right tabular-nums">
+                                {zone.expected_trips_per_hour.toFixed(0)} trips/hr
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      }) ?? <p className="text-sm text-[var(--text-muted)]">Loading target zones...</p>}
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
             

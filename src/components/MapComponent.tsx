@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
-import { CircleMarker, MapContainer, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import { CircleMarker, MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
 
 import { Theme, ZoneDemand } from '../types';
 
@@ -15,6 +16,14 @@ export interface MapRidePin {
   fare: number;
 }
 
+export interface MapHotspot {
+  id: string;
+  position: [number, number];
+  label: string;
+  intensity: 'high' | 'medium' | 'low';
+  demand?: number;
+}
+
 interface MapComponentProps {
   zones?: ZoneDemand[];
   theme: Theme;
@@ -22,7 +31,11 @@ interface MapComponentProps {
   simplified?: boolean;
   route?: MapRoute;
   ridePins?: MapRidePin[];
+  hotspots?: MapHotspot[];
   offlineMode?: boolean;
+  noBorderRadius?: boolean;
+  zoom?: number;
+  showYouAreHere?: boolean;
 }
 
 function ThemeLayer({ theme }: { theme: Theme }) {
@@ -36,6 +49,29 @@ function ThemeLayer({ theme }: { theme: Theme }) {
   return null;
 }
 
+const YOU_ARE_HERE_ICON = L.divIcon({
+  className: '',
+  html: `
+    <div style="position:relative;width:36px;height:44px">
+      <div style="
+        position:absolute;inset:0;margin:auto;
+        width:20px;height:20px;border-radius:50%;
+        background:#3b82f6;border:3px solid #fff;
+        box-shadow:0 0 0 3px rgba(59,130,246,0.35),0 2px 8px rgba(0,0,0,0.25);
+      "></div>
+      <div style="
+        position:absolute;bottom:0;left:50%;transform:translateX(-50%);
+        background:#1d4ed8;color:#fff;
+        font-size:8px;font-weight:900;letter-spacing:0.05em;
+        padding:1px 5px;border-radius:4px;white-space:nowrap;
+        box-shadow:0 1px 4px rgba(0,0,0,0.2);
+      ">YOU</div>
+    </div>`,
+  iconSize: [36, 44],
+  iconAnchor: [18, 38],
+  popupAnchor: [0, -40],
+});
+
 export default function MapComponent({
   zones = [],
   theme,
@@ -43,13 +79,21 @@ export default function MapComponent({
   simplified = false,
   route,
   ridePins = [],
+  hotspots = [],
   offlineMode = false,
+  noBorderRadius = false,
+  zoom,
+  showYouAreHere = false,
 }: MapComponentProps) {
+  // When ride pins exist, center on driver location so spokes fan out naturally
   const center: [number, number] = route
-    ? [(route.start[0] + route.end[0]) / 2, (route.start[1] + route.end[1]) / 2]
+    ? ridePins.length > 0
+      ? route.start
+      : [(route.start[0] + route.end[0]) / 2, (route.start[1] + route.end[1]) / 2]
     : [40.73061, -73.935242];
 
-  const zoomLevel = route ? 12 : 11;
+  // Zoom 14 shows clear street names; fall back to 11 for the zone heatmap view
+  const zoomLevel = zoom ?? (route ? 14 : 11);
 
   const getDemandColor = (level: string) => {
     switch (level) {
@@ -71,7 +115,7 @@ export default function MapComponent({
 
   return (
     <div
-      style={{ height, width: '100%', borderRadius: '12px', overflow: 'hidden' }}
+      style={{ height, width: '100%', borderRadius: noBorderRadius ? '0' : '12px', overflow: 'hidden' }}
       className="border border-[var(--border)] relative z-0 bg-[linear-gradient(180deg,rgba(241,245,249,0.92),rgba(226,232,240,0.92))]"
     >
       <MapContainer
@@ -91,20 +135,24 @@ export default function MapComponent({
 
         {route && (
           <>
-            <Polyline
-              positions={[route.start, route.end]}
-              dashArray="8, 8"
-              color="#facc15"
-              weight={4}
-              opacity={0.8}
-            />
-            <CircleMarker
-              center={route.start}
-              radius={6}
-              pathOptions={{ fillColor: '#3b82f6', color: '#fff', weight: 2, fillOpacity: 1 }}
-            >
-              <Popup>Your Location</Popup>
-            </CircleMarker>
+            {/* Spoke lines from driver position to each ride pin pickup */}
+            {ridePins.map((pin) => (
+              <Polyline
+                key={`spoke-${pin.id}`}
+                positions={[route.start, pin.position]}
+                dashArray="6, 6"
+                color="#facc15"
+                weight={3}
+                opacity={0.75}
+              />
+            ))}
+
+            {/* "You are here" marker at driver start */}
+            <Marker position={route.start} icon={YOU_ARE_HERE_ICON}>
+              <Popup>You are here</Popup>
+            </Marker>
+
+            {/* Destination marker */}
             <CircleMarker
               center={route.end}
               radius={8}
@@ -115,16 +163,50 @@ export default function MapComponent({
           </>
         )}
 
+        {showYouAreHere && (
+          <Marker position={center} icon={YOU_ARE_HERE_ICON}>
+            <Popup>You are here</Popup>
+          </Marker>
+        )}
+
+        {hotspots.map((spot) => {
+          const color = spot.intensity === 'high' ? '#ef4444' : spot.intensity === 'medium' ? '#f59e0b' : '#3b82f6';
+          const radius = spot.intensity === 'high' ? 22 : spot.intensity === 'medium' ? 17 : 13;
+          return (
+            <CircleMarker
+              key={`hotspot-${spot.id}`}
+              center={spot.position}
+              radius={radius}
+              pathOptions={{ fillColor: color, color, fillOpacity: 0.18, weight: 2, opacity: 0.5 }}
+            >
+              <Popup>
+                <div className="p-1 min-w-[140px]">
+                  <div className="flex items-center gap-2 border-b pb-1 mb-1">
+                    <span style={{ background: color }} className="w-2 h-2 rounded-full inline-block shrink-0" />
+                    <span className="font-bold text-sm">{spot.label}</span>
+                  </div>
+                  <p className="text-xs font-semibold uppercase tracking-wide" style={{ color }}>
+                    {spot.intensity} demand
+                  </p>
+                  {spot.demand != null && (
+                    <p className="text-xs text-gray-500 mt-0.5">{spot.demand.toFixed(0)} trips/hr</p>
+                  )}
+                </div>
+              </Popup>
+            </CircleMarker>
+          );
+        })}
+
         {ridePins.map((pin) => (
           <CircleMarker
             key={`pin-${pin.id}`}
             center={pin.position}
-            radius={8}
+            radius={9}
             pathOptions={{
               fillColor: '#22c55e',
               color: '#fff',
-              weight: 2,
-              fillOpacity: 0.9,
+              weight: 2.5,
+              fillOpacity: 0.92,
             }}
           >
             <Popup>

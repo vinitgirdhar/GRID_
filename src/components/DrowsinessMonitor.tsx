@@ -135,33 +135,33 @@ export default function DrowsinessMonitor({
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className={cn('rounded-xl border px-3 py-2.5 shadow-sm', visual.panel)}
+      className={cn('rounded-xl border px-2.5 py-2 shadow-sm', visual.panel)}
     >
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center shrink-0', visual.icon)}>
-            <Icon size={16} />
+      <div className="flex items-center justify-between gap-1.5">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <div className={cn('w-7 h-7 rounded-lg flex items-center justify-center shrink-0', visual.icon)}>
+            <Icon size={14} />
           </div>
           <div className="min-w-0">
-            <p className="text-[9px] font-black uppercase tracking-[0.22em] text-[var(--text-muted)]">Drowsiness</p>
-            <p className="text-sm font-bold text-[var(--text-primary)] truncate">{truncate(activeStatus.status, 26)}</p>
+            <p className="text-[8px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)]">Drowsiness</p>
+            <p className="text-[13px] font-bold leading-tight text-[var(--text-primary)] truncate">{truncate(activeStatus.status, 18)}</p>
           </div>
         </div>
-        <span className={cn('px-2 py-1 rounded-full text-[8px] font-black tracking-widest shrink-0', visual.badge)}>
+        <span className={cn('px-1.5 py-0.5 rounded-full text-[7px] font-black tracking-[0.18em] shrink-0', visual.badge)}>
           {statusLabel}
         </span>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 mt-2.5">
-        <div className="rounded-lg bg-white/60 border border-white/50 px-2.5 py-2">
-          <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-[var(--text-muted)]">EAR</p>
-          <p className="text-sm font-bold text-[var(--text-primary)] leading-tight">
+      <div className="grid grid-cols-2 gap-1.5 mt-2">
+        <div className="rounded-lg bg-white/60 border border-white/50 px-2 py-1.5">
+          <p className="text-[8px] font-bold uppercase tracking-[0.16em] text-[var(--text-muted)]">EAR</p>
+          <p className="text-[13px] font-bold text-[var(--text-primary)] leading-tight">
             {typeof activeStatus.ear === 'number' ? activeStatus.ear.toFixed(3) : '--'}
           </p>
         </div>
-        <div className="rounded-lg bg-white/60 border border-white/50 px-2.5 py-2">
-          <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-[var(--text-muted)]">Closed</p>
-          <p className="text-sm font-bold text-[var(--text-primary)] leading-tight">{activeStatus.eyes_closed_seconds.toFixed(1)}s</p>
+        <div className="rounded-lg bg-white/60 border border-white/50 px-2 py-1.5">
+          <p className="text-[8px] font-bold uppercase tracking-[0.16em] text-[var(--text-muted)]">Closed</p>
+          <p className="text-[13px] font-bold text-[var(--text-primary)] leading-tight">{activeStatus.eyes_closed_seconds.toFixed(1)}s</p>
         </div>
       </div>
     </motion.div>

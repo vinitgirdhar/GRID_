@@ -167,109 +167,30 @@ class DrowsinessResponse(DrowsinessUpdate):
 
 class DriverProfile(BaseModel):
     id: str
+    phone: str
+    name: str
     email: str
-    full_name: str
-    phone: str | None = None
-    vehicle_number: str | None = None
-    is_admin: bool = False
-    is_active: bool = True
+    joinedDate: str
+    carModel: str
+    licensePlate: str
+    bio: str | None = None
+    experience: int
+    completedTrips: int
+    cancellationRate: float
+    onlineHours: float
+    tier: str
+    status: str
+    avatar: str
+    borough: str
+    rating: float
+    trips: int
+    earnings: int
 
 
-class AuthLoginRequest(BaseModel):
-    email: str
+class DriverLoginRequest(BaseModel):
+    phone: str
     password: str
 
 
-class AuthRefreshRequest(BaseModel):
-    refresh_token: str
-
-
-class AuthTokensResponse(BaseModel):
-    access_token: str
-    refresh_token: str
-    token_type: str = "bearer"
-    expires_in: int
-    driver: DriverProfile
-
-
-class PresenceUpdateRequest(BaseModel):
-    lat: float
-    lng: float
-    status: str = "available"
-    accuracy_m: float | None = None
-    speed_kph: float | None = None
-    heading: float | None = None
-    battery_level: float | None = None
-    trip_id: str | None = None
-    recorded_at: datetime | None = None
-
-
-class PresenceUpdateResponse(BaseModel):
+class DriverStatusUpdate(BaseModel):
     status: str
-    recorded_at: datetime
-    trip_id: str | None = None
-
-
-class TripOfferItem(BaseModel):
-    id: str
-    status: str
-    pickup_label: str
-    dropoff_label: str
-    pickup_lat: float
-    pickup_lng: float
-    dropoff_lat: float
-    dropoff_lng: float
-    distance_km: float
-    estimated_fare: float
-    zone_id: str | None = None
-    borough: str | None = None
-    expires_at: datetime
-    created_at: datetime
-
-
-class TripOfferListResponse(BaseModel):
-    offers: list[TripOfferItem]
-
-
-class TripItem(BaseModel):
-    id: str
-    offer_id: str
-    status: str
-    pickup_label: str
-    dropoff_label: str
-    pickup_lat: float
-    pickup_lng: float
-    dropoff_lat: float
-    dropoff_lng: float
-    estimated_fare: float
-    accepted_at: datetime
-    started_at: datetime | None = None
-    completed_at: datetime | None = None
-
-
-class DriverTripStateResponse(BaseModel):
-    active_trip: TripItem | None = None
-    recent_trips: list[TripItem] = Field(default_factory=list)
-
-
-class DrowsinessTelemetryRequest(DrowsinessUpdate):
-    trip_id: str | None = None
-
-
-class DrowsinessTelemetryResponse(DrowsinessResponse):
-    id: str
-    trip_id: str | None = None
-
-
-class NotificationItem(BaseModel):
-    id: str
-    title: str
-    body: str
-    kind: str
-    status: str
-    created_at: datetime
-    read_at: datetime | None = None
-
-
-class NotificationListResponse(BaseModel):
-    notifications: list[NotificationItem]
