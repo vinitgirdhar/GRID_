@@ -1,0 +1,19 @@
+[[headers]]
+  for = "/mediapipe-wasm/*.wasm"
+  [headers.values]
+    Content-Type = "application/wasm"
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/mediapipe-wasm/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/mediapipe-models/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[build]
+  publish = "dist"
+  command = "npm run build"

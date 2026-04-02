@@ -23,9 +23,9 @@ const CLOSED_FRAME_THRESHOLD = 20;
 const CLOSED_SECONDS_THRESHOLD = 2;
 const POST_INTERVAL_MS = 900;
 const BUZZ_INTERVAL_MS = 1100;
-const CAMERA_START_TIMEOUT_MS = 15000;
-const VISION_BUNDLE_TIMEOUT_MS = 30000;
-const FACE_MESH_LOAD_TIMEOUT_MS = 45000;
+const CAMERA_START_TIMEOUT_MS = 20000;
+const VISION_BUNDLE_TIMEOUT_MS = 90000;
+const FACE_MESH_LOAD_TIMEOUT_MS = 120000;
 
 type Landmark = { x: number; y: number; z?: number };
 type BlendshapeCategory = { categoryName: string; score: number };

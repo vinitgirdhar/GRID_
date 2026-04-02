@@ -226,13 +226,13 @@ export default function DriverOverview({
   ];
 
   return (
-    <div className="space-y-8">
-      <div className="flex justify-between items-end">
-        <div>
-          <h1 className="text-3xl font-black tracking-tight text-[var(--accent)]">Intelligence</h1>
-          <p className="text-[var(--text-secondary)] mt-1 font-medium">Urban demand & awareness &middot; <span className="text-[var(--primary-dark)] font-bold">{timeLabel}</span></p>
+    <div className="space-y-6">
+      <div className="flex flex-wrap gap-2 items-end justify-between">
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-[var(--accent)]">Intelligence</h1>
+          <p className="text-[var(--text-secondary)] mt-1 font-medium text-sm">Urban demand & awareness &middot; <span className="text-[var(--primary-dark)] font-bold">{timeLabel}</span></p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={() => setEcoMode((prev) => !prev)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-bold transition-all duration-200 ${ecoMode ? 'bg-green-500/15 border-green-500/30 text-green-600' : 'bg-[var(--surface)] border-[var(--border)] text-[var(--text-secondary)]'}`}
@@ -253,8 +253,8 @@ export default function DriverOverview({
             }}
             className={cn(
               "flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-full border transition-all duration-300 shadow-sm",
-              isLive 
-                ? "text-[var(--success)] bg-[var(--success)]/10 border-[var(--success)]/20" 
+              isLive
+                ? "text-[var(--success)] bg-[var(--success)]/10 border-[var(--success)]/20"
                 : "text-[var(--text-muted)] bg-[var(--surface)] border-[var(--border)] hover:bg-[var(--secondary)]"
             )}
           >
@@ -264,7 +264,6 @@ export default function DriverOverview({
             )}></span>
             {isLive ? 'LIVE' : 'OFFLINE'}
           </button>
-
         </div>
       </div>
 
@@ -302,33 +301,33 @@ export default function DriverOverview({
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {liveKpis.map((kpi, idx) => (
-          <div key={kpi.label} className="kpi-card">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-2 bg-primary/10 rounded-lg shrink-0">
-                {idx === 0 && <DollarSign className="text-primary w-5 h-5" />}
-                {idx === 1 && <CheckCircle className="text-success w-5 h-5" />}
-                {idx === 2 && <Percent className="text-warning w-5 h-5" />}
-                {idx === 3 && <Zap className="text-sky-500 w-5 h-5" />}
+          <div key={kpi.label} className="kpi-card !p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="p-1.5 bg-primary/10 rounded-lg shrink-0">
+                {idx === 0 && <DollarSign className="text-primary w-4 h-4" />}
+                {idx === 1 && <CheckCircle className="text-success w-4 h-4" />}
+                {idx === 2 && <Percent className="text-warning w-4 h-4" />}
+                {idx === 3 && <Zap className="text-sky-500 w-4 h-4" />}
               </div>
-              <div className="flex items-center gap-1 text-xs font-medium text-success justify-end ml-3 min-w-0">
-                <TrendingUp size={14} className="shrink-0" />
+              <div className="flex items-center gap-1 text-[10px] font-medium text-success justify-end ml-2 min-w-0 max-w-[55%]">
+                <TrendingUp size={11} className="shrink-0" />
                 <span className="truncate">{kpi.change}</span>
               </div>
             </div>
             <div>
-              <p className="kpi-label">{kpi.label}</p>
-              <p className="kpi-value">{kpi.value}</p>
+              <p className="text-[11px] font-semibold text-[var(--text-secondary)] mb-1 leading-tight">{kpi.label}</p>
+              <p className="text-2xl font-extrabold text-[var(--text-primary)] leading-none tracking-tight">{kpi.value}</p>
             </div>
           </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
-        <div 
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
+        <div
           onClick={() => setExpandedCard('demand')}
-          className="glass-card p-6 flex flex-col hover:translate-y-[-4px] hover:shadow-lg transition-all duration-300 h-full cursor-pointer border-transparent hover:border-[var(--primary)]/50 group"
+          className="glass-card p-4 sm:p-6 flex flex-col hover:translate-y-[-4px] hover:shadow-lg transition-all duration-300 h-full cursor-pointer border-transparent hover:border-[var(--primary)]/50 group"
         >
           <div className="flex items-center gap-2 mb-6">
             <div className="p-2 bg-primary/10 rounded-lg">
@@ -401,9 +400,9 @@ export default function DriverOverview({
           </div>
         </div>
 
-        <div 
+        <div
           onClick={() => setExpandedCard('weather')}
-          className="glass-card p-6 flex flex-col hover:translate-y-[-4px] hover:shadow-lg transition-all duration-300 h-full cursor-pointer border-transparent hover:border-sky-500/50 group"
+          className="glass-card p-4 sm:p-6 flex flex-col hover:translate-y-[-4px] hover:shadow-lg transition-all duration-300 h-full cursor-pointer border-transparent hover:border-sky-500/50 group"
         >
           <div className="flex items-center gap-2 mb-6">
             <div className="p-2 bg-sky-500/10 rounded-lg">
@@ -458,9 +457,9 @@ export default function DriverOverview({
           </div>
         </div>
 
-        <div 
+        <div
           onClick={() => setExpandedCard('event')}
-          className="glass-card p-6 flex flex-col hover:translate-y-[-4px] hover:shadow-lg transition-all duration-300 h-full cursor-pointer border-transparent hover:border-[var(--warning)]/50 group"
+          className="glass-card p-4 sm:p-6 flex flex-col hover:translate-y-[-4px] hover:shadow-lg transition-all duration-300 h-full cursor-pointer border-transparent hover:border-[var(--warning)]/50 group"
         >
           <div className="flex items-center gap-2 mb-6">
             <div className="p-2 bg-warning/10 rounded-lg">
@@ -512,24 +511,24 @@ export default function DriverOverview({
       </div>
 
       <div className="glass-card p-6">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-wrap gap-3 items-center justify-between mb-6">
           <div className="flex items-center gap-2">
             <div className="p-2 bg-sky-500/10 rounded-lg">
               <MapPin className="text-sky-500 w-5 h-5" />
             </div>
-            <h3 className="font-bold text-[var(--text-primary)]">Operational Hotspot Map</h3>
+            <h3 className="font-bold text-[var(--text-primary)]">Hotspot Map</h3>
           </div>
-          <div className="flex gap-4">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-danger"></div>
-              <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">High Demand</span>
+          <div className="flex gap-3 flex-wrap">
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-danger shrink-0"></div>
+              <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">High</span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-warning"></div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-warning shrink-0"></div>
               <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">Moderate</span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-primary"></div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-primary shrink-0"></div>
               <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">Low</span>
             </div>
           </div>

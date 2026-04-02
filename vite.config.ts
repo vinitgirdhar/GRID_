@@ -30,6 +30,9 @@ export default defineConfig(({mode}) => {
         'clsx',
         'tailwind-merge',
       ],
+      // @mediapipe/tasks-vision ships its own WASM loader — Vite must not
+      // pre-bundle it or the internal WASM paths get rewritten and break at runtime.
+      exclude: ['@mediapipe/tasks-vision'],
     },
     server: {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.

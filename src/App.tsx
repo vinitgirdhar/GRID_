@@ -520,7 +520,7 @@ function AppShell() {
           </main>
 
           {userRole === 'driver' && (
-            <div className="lg:hidden fixed bottom-4 sm:bottom-6 left-0 right-0 flex justify-center z-50 pointer-events-none px-3">
+            <div className="lg:hidden fixed bottom-0 left-0 right-0 flex justify-center z-50 pointer-events-none px-3 pb-[max(16px,env(safe-area-inset-bottom))]">
               <div className="nav-pill pointer-events-auto">
                 {DRIVER_ITEMS.map((item) => (
                   <div
