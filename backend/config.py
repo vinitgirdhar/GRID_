@@ -23,6 +23,8 @@ class Settings(BaseSettings):
         default="http://api.weatherapi.com/v1/current.json",
         alias="WEATHER_API_BASE_URL",
     )
+    # Comma-separated origins for production: e.g. "https://mygrid.netlify.app,https://api.mygrid.com"
+    allowed_origins_extra: str = Field(default="", alias="ALLOWED_ORIGINS")
     allowed_origins: list[str] = Field(
         default_factory=lambda: [
             "http://localhost:3000",
@@ -33,6 +35,13 @@ class Settings(BaseSettings):
             "http://127.0.0.1:4173",
         ]
     )
+
+    def get_cors_origins(self) -> list[str]:
+        base = list(self.allowed_origins)
+        if self.allowed_origins_extra:
+            extras = [o.strip() for o in self.allowed_origins_extra.split(",") if o.strip()]
+            base.extend(extras)
+        return base
     grid_ml_root: Path = GRID_ML_DIR
 
     model_config = SettingsConfigDict(

@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Search, Star, MapPin, TrendingUp, ShieldCheck, ShieldAlert, Shield, Trophy } from 'lucide-react';
+import { Search, Star, MapPin, TrendingUp, ShieldCheck, ShieldAlert, Shield, Trophy, Wifi, WifiOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../../lib/utils';
 import { Driver, DriverStatus, DriverTier } from '../../types';
 import { getDrivers } from '../../services/apiService';
+import { useLiveStream } from '../../hooks/useLiveStream';
 
 interface DriversProps {
   onSelectDriver?: (driver: Driver) => void;
@@ -13,34 +14,25 @@ export default function Drivers({ onSelectDriver }: DriversProps) {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [live, setLive] = useState(false);
   const [filter, setFilter] = useState<'all' | DriverStatus>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Initial fetch — SSE will keep it fresh after this
   useEffect(() => {
     let alive = true;
-
-    const fetchDrivers = (isFirstFetch = false) => {
-      getDrivers()
-        .then((data: Driver[]) => {
-          if (!alive) return;
-          setDrivers(data);
-          setError(false);
-          if (isFirstFetch) setLoading(false);
-        })
-        .catch(() => {
-          if (!alive) return;
-          setError(true);
-          if (isFirstFetch) setLoading(false);
-        });
-    };
-
-    fetchDrivers(true);
-    const interval = setInterval(() => fetchDrivers(false), 5000);
-    return () => {
-      alive = false;
-      clearInterval(interval);
-    };
+    getDrivers()
+      .then((data) => { if (alive) { setDrivers(data); setLoading(false); } })
+      .catch(() => { if (alive) { setError(true); setLoading(false); } });
+    return () => { alive = false; };
   }, []);
+
+  // Real-time updates via SSE
+  useLiveStream({
+    onConnected: () => setLive(true),
+    onDisconnected: () => setLive(false),
+    onDrivers: (data) => { setDrivers(data); setError(false); setLoading(false); },
+  });
 
   const filteredDrivers = drivers.filter((driver: Driver) => {
     const matchesFilter = filter === 'all' || driver.status === filter;
@@ -136,7 +128,13 @@ export default function Drivers({ onSelectDriver }: DriversProps) {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-[var(--text-primary)]">Fleet Management</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-3xl font-bold tracking-tight text-[var(--text-primary)]">Fleet Management</h1>
+            {live
+              ? <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-[#10B981] bg-[#10B981]/10 border border-[#10B981]/20 px-2 py-0.5 rounded-full"><Wifi size={10} /> Live</span>
+              : <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] bg-[var(--surface)] border border-[var(--border)] px-2 py-0.5 rounded-full"><WifiOff size={10} /> Polling</span>
+            }
+          </div>
           <p className="text-[var(--text-secondary)] mt-1">Monitor and manage your active driver network</p>
         </div>
         <div className="flex items-center gap-3">

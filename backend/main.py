@@ -14,9 +14,9 @@ from urllib.request import urlopen
 
 import pandas as pd
 import xgboost as xgb
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 
 from .config import get_settings
 from .schemas import (
@@ -597,12 +597,38 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.allowed_origins,
+    allow_origins=settings.get_cors_origins(),
     allow_origin_regex=r"^(https?://.+|vscode-webview://.+|null)$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ==============================================================================
+# SSE BROADCASTER — real-time cross-device sync
+# ==============================================================================
+
+import asyncio
+import queue as _queue_module
+
+# Each connected SSE client gets its own asyncio.Queue registered here.
+# The broadcaster thread puts JSON strings into every queue.
+_SSE_CLIENTS: set[asyncio.Queue] = set()
+_SSE_LOCK = Lock()
+
+
+def _sse_broadcast(event_type: str, data: dict) -> None:
+    """Push a JSON event to all connected SSE clients (thread-safe)."""
+    payload = json.dumps({"type": event_type, "data": data, "ts": datetime.utcnow().isoformat()})
+    with _SSE_LOCK:
+        dead = set()
+        for q in _SSE_CLIENTS:
+            try:
+                q.put_nowait(payload)
+            except Exception:
+                dead.add(q)
+        _SSE_CLIENTS.difference_update(dead)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -685,6 +711,56 @@ def home() -> str:
 @app.get("/health", response_model=HealthResponse)
 def health_check() -> HealthResponse:
     return HealthResponse(status="ok")
+
+
+@app.get(f"{settings.api_prefix}/stream")
+async def sse_stream(request: Request) -> StreamingResponse:
+    """Server-Sent Events endpoint — clients subscribe here for real-time updates."""
+    client_queue: asyncio.Queue = asyncio.Queue(maxsize=64)
+
+    with _SSE_LOCK:
+        _SSE_CLIENTS.add(client_queue)
+
+    # Send initial snapshot immediately so the new client is in sync
+    with DRIVERS_LOCK:
+        drivers_snapshot = [
+            {k: v for k, v in d.items() if k != "password"}
+            for d in DRIVERS.values()
+        ]
+    with STATE_LOCK:
+        drowsiness_snapshot = DROWSINESS_STATE.model_dump()
+
+    async def event_stream():
+        try:
+            # Handshake
+            yield "event: connected\ndata: {}\n\n"
+            # Send current state to the new client
+            yield f"event: drivers\ndata: {json.dumps(drivers_snapshot)}\n\n"
+            yield f"event: drowsiness\ndata: {json.dumps(drowsiness_snapshot, default=str)}\n\n"
+
+            while True:
+                if await request.is_disconnected():
+                    break
+                try:
+                    # Wait up to 25 s for a message, then send a keepalive ping
+                    payload = await asyncio.wait_for(client_queue.get(), timeout=25)
+                    msg = json.loads(payload)
+                    yield f"event: {msg['type']}\ndata: {json.dumps(msg['data'], default=str)}\n\n"
+                except asyncio.TimeoutError:
+                    yield ": ping\n\n"
+        finally:
+            with _SSE_LOCK:
+                _SSE_CLIENTS.discard(client_queue)
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        },
+    )
 
 
 @app.get(f"{settings.api_prefix}/metrics", response_model=MetricsResponse)
@@ -1035,6 +1111,7 @@ def update_drowsiness_status(update: DrowsinessUpdate) -> DrowsinessResponse:
     if assistant_response:
         _store_local_assistant_response(assistant_response, assistant_source)
 
+    _sse_broadcast("drowsiness", next_state.model_dump(mode="json"))
     return next_state
 
 
@@ -1082,6 +1159,7 @@ def toggle_session(toggle: SessionToggle):
     with STATE_LOCK:
         DROWSINESS_STATE = DrowsinessResponse()
 
+    _sse_broadcast("session", {"is_live": toggle.is_live})
     return {"status": "updated", "is_live": toggle.is_live}
 
 
@@ -1089,20 +1167,29 @@ def toggle_session(toggle: SessionToggle):
 # DRIVER AUTH & FLEET ENDPOINTS
 # ==============================================================================
 
+def _broadcast_drivers() -> None:
+    with DRIVERS_LOCK:
+        snapshot = [{k: v for k, v in d.items() if k != "password"} for d in DRIVERS.values()]
+    _sse_broadcast("drivers", snapshot)
+
+
 @app.post(f"{settings.api_prefix}/drivers/login", response_model=DriverProfile)
 def driver_login(payload: DriverLoginRequest) -> DriverProfile:
+    profile = None
     with DRIVERS_LOCK:
         for driver in DRIVERS.values():
             if driver["phone"] == payload.phone and driver["password"] == payload.password:
                 driver["status"] = "online"
-                # Reset wellness session so each driver starts with a clean timer
                 DRIVER_SESSION["is_live"] = False
                 DRIVER_SESSION["start_time"] = datetime.utcnow()
                 with STATE_LOCK:
                     global DROWSINESS_STATE
                     DROWSINESS_STATE = DrowsinessResponse()
-                return DriverProfile(**{k: v for k, v in driver.items() if k != "password"})
-    raise HTTPException(status_code=401, detail="Invalid phone number or password.")
+                profile = DriverProfile(**{k: v for k, v in driver.items() if k != "password"})
+    if profile is None:
+        raise HTTPException(status_code=401, detail="Invalid phone number or password.")
+    _broadcast_drivers()
+    return profile
 
 
 @app.post(f"{settings.api_prefix}/drivers/{{driver_id}}/logout")
@@ -1111,9 +1198,9 @@ def driver_logout(driver_id: str) -> dict:
         if driver_id not in DRIVERS:
             raise HTTPException(status_code=404, detail=f"Driver {driver_id} not found.")
         DRIVERS[driver_id]["status"] = "offline"
-    # Reset wellness session on logout
     DRIVER_SESSION["is_live"] = False
     DRIVER_SESSION["start_time"] = datetime.utcnow()
+    _broadcast_drivers()
     return {"ok": True}
 
 
@@ -1134,6 +1221,7 @@ def update_driver_status(driver_id: str, payload: DriverStatusUpdate) -> dict:
         if driver_id not in DRIVERS:
             raise HTTPException(status_code=404, detail=f"Driver {driver_id} not found.")
         DRIVERS[driver_id]["status"] = payload.status
+    _broadcast_drivers()
     return {"ok": True}
 
 
@@ -1240,7 +1328,7 @@ def _maybe_retrain() -> None:
     logs_used = _MODEL_STATE["retrain_every"] * (gen + 1)
     improvement_pct = round((rmse_before - new_rmse) / rmse_before * 100, 2)
 
-    _MODEL_STATE["retrain_log"].append({
+    retrain_entry = {
         "timestamp": datetime.utcnow().isoformat(),
         "generation": gen + 1,
         "rmse_before": round(rmse_before, 2),
@@ -1249,7 +1337,9 @@ def _maybe_retrain() -> None:
         "r2_after": new_r2,
         "improvement_pct": improvement_pct,
         "logs_used": logs_used,
-    })
+    }
+    _MODEL_STATE["retrain_log"].append(retrain_entry)
+    _sse_broadcast("retrain", retrain_entry)
 
 
 def _seed_validation_demo() -> None:
@@ -1326,6 +1416,12 @@ def _live_prediction_loop() -> None:
                 _PREDICTION_STORE[pid] = pred_record
                 _VALIDATION_STORE[pid] = val_record
                 _maybe_retrain()
+            _sse_broadcast("prediction", {
+                "zone_id": zone_id,
+                "level": level,
+                "predicted_demand": round(pred_demand, 1),
+                "ts": now.isoformat(),
+            })
         except Exception:
             pass
 

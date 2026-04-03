@@ -3,6 +3,8 @@ import {
   Driver,
   DriverImpactPoint,
   DriverSessionResponse,
+  ModelLearningState,
+  RetrainEvent,
   DriverSessionTogglePayload,
   DriverStatus,
   DriverTier,
@@ -710,6 +712,21 @@ export async function mockGetValidationMetrics(): Promise<ValidationMetricsRespo
       };
     });
 
+  const model_state: ModelLearningState = {
+    current_rmse: 8.91,
+    current_r2: 0.9748,
+    generation: 3,
+    rmse_floor: 6.80,
+    r2_ceiling: 0.991,
+    next_retrain_in: 7,
+  };
+
+  const retrain_log: RetrainEvent[] = [
+    { timestamp: new Date(Date.now() - 7200000).toISOString(), generation: 1, rmse_before: 9.74, rmse_after: 9.31, r2_before: 0.9714, r2_after: 0.9731, improvement_pct: 4.41, logs_used: 10 },
+    { timestamp: new Date(Date.now() - 4800000).toISOString(), generation: 2, rmse_before: 9.31, rmse_after: 9.02, r2_before: 0.9731, r2_after: 0.9742, improvement_pct: 3.11, logs_used: 20 },
+    { timestamp: new Date(Date.now() - 2400000).toISOString(), generation: 3, rmse_before: 9.02, rmse_after: 8.91, r2_before: 0.9742, r2_after: 0.9748, improvement_pct: 1.22, logs_used: 30 },
+  ];
+
   return {
     generated_at: new Date().toISOString(),
     total_predictions: 48,
@@ -721,6 +738,8 @@ export async function mockGetValidationMetrics(): Promise<ValidationMetricsRespo
     predicted_vs_actual,
     prediction_breakdown,
     driver_impact,
+    model_state,
+    retrain_log,
   };
 }
 

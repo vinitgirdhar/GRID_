@@ -3,7 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   AreaChart, Area, LineChart, Line, Legend,
 } from 'recharts';
-import { Shield, Target, Zap, Info, CheckCircle, TrendingUp, Clock, Users, RefreshCw } from 'lucide-react';
+import { Shield, Target, Zap, Info, CheckCircle, TrendingUp, Clock, Users, RefreshCw, Wifi, WifiOff } from 'lucide-react';
 import { InsightTooltip } from '../charts/InsightTooltip';
 import {
   asNumber,
@@ -14,6 +14,7 @@ import {
 } from '../charts/insightTooltipUtils';
 import { getMetrics, getValidationMetrics } from '../../services/apiService';
 import { MetricsResponse, ValidationMetricsResponse } from '../../types';
+import { useLiveStream } from '../../hooks/useLiveStream';
 
 const formatFeatureName = (value: string) =>
   value.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
@@ -31,6 +32,7 @@ export default function ModelPerformance() {
   const [metrics, setMetrics] = useState<MetricsResponse | null>(null);
   const [validation, setValidation] = useState<ValidationMetricsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [live, setLive] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -57,6 +59,14 @@ export default function ModelPerformance() {
       clearInterval(id);
     };
   }, []);
+
+  // SSE: append retrain events and refresh validation metrics when a new prediction arrives
+  useLiveStream({
+    onConnected: () => setLive(true),
+    onDisconnected: () => setLive(false),
+    onRetrain: () => { getValidationMetrics().then(setValidation).catch(() => null); },
+    onPrediction: () => { getValidationMetrics().then(setValidation).catch(() => null); },
+  });
 
   // ── Section 1 data ──────────────────────────────────────────────────────────
   const rmseData = metrics?.model_variants.map((item) => ({
@@ -150,7 +160,13 @@ export default function ModelPerformance() {
     <div className="space-y-10">
       {/* ── Header ── */}
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
-        <h1 className="text-3xl font-bold tracking-tight text-[var(--text-primary)]">Model Performance</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-3xl font-bold tracking-tight text-[var(--text-primary)]">Model Performance</h1>
+          {live
+            ? <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-[#10B981] bg-[#10B981]/10 border border-[#10B981]/20 px-2 py-0.5 rounded-full"><Wifi size={10} /> Live</span>
+            : <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] bg-[var(--surface)] border border-[var(--border)] px-2 py-0.5 rounded-full"><WifiOff size={10} /> Polling</span>
+          }
+        </div>
         <div className="text-sm text-[var(--text-secondary)]">
           <p>Live evaluation metrics and validation KPIs from the FastAPI ML backend</p>
           <p className="text-xs mt-1">
