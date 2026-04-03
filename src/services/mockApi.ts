@@ -1,6 +1,7 @@
 import {
   CopilotResponse,
   Driver,
+  DriverImpactPoint,
   DriverSessionResponse,
   DriverSessionTogglePayload,
   DriverStatus,
@@ -16,7 +17,10 @@ import {
   HotspotsResponse,
   MetricsResponse,
   ModelVariantMetric,
+  PredictionBreakdown,
   PredictionResponse,
+  ValidationMetricsResponse,
+  ValidationPointData,
   WeatherResponse,
   WellnessStatus,
 } from '../types';
@@ -665,6 +669,59 @@ export async function mockAskCopilot(query: string) {
   return {
     spoken_response: 'GRID demo mode is active. Demand is steady, and Midtown remains your best short-route zone.',
   } satisfies CopilotResponse;
+}
+
+export async function mockGetValidationMetrics(): Promise<ValidationMetricsResponse> {
+  const now = Date.now();
+  const bucketMs = 20 * 60 * 1000; // 20-minute buckets
+  const totalBuckets = 24; // 8 hours
+
+  // Build 24 ordered time labels
+  const labels: string[] = [];
+  for (let i = totalBuckets - 1; i >= 0; i--) {
+    const d = new Date(now - i * bucketMs);
+    labels.push(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`);
+  }
+
+  // Realistic mock demand curve — peaks mid-session
+  const predicted_vs_actual: ValidationPointData[] = labels.map((period, i) => {
+    const t = i / totalBuckets;
+    const base = 60 + 120 * Math.sin(t * Math.PI); // arc shape 60→180→60
+    const noise = (Math.random() - 0.5) * 20;
+    const predicted = Math.round(base + noise);
+    const actual = Math.round(predicted * (0.8 + Math.random() * 0.4));
+    return { period, predicted, actual };
+  });
+
+  const prediction_breakdown: PredictionBreakdown[] = [
+    { level: 'High', total: 16, hits: 11, hit_rate: 68.8 },
+    { level: 'Medium', total: 18, hits: 13, hit_rate: 72.2 },
+    { level: 'Low', total: 14, hits: 9, hit_rate: 64.3 },
+  ];
+
+  const driver_impact: DriverImpactPoint[] = labels
+    .filter((_, i) => i % 3 === 0) // every 3rd bucket for readability
+    .map((period, i) => {
+      const t = i / 8;
+      return {
+        period,
+        success_rate: Math.round(55 + 25 * Math.sin(t * Math.PI) + (Math.random() - 0.5) * 10),
+        avg_pickup_min: Math.round((8 - 4 * Math.sin(t * Math.PI) + (Math.random() - 0.5) * 2) * 10) / 10,
+      };
+    });
+
+  return {
+    generated_at: new Date().toISOString(),
+    total_predictions: 48,
+    validated_predictions: 48,
+    prediction_accuracy_pct: 71.4,
+    hit_rate_pct: 68.8,
+    driver_success_rate_pct: 68.8,
+    avg_pickup_time_min: 6.2,
+    predicted_vs_actual,
+    prediction_breakdown,
+    driver_impact,
+  };
 }
 
 export function isMockApiError(error: unknown): error is MockApiError {

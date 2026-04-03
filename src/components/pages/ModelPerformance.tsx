@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  AreaChart, Area
+  AreaChart, Area, LineChart, Line, Legend,
 } from 'recharts';
-import { Shield, Target, Zap, Info } from 'lucide-react';
+import { Shield, Target, Zap, Info, CheckCircle, TrendingUp, Clock, Users } from 'lucide-react';
 import { InsightTooltip } from '../charts/InsightTooltip';
 import {
   asNumber,
@@ -12,59 +12,53 @@ import {
   getFeatureInfluenceInsight,
   getR2Insight,
 } from '../charts/insightTooltipUtils';
-import { getMetrics } from '../../services/apiService';
-import { MetricsResponse } from '../../types';
+import { getMetrics, getValidationMetrics } from '../../services/apiService';
+import { MetricsResponse, ValidationMetricsResponse } from '../../types';
 
-const formatFeatureName = (value: string) => value.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
-const REFRESH_INTERVAL_MS = 20000;
+const formatFeatureName = (value: string) =>
+  value.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+
+const REFRESH_INTERVAL_MS = 30000;
 
 function formatRefreshAge(generatedAt?: string) {
-  if (!generatedAt) {
-    return 'Waiting for metrics';
-  }
-
+  if (!generatedAt) return 'Waiting for metrics';
   const seconds = Math.max(0, Math.floor((Date.now() - new Date(generatedAt).getTime()) / 1000));
-  if (seconds < 60) {
-    return `${seconds}s ago`;
-  }
-
-  const minutes = Math.floor(seconds / 60);
-  return `${minutes}m ago`;
+  if (seconds < 60) return `${seconds}s ago`;
+  return `${Math.floor(seconds / 60)}m ago`;
 }
 
 export default function ModelPerformance() {
   const [metrics, setMetrics] = useState<MetricsResponse | null>(null);
+  const [validation, setValidation] = useState<ValidationMetricsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    let intervalId: ReturnType<typeof setInterval> | null = null;
 
-    const loadMetrics = async () => {
+    const load = async () => {
       try {
-        const response = await getMetrics();
+        const [m, v] = await Promise.all([getMetrics(), getValidationMetrics()]);
         if (!cancelled) {
-          setMetrics(response);
+          setMetrics(m);
+          setValidation(v);
           setError(null);
         }
       } catch {
         if (!cancelled) {
-          setError('Unable to load live model metrics. Start the FastAPI backend on port 8000 and refresh.');
+          setError('Unable to load metrics. Start the FastAPI backend on port 8000 and refresh.');
         }
       }
     };
 
-    loadMetrics();
-    intervalId = setInterval(loadMetrics, REFRESH_INTERVAL_MS);
-
+    load();
+    const id = setInterval(load, REFRESH_INTERVAL_MS);
     return () => {
       cancelled = true;
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
+      clearInterval(id);
     };
   }, []);
 
+  // ── Section 1 data ──────────────────────────────────────────────────────────
   const rmseData = metrics?.model_variants.map((item) => ({
     label: item.label,
     value: Number(item.test_rmse.toFixed(2)),
@@ -109,7 +103,6 @@ export default function ModelPerformance() {
           ? item.payload.label
           : 'Model';
       const iterationLabel = typeof item.payload?.name === 'string' ? item.payload.name : null;
-
       return iterationLabel ? `${variantLabel} (${iterationLabel})` : variantLabel;
     },
     valueFormatter: (value: number | string | undefined) => formatR2Score(value),
@@ -130,121 +123,296 @@ export default function ModelPerformance() {
     insightFormatter: (item: { value?: number | string }) => getFeatureInfluenceInsight(asNumber(item.value), featureMax),
   };
 
+  // ── Section 2 KPI cards ─────────────────────────────────────────────────────
+  const liveKPIs = [
+    {
+      label: 'Prediction Accuracy',
+      value: validation ? `${validation.prediction_accuracy_pct}%` : '--',
+      icon: <CheckCircle size={20} className="text-[#10B981]" />,
+      color: '#10B981',
+      sub: `${validation?.validated_predictions ?? 0} validated`,
+    },
+    {
+      label: 'Hit Rate',
+      value: validation ? `${validation.hit_rate_pct}%` : '--',
+      icon: <TrendingUp size={20} className="text-[#3B82F6]" />,
+      color: '#3B82F6',
+      sub: 'Predictions that matched demand',
+    },
+    {
+      label: 'Driver Success Rate',
+      value: validation ? `${validation.driver_success_rate_pct}%` : '--',
+      icon: <Users size={20} className="text-[#F4B000]" />,
+      color: '#F4B000',
+      sub: 'Drivers who got a ride',
+    },
+    {
+      label: 'Avg Pickup Time',
+      value: validation ? `${validation.avg_pickup_time_min} min` : '--',
+      icon: <Clock size={20} className="text-[#A78BFA]" />,
+      color: '#A78BFA',
+      sub: 'Time from zone arrival to pickup',
+    },
+  ];
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
+      {/* ── Header ── */}
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
         <h1 className="text-3xl font-bold tracking-tight text-[var(--text-primary)]">Model Performance</h1>
         <div className="text-sm text-[var(--text-secondary)]">
-          <p>Live evaluation metrics and feature importance from the FastAPI ML backend</p>
-          <p className="text-xs mt-1">Last refresh: <span className="font-semibold text-[var(--text-primary)]">{formatRefreshAge(metrics?.generated_at)}</span> (auto every 20s)</p>
+          <p>Live evaluation metrics and validation KPIs from the FastAPI ML backend</p>
+          <p className="text-xs mt-1">
+            Last refresh:{' '}
+            <span className="font-semibold text-[var(--text-primary)]">
+              {formatRefreshAge(metrics?.generated_at)}
+            </span>{' '}
+            (auto every 20s)
+          </p>
         </div>
       </div>
 
       {error && (
-        <div className="glass-card p-6 border border-danger/20 text-danger">
-          {error}
-        </div>
+        <div className="glass-card p-6 border border-danger/20 text-danger">{error}</div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {rmseData.map((item, index) => (
-          <div key={item.label} className="glass-card p-6 relative overflow-hidden">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-2 rounded-lg" style={{ backgroundColor: `${item.color}20` }}>
-                {index === 0 && <Shield size={20} style={{ color: item.color }} />}
-                {index === 1 && <Target size={20} style={{ color: item.color }} />}
-                {index === 2 && <Zap size={20} style={{ color: item.color }} />}
+      {/* ══════════════════════════════════════════════════════════════════════
+          SECTION 1 — MODEL HEALTH
+      ══════════════════════════════════════════════════════════════════════ */}
+      <section className="space-y-6">
+        <h2 className="text-lg font-semibold text-[var(--text-primary)] border-b border-[var(--border)] pb-2">
+          Model Health
+        </h2>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {rmseData.map((item, index) => (
+            <div key={item.label} className="glass-card p-6 relative overflow-hidden">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-2 rounded-lg" style={{ backgroundColor: `${item.color}20` }}>
+                  {index === 0 && <Shield size={20} style={{ color: item.color }} />}
+                  {index === 1 && <Target size={20} style={{ color: item.color }} />}
+                  {index === 2 && <Zap size={20} style={{ color: item.color }} />}
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
+                  Test RMSE
+                </span>
               </div>
-              <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Test RMSE</span>
+              <p className="text-sm text-[var(--text-secondary)] font-medium">{item.label}</p>
+              <p className="text-3xl font-bold mt-1" style={{ color: item.color }}>{item.value}</p>
+              <div
+                className="absolute bottom-0 left-0 h-1 w-full"
+                style={{ backgroundColor: item.color, opacity: 0.3 }}
+              />
             </div>
-            <p className="text-sm text-[var(--text-secondary)] font-medium">{item.label}</p>
-            <p className="text-3xl font-bold mt-1" style={{ color: item.color }}>{item.value}</p>
-            <div className="absolute bottom-0 left-0 h-1 w-full" style={{ backgroundColor: item.color, opacity: 0.3 }}></div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="glass-card p-6">
+            <h3 className="text-base font-semibold mb-6 text-[var(--text-primary)]">R² Accuracy Progression</h3>
+            <div className="h-[280px]" style={{ minWidth: 0 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={r2Data}>
+                  <defs>
+                    <linearGradient id="colorR2" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#F4B000" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#F4B000" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                  <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} domain={[0.9, 1]} />
+                  <Tooltip content={<InsightTooltip config={r2Tooltip} />} />
+                  <Area type="monotone" dataKey="value" stroke="#F4B000" strokeWidth={3} fillOpacity={1} fill="url(#colorR2)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+          <div className="glass-card p-6">
+            <h3 className="text-base font-semibold mb-6 text-[var(--text-primary)]">Feature Importance</h3>
+            <div className="h-[280px]" style={{ minWidth: 0 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={featureImportance} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" />
+                  <XAxis type="number" hide />
+                  <YAxis
+                    dataKey="name"
+                    type="category"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: 'var(--text-secondary)', fontSize: 12 }}
+                    width={150}
+                  />
+                  <Tooltip content={<InsightTooltip config={featureTooltip} />} />
+                  <Bar dataKey="value" fill="#F4B000" radius={[0, 4, 4, 0]} barSize={20} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          SECTION 2 — LIVE VALIDATION
+      ══════════════════════════════════════════════════════════════════════ */}
+      <section className="space-y-6">
+        <h2 className="text-lg font-semibold text-[var(--text-primary)] border-b border-[var(--border)] pb-2">
+          Live Validation
+        </h2>
+
+        {/* KPI Cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {liveKPIs.map((kpi) => (
+            <div key={kpi.label} className="glass-card p-5 relative overflow-hidden">
+              <div className="flex items-center justify-between mb-3">
+                {kpi.icon}
+                <span
+                  className="text-[10px] font-bold uppercase tracking-widest"
+                  style={{ color: kpi.color }}
+                >
+                  Live
+                </span>
+              </div>
+              <p className="text-xs text-[var(--text-secondary)] font-medium">{kpi.label}</p>
+              <p className="text-2xl font-bold mt-1" style={{ color: kpi.color }}>{kpi.value}</p>
+              <p className="text-[11px] text-[var(--text-secondary)] mt-1">{kpi.sub}</p>
+              <div
+                className="absolute bottom-0 left-0 h-0.5 w-full"
+                style={{ backgroundColor: kpi.color, opacity: 0.4 }}
+              />
+            </div>
+          ))}
+        </div>
+
+        {/* Graph 1 — Predicted vs Actual */}
         <div className="glass-card p-6">
-          <h2 className="text-lg font-semibold mb-6 text-[var(--text-primary)]">R² Accuracy Progression</h2>
-          <div className="h-[300px]" style={{ minWidth: 0 }}>
+          <h3 className="text-base font-semibold mb-6 text-[var(--text-primary)]">
+            Predicted vs Actual Demand
+          </h3>
+          <div className="h-[260px]" style={{ minWidth: 0 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={r2Data}>
-                <defs>
-                  <linearGradient id="colorR2" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#F4B000" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#F4B000" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
+              <LineChart data={validation?.predicted_vs_actual ?? []}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
-                <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} domain={[0.9, 1]} />
-                <Tooltip content={<InsightTooltip config={r2Tooltip} />} />
-                <Area type="monotone" dataKey="value" stroke="#F4B000" strokeWidth={3} fillOpacity={1} fill="url(#colorR2)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-        <div className="glass-card p-6">
-          <h2 className="text-lg font-semibold mb-6 text-[var(--text-primary)]">Feature Importance</h2>
-          <div className="h-[300px]" style={{ minWidth: 0 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={featureImportance} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" />
-                <XAxis type="number" hide />
-                <YAxis
-                  dataKey="name"
-                  type="category"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fill: 'var(--text-secondary)', fontSize: 12 }}
-                  width={150}
+                <XAxis dataKey="period" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
+                <Tooltip
+                  contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8 }}
+                  labelStyle={{ color: 'var(--text-primary)', fontWeight: 600 }}
+                  itemStyle={{ color: 'var(--text-secondary)' }}
                 />
-                <Tooltip content={<InsightTooltip config={featureTooltip} />} />
-                <Bar dataKey="value" fill="#F4B000" radius={[0, 4, 4, 0]} barSize={20} />
-              </BarChart>
+                <Legend wrapperStyle={{ fontSize: 12, color: 'var(--text-secondary)' }} />
+                <Line type="monotone" dataKey="predicted" stroke="#F4B000" strokeWidth={2} dot={{ r: 4 }} name="Predicted" />
+                <Line type="monotone" dataKey="actual" stroke="#10B981" strokeWidth={2} dot={{ r: 4 }} name="Actual" />
+              </LineChart>
             </ResponsiveContainer>
           </div>
         </div>
-      </div>
 
-      <div className="glass-card p-6">
-        <h2 className="text-lg font-semibold mb-4 text-[var(--text-primary)]">Current Model Status</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--border)]">
-            <p className="text-xs uppercase tracking-wider text-[var(--text-secondary)]">Serving Model</p>
-            <p className="text-lg font-bold text-[var(--text-primary)] mt-1">{metrics?.current_model_label ?? '--'}</p>
-            <p className="text-xs text-[var(--text-secondary)] mt-1">Type: {activeVariant?.model_type ?? '--'}</p>
+        {/* Graph 2 & 3 side by side */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Graph 2 — Prediction Success Breakdown */}
+          <div className="glass-card p-6">
+            <h3 className="text-base font-semibold mb-6 text-[var(--text-primary)]">
+              Prediction Success Breakdown
+            </h3>
+            <div className="h-[240px]" style={{ minWidth: 0 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={validation?.prediction_breakdown ?? []}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                  <XAxis dataKey="level" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
+                  <Tooltip
+                    contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8 }}
+                    labelStyle={{ color: 'var(--text-primary)', fontWeight: 600 }}
+                    itemStyle={{ color: 'var(--text-secondary)' }}
+                    formatter={(value: number, name: string) =>
+                      name === 'hit_rate' ? [`${value}%`, 'Hit Rate'] : [value, name === 'total' ? 'Total' : 'Hits']
+                    }
+                  />
+                  <Legend wrapperStyle={{ fontSize: 12, color: 'var(--text-secondary)' }} />
+                  <Bar dataKey="total" fill="#3B82F6" radius={[4, 4, 0, 0]} barSize={28} name="Total" />
+                  <Bar dataKey="hits" fill="#10B981" radius={[4, 4, 0, 0]} barSize={28} name="Hits" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
-          <div className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--border)]">
-            <p className="text-xs uppercase tracking-wider text-[var(--text-secondary)]">Training Date</p>
-            <p className="text-lg font-bold text-[var(--text-primary)] mt-1">{activeVariant?.training_date ?? 'Not provided'}</p>
-            <p className="text-xs text-[var(--text-secondary)] mt-1">Features: {activeVariant?.feature_count ?? '--'}</p>
-          </div>
-          <div className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--border)]">
-            <p className="text-xs uppercase tracking-wider text-[var(--text-secondary)]">Improvement vs Baseline</p>
-            <p className="text-lg font-bold text-[var(--text-primary)] mt-1">{rmseGain !== null ? `${rmseGain.toFixed(2)}% RMSE` : '--'}</p>
-            <p className="text-xs text-[var(--text-secondary)] mt-1">{r2Gain !== null ? `+${r2Gain.toFixed(2)} R² points` : '--'}</p>
-          </div>
-        </div>
-      </div>
 
-      <div className="glass-card p-8">
-        <div className="flex items-center gap-3 mb-4">
-          <Info className="text-primary w-5 h-5" />
-          <h2 className="text-xl font-semibold text-[var(--text-primary)]">Model Methodology</h2>
+          {/* Graph 3 — Driver Impact */}
+          <div className="glass-card p-6">
+            <h3 className="text-base font-semibold mb-6 text-[var(--text-primary)]">
+              Driver Impact
+            </h3>
+            <div className="h-[240px]" style={{ minWidth: 0 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={validation?.driver_impact ?? []}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                  <XAxis dataKey="period" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
+                  <Tooltip
+                    contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8 }}
+                    labelStyle={{ color: 'var(--text-primary)', fontWeight: 600 }}
+                    itemStyle={{ color: 'var(--text-secondary)' }}
+                    formatter={(value: number, name: string) =>
+                      name === 'success_rate' ? [`${value}%`, 'Success Rate'] : [`${value} min`, 'Avg Pickup']
+                    }
+                  />
+                  <Legend wrapperStyle={{ fontSize: 12, color: 'var(--text-secondary)' }} />
+                  <Line type="monotone" dataKey="success_rate" stroke="#F4B000" strokeWidth={2} dot={{ r: 4 }} name="success_rate" />
+                  <Line type="monotone" dataKey="avg_pickup_min" stroke="#A78BFA" strokeWidth={2} dot={{ r: 4 }} name="avg_pickup_min" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
         </div>
-        <div className="space-y-4 text-[var(--text-secondary)] leading-relaxed">
-          <p>
-            The backend currently serves the <span className="text-[var(--text-primary)] font-medium">{metrics?.current_model_label ?? 'Improved Model'}</span> through FastAPI, with the XGBoost booster and report artifacts preloaded once at startup for low-latency inference.
-          </p>
-          <p>
-            {activeVariant
-              ? `This model exposes ${activeVariant.feature_count} engineered features and is currently reporting a test RMSE of ${activeVariant.test_rmse.toFixed(2)} and test R² of ${activeVariant.test_r2.toFixed(4)}.`
-              : 'Once the backend is running, this section will show the live model quality figures pulled from the JSON metadata files.'}
-          </p>
+      </section>
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          SECTION 3 — FEEDBACK LOOP STATUS
+      ══════════════════════════════════════════════════════════════════════ */}
+      <section className="space-y-4">
+        <h2 className="text-lg font-semibold text-[var(--text-primary)] border-b border-[var(--border)] pb-2">
+          Feedback Loop Status
+        </h2>
+
+        <div className="glass-card p-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--border)]">
+              <p className="text-xs uppercase tracking-wider text-[var(--text-secondary)]">Serving Model</p>
+              <p className="text-lg font-bold text-[var(--text-primary)] mt-1">
+                {metrics?.current_model_label ?? '--'}
+              </p>
+              <p className="text-xs text-[var(--text-secondary)] mt-1">Type: {activeVariant?.model_type ?? '--'}</p>
+            </div>
+            <div className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--border)]">
+              <p className="text-xs uppercase tracking-wider text-[var(--text-secondary)]">Training Date</p>
+              <p className="text-lg font-bold text-[var(--text-primary)] mt-1">
+                {activeVariant?.training_date ?? 'Not provided'}
+              </p>
+              <p className="text-xs text-[var(--text-secondary)] mt-1">
+                Features: {activeVariant?.feature_count ?? '--'}
+              </p>
+            </div>
+            <div className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--border)]">
+              <p className="text-xs uppercase tracking-wider text-[var(--text-secondary)]">Improvement vs Baseline</p>
+              <p className="text-lg font-bold text-[var(--text-primary)] mt-1">
+                {rmseGain !== null ? `${rmseGain.toFixed(2)}% RMSE` : '--'}
+              </p>
+              <p className="text-xs text-[var(--text-secondary)] mt-1">
+                {r2Gain !== null ? `+${r2Gain.toFixed(2)} R² points` : '--'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Info className="text-primary w-5 h-5 shrink-0" />
+            <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
+              Validation records are sourced from driver feedback, movement detection, and simulation fallback.
+              The model improvement status will update automatically as more events are ingested via{' '}
+              <code className="text-[var(--text-primary)] text-xs bg-[var(--surface)] px-1 rounded">POST /api/events</code>.
+            </p>
+          </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 }

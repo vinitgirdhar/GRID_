@@ -194,3 +194,49 @@ class DriverLoginRequest(BaseModel):
 
 class DriverStatusUpdate(BaseModel):
     status: str
+
+
+# ==============================================================================
+# PREDICTION VALIDATION SCHEMAS
+# ==============================================================================
+
+class DriverEventCreate(BaseModel):
+    driver_id: str
+    prediction_id: str
+    zone_id: str
+    event_type: Literal[
+        "viewed", "accepted", "moved_to_zone", "moved_out_of_zone",
+        "feedback_yes", "feedback_no"
+    ]
+
+
+class ValidationPointData(BaseModel):
+    period: str
+    predicted: float
+    actual: float
+
+
+class PredictionBreakdown(BaseModel):
+    level: str
+    total: int
+    hits: int
+    hit_rate: float
+
+
+class DriverImpactPoint(BaseModel):
+    period: str
+    success_rate: float
+    avg_pickup_min: float
+
+
+class ValidationMetricsResponse(BaseModel):
+    generated_at: datetime
+    total_predictions: int
+    validated_predictions: int
+    prediction_accuracy_pct: float
+    hit_rate_pct: float
+    driver_success_rate_pct: float
+    avg_pickup_time_min: float
+    predicted_vs_actual: list[ValidationPointData]
+    prediction_breakdown: list[PredictionBreakdown]
+    driver_impact: list[DriverImpactPoint]

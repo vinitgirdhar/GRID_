@@ -293,3 +293,54 @@ export interface CopilotResponse {
     payload: string;
   };
 }
+
+// ==============================================================================
+// PREDICTION VALIDATION TYPES
+// ==============================================================================
+
+export type DriverEventType =
+  | 'viewed'
+  | 'accepted'
+  | 'moved_to_zone'
+  | 'moved_out_of_zone'
+  | 'feedback_yes'
+  | 'feedback_no';
+
+export interface DriverEventCreate {
+  driver_id: string;
+  prediction_id: string;
+  zone_id: string;
+  event_type: DriverEventType;
+}
+
+export interface ValidationPointData {
+  period: string;
+  predicted: number;
+  actual: number;
+}
+
+export interface PredictionBreakdown {
+  level: string;
+  total: number;
+  hits: number;
+  hit_rate: number;
+}
+
+export interface DriverImpactPoint {
+  period: string;
+  success_rate: number;
+  avg_pickup_min: number;
+}
+
+export interface ValidationMetricsResponse {
+  generated_at: string;
+  total_predictions: number;
+  validated_predictions: number;
+  prediction_accuracy_pct: number;
+  hit_rate_pct: number;
+  driver_success_rate_pct: number;
+  avg_pickup_time_min: number;
+  predicted_vs_actual: ValidationPointData[];
+  prediction_breakdown: PredictionBreakdown[];
+  driver_impact: DriverImpactPoint[];
+}

@@ -1,5 +1,6 @@
 import {
   CopilotResponse,
+  DriverEventCreate,
   DrowsinessUpdatePayload,
   DrowsinessResponse,
   Driver,
@@ -10,6 +11,7 @@ import {
   HotspotsResponse,
   MetricsResponse,
   PredictionResponse,
+  ValidationMetricsResponse,
   WeatherResponse,
   WellnessStatus,
 } from '../types';
@@ -18,6 +20,7 @@ import { CacheStoreName, offlineService } from './offlineService';
 import {
   mockAskCopilot,
   mockGetDrowsinessStatus,
+  mockGetValidationMetrics,
   mockListDrivers,
   mockGetForecast,
   mockGetHotspots,
@@ -346,4 +349,15 @@ export async function logoutDriver(driverId: string) {
 
 export async function getWellnessStatus(): Promise<WellnessStatus> {
   return fetchJson<WellnessStatus>('/driver/wellness', undefined, () => mockGetWellnessStatus());
+}
+
+export async function getValidationMetrics(): Promise<ValidationMetricsResponse> {
+  return fetchJson<ValidationMetricsResponse>('/validation-metrics', undefined, () => mockGetValidationMetrics());
+}
+
+export async function postDriverEvent(payload: DriverEventCreate): Promise<void> {
+  await fetchJson<{ ok: boolean }>('/events', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
 }

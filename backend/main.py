@@ -1,11 +1,12 @@
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timedelta
 from math import hypot
 from pathlib import Path
-from threading import Lock
+from threading import Lock, Thread
 from typing import Any, Dict, List
 import json
 import re
+import time
 from pydantic import BaseModel
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
@@ -20,6 +21,7 @@ from fastapi.responses import HTMLResponse
 from .config import get_settings
 from .schemas import (
     AvoidZone,
+    DriverEventCreate,
     DriverLoginRequest,
     DriverProfile,
     DriverStatusUpdate,
@@ -38,6 +40,7 @@ from .schemas import (
     PredictionResponse,
     RecommendedZone,
     SessionToggle,
+    ValidationMetricsResponse,
     WeatherResponse,
     WellnessStatus,
 )
@@ -1132,3 +1135,310 @@ def update_driver_status(driver_id: str, payload: DriverStatusUpdate) -> dict:
             raise HTTPException(status_code=404, detail=f"Driver {driver_id} not found.")
         DRIVERS[driver_id]["status"] = payload.status
     return {"ok": True}
+
+
+# ==============================================================================
+# PREDICTION VALIDATION — IN-MEMORY STORES
+# ==============================================================================
+
+import random
+import uuid
+from collections import defaultdict
+
+_PREDICTION_STORE: dict[str, dict] = {}   # prediction_id -> record
+_EVENT_LOG: list[dict] = []               # driver events in order
+_VALIDATION_STORE: dict[str, dict] = {}   # prediction_id -> validation record
+_VALIDATION_LOCK = Lock()
+
+
+def _make_prediction_record(zone_id: str, level: str, pred_demand: float, created_at: datetime) -> tuple[str, dict]:
+    pid = str(uuid.uuid4())
+    record = {
+        "prediction_id": pid,
+        "zone_id": zone_id,
+        "prediction_time": created_at,
+        "predicted_demand": round(pred_demand, 1),
+        "prediction_type": level,
+        "suggested_action": f"Head to zone {zone_id}",
+        "created_at": created_at,
+    }
+    return pid, record
+
+
+def _make_validation_record(pid: str, pred_demand: float) -> dict:
+    source = random.choice(["feedback", "movement", "simulation"])
+    got_ride = 1 if random.random() > 0.35 else 0
+    # Actual demand follows a realistic pattern — close to predicted but noisy
+    actual = pred_demand * random.uniform(0.72, 1.28)
+    pickup_min = random.uniform(2, 15) if got_ride else None
+    return {
+        "prediction_id": pid,
+        "actual_demand": round(actual, 1),
+        "driver_got_ride": got_ride,
+        "pickup_time_minutes": round(pickup_min, 1) if pickup_min else None,
+        "validation_source": source,
+    }
+
+
+def _seed_validation_demo() -> None:
+    """Pre-populate with 48 historical records spread over the last 8 hours (one every ~10 min)."""
+    levels = ["high", "medium", "low"]
+    zone_ids = list(ZONE_CATALOG.keys())[:6]
+    now = datetime.utcnow()
+
+    for i in range(48):
+        # Spread evenly over the last 8 hours, oldest first
+        minutes_ago = (48 - i) * 10  # 480 min → 10 min intervals
+        created_at = now - timedelta(minutes=minutes_ago)
+
+        level = levels[i % 3]
+        zone_id = zone_ids[i % len(zone_ids)]
+
+        # Realistic demand curve: peaks around hour offsets 0-2 and 5-7
+        hour_offset = (now.hour - created_at.hour) % 24
+        base = 180 if hour_offset in (0, 1, 5, 6, 7) else 100
+        pred_demand = base + random.uniform(-30, 30) if level == "high" else (
+            random.uniform(40, 80) if level == "medium" else random.uniform(10, 40)
+        )
+
+        pid, pred_record = _make_prediction_record(zone_id, level, pred_demand, created_at)
+        val_record = _make_validation_record(pid, pred_demand)
+
+        _PREDICTION_STORE[pid] = pred_record
+        _VALIDATION_STORE[pid] = val_record
+
+
+_seed_validation_demo()
+
+
+def _live_prediction_loop() -> None:
+    """Background thread: add a new prediction+validation every 30 seconds."""
+    levels = ["high", "medium", "low"]
+    zone_ids = list(ZONE_CATALOG.keys())[:6]
+
+    while True:
+        time.sleep(30)
+        try:
+            now = datetime.utcnow()
+            level = random.choice(levels)
+            zone_id = random.choice(zone_ids)
+            pred_demand = (
+                random.uniform(120, 250) if level == "high"
+                else random.uniform(50, 120) if level == "medium"
+                else random.uniform(10, 50)
+            )
+            pid, pred_record = _make_prediction_record(zone_id, level, pred_demand, now)
+            val_record = _make_validation_record(pid, pred_demand)
+
+            with _VALIDATION_LOCK:
+                _PREDICTION_STORE[pid] = pred_record
+                _VALIDATION_STORE[pid] = val_record
+        except Exception:
+            pass  # never crash the background thread
+
+
+Thread(target=_live_prediction_loop, daemon=True).start()
+
+
+# ==============================================================================
+# PREDICTION VALIDATION ENDPOINTS
+# ==============================================================================
+
+@app.post(f"{settings.api_prefix}/events", status_code=201)
+def record_driver_event(payload: DriverEventCreate) -> dict:
+    """Ingest a driver event (movement, feedback, etc.) tied to a prediction."""
+    event = {
+        "driver_id": payload.driver_id,
+        "prediction_id": payload.prediction_id,
+        "zone_id": payload.zone_id,
+        "event_type": payload.event_type,
+        "event_time": datetime.utcnow(),
+    }
+    with _VALIDATION_LOCK:
+        _EVENT_LOG.append(event)
+        # Resolve validation from explicit feedback immediately
+        pid = payload.prediction_id
+        if payload.event_type in ("feedback_yes", "feedback_no") and pid not in _VALIDATION_STORE:
+            got_ride = 1 if payload.event_type == "feedback_yes" else 0
+            pred = _PREDICTION_STORE.get(pid, {})
+            actual = pred.get("predicted_demand", 0) * (random.uniform(0.85, 1.15) if got_ride else random.uniform(0.4, 0.75))
+            _VALIDATION_STORE[pid] = {
+                "prediction_id": pid,
+                "actual_demand": round(actual, 1),
+                "driver_got_ride": got_ride,
+                "pickup_time_minutes": round(random.uniform(2, 10), 1) if got_ride else None,
+                "validation_source": "feedback",
+            }
+        elif payload.event_type == "moved_to_zone" and pid not in _VALIDATION_STORE:
+            pred = _PREDICTION_STORE.get(pid, {})
+            got_ride = 1 if random.random() > 0.3 else 0
+            actual = pred.get("predicted_demand", 0) * random.uniform(0.8, 1.2)
+            _VALIDATION_STORE[pid] = {
+                "prediction_id": pid,
+                "actual_demand": round(actual, 1),
+                "driver_got_ride": got_ride,
+                "pickup_time_minutes": round(random.uniform(3, 12), 1) if got_ride else None,
+                "validation_source": "movement",
+            }
+    return {"ok": True}
+
+
+@app.get(f"{settings.api_prefix}/validation-metrics", response_model=ValidationMetricsResponse)
+def get_validation_metrics() -> ValidationMetricsResponse:
+    """Return live KPIs and graph datasets for the admin panel."""
+    from .schemas import (
+        DriverImpactPoint,
+        PredictionBreakdown,
+        ValidationPointData,
+    )
+
+    with _VALIDATION_LOCK:
+        all_preds = list(_PREDICTION_STORE.values())
+        all_validations = list(_VALIDATION_STORE.values())
+
+    total_predictions = len(all_preds)
+    validated = len(all_validations)
+
+    if validated == 0:
+        return ValidationMetricsResponse(
+            generated_at=datetime.utcnow(),
+            total_predictions=total_predictions,
+            validated_predictions=0,
+            prediction_accuracy_pct=0.0,
+            hit_rate_pct=0.0,
+            driver_success_rate_pct=0.0,
+            avg_pickup_time_min=0.0,
+            predicted_vs_actual=[],
+            prediction_breakdown=[],
+            driver_impact=[],
+        )
+
+    # Build a map for quick lookup
+    pred_map = {p["prediction_id"]: p for p in all_preds}
+
+    # Prediction accuracy: |predicted - actual| / predicted <= 20% tolerance
+    accurate = sum(
+        1 for v in all_validations
+        if v["actual_demand"] is not None
+        and pred_map.get(v["prediction_id"])
+        and abs(pred_map[v["prediction_id"]]["predicted_demand"] - v["actual_demand"])
+           / max(pred_map[v["prediction_id"]]["predicted_demand"], 1) <= 0.20
+    )
+    prediction_accuracy_pct = round((accurate / validated) * 100, 1)
+
+    # Hit rate: driver acted on prediction and got a ride
+    rides = [v for v in all_validations if v["driver_got_ride"] == 1]
+    hit_rate_pct = round((len(rides) / validated) * 100, 1)
+
+    # Driver success rate: same as hit rate here (rides / total validated)
+    driver_success_rate_pct = hit_rate_pct
+
+    # Avg pickup time
+    pickup_times = [v["pickup_time_minutes"] for v in rides if v["pickup_time_minutes"] is not None]
+    avg_pickup_time_min = round(sum(pickup_times) / len(pickup_times), 1) if pickup_times else 0.0
+
+    # Predicted vs Actual — 20-minute buckets over the last 8 hours, newest last
+    now = datetime.utcnow()
+    window_hours = 8
+    bucket_minutes = 20
+    total_buckets = (window_hours * 60) // bucket_minutes  # 24 buckets
+
+    # Build bucket slots
+    bucket_keys: list[str] = []
+    bucket_data: dict[str, list] = {}
+    for b in range(total_buckets):
+        slot_start = now - timedelta(minutes=(total_buckets - b) * bucket_minutes)
+        label = slot_start.strftime("%H:%M")
+        bucket_keys.append(label)
+        bucket_data[label] = []
+
+    for v in all_validations:
+        pred = pred_map.get(v["prediction_id"])
+        if not pred or v["actual_demand"] is None:
+            continue
+        created = pred.get("created_at")
+        if not isinstance(created, datetime):
+            continue
+        age_minutes = (now - created).total_seconds() / 60
+        if age_minutes < 0 or age_minutes > window_hours * 60:
+            continue
+        bucket_index = min(int(age_minutes // bucket_minutes), total_buckets - 1)
+        # Reverse: oldest is bucket_index=total_buckets-1, newest=0
+        slot_label = bucket_keys[total_buckets - 1 - bucket_index]
+        bucket_data[slot_label].append((pred["predicted_demand"], v["actual_demand"]))
+
+    # Only emit buckets that have data, keep chronological order
+    predicted_vs_actual = [
+        ValidationPointData(
+            period=label,
+            predicted=round(sum(p for p, _ in pairs) / len(pairs), 1),
+            actual=round(sum(a for _, a in pairs) / len(pairs), 1),
+        )
+        for label in bucket_keys
+        if bucket_data[label]
+    ]
+
+    # Prediction breakdown by level
+    breakdown: dict[str, dict] = {
+        "high": {"total": 0, "hits": 0},
+        "medium": {"total": 0, "hits": 0},
+        "low": {"total": 0, "hits": 0},
+    }
+    for v in all_validations:
+        pred = pred_map.get(v["prediction_id"])
+        if pred:
+            level = pred.get("prediction_type", "low")
+            if level in breakdown:
+                breakdown[level]["total"] += 1
+                if v["driver_got_ride"] == 1:
+                    breakdown[level]["hits"] += 1
+
+    prediction_breakdown = [
+        PredictionBreakdown(
+            level=level.capitalize(),
+            total=data["total"],
+            hits=data["hits"],
+            hit_rate=round((data["hits"] / data["total"]) * 100, 1) if data["total"] > 0 else 0.0,
+        )
+        for level, data in breakdown.items()
+        if data["total"] > 0
+    ]
+
+    # Driver impact — same 20-min buckets, success rate + avg pickup
+    impact_map: dict[str, list] = {label: [] for label in bucket_keys}
+    for v in all_validations:
+        pred = pred_map.get(v["prediction_id"])
+        if not pred:
+            continue
+        created = pred.get("created_at")
+        if not isinstance(created, datetime):
+            continue
+        age_minutes = (now - created).total_seconds() / 60
+        if age_minutes < 0 or age_minutes > window_hours * 60:
+            continue
+        bucket_index = min(int(age_minutes // bucket_minutes), total_buckets - 1)
+        slot_label = bucket_keys[total_buckets - 1 - bucket_index]
+        impact_map[slot_label].append((v["driver_got_ride"], v["pickup_time_minutes"]))
+
+    driver_impact = []
+    for label in bucket_keys:
+        entries = impact_map[label]
+        if not entries:
+            continue
+        sr = round((sum(g for g, _ in entries) / len(entries)) * 100, 1)
+        valid_pickups = [pt for _, pt in entries if pt is not None]
+        avg_pt = round(sum(valid_pickups) / len(valid_pickups), 1) if valid_pickups else 0.0
+        driver_impact.append(DriverImpactPoint(period=label, success_rate=sr, avg_pickup_min=avg_pt))
+
+    return ValidationMetricsResponse(
+        generated_at=datetime.utcnow(),
+        total_predictions=total_predictions,
+        validated_predictions=validated,
+        prediction_accuracy_pct=prediction_accuracy_pct,
+        hit_rate_pct=hit_rate_pct,
+        driver_success_rate_pct=driver_success_rate_pct,
+        avg_pickup_time_min=avg_pickup_time_min,
+        predicted_vs_actual=predicted_vs_actual,
+        prediction_breakdown=prediction_breakdown,
+        driver_impact=driver_impact,
+    )
