@@ -332,6 +332,26 @@ export interface DriverImpactPoint {
   avg_pickup_min: number;
 }
 
+export interface RetrainEvent {
+  timestamp: string;
+  generation: number;
+  rmse_before: number;
+  rmse_after: number;
+  r2_before: number;
+  r2_after: number;
+  improvement_pct: number;
+  logs_used: number;
+}
+
+export interface ModelLearningState {
+  current_rmse: number;
+  current_r2: number;
+  generation: number;
+  rmse_floor: number;
+  r2_ceiling: number;
+  next_retrain_in: number;
+}
+
 export interface ValidationMetricsResponse {
   generated_at: string;
   total_predictions: number;
@@ -343,4 +363,6 @@ export interface ValidationMetricsResponse {
   predicted_vs_actual: ValidationPointData[];
   prediction_breakdown: PredictionBreakdown[];
   driver_impact: DriverImpactPoint[];
+  model_state: ModelLearningState;
+  retrain_log: RetrainEvent[];
 }

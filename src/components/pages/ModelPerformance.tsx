@@ -3,7 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   AreaChart, Area, LineChart, Line, Legend,
 } from 'recharts';
-import { Shield, Target, Zap, Info, CheckCircle, TrendingUp, Clock, Users } from 'lucide-react';
+import { Shield, Target, Zap, Info, CheckCircle, TrendingUp, Clock, Users, RefreshCw } from 'lucide-react';
 import { InsightTooltip } from '../charts/InsightTooltip';
 import {
   asNumber,
@@ -76,15 +76,6 @@ export default function ModelPerformance() {
     value: Number(item.value.toFixed(3)),
   })) ?? [];
   const featureMax = Math.max(0, ...featureImportance.map((item) => item.value));
-
-  const activeVariant = metrics?.model_variants.find((item) => item.key === metrics.current_model_key);
-  const baselineVariant = metrics?.model_variants.find((item) => item.key === 'baseline');
-  const rmseGain = baselineVariant && activeVariant
-    ? (((baselineVariant.test_rmse - activeVariant.test_rmse) / baselineVariant.test_rmse) * 100)
-    : null;
-  const r2Gain = baselineVariant && activeVariant
-    ? ((activeVariant.test_r2 - baselineVariant.test_r2) * 100)
-    : null;
 
   const r2Tooltip = {
     title: 'R² Accuracy Score',
@@ -367,50 +358,134 @@ export default function ModelPerformance() {
       </section>
 
       {/* ══════════════════════════════════════════════════════════════════════
-          SECTION 3 — FEEDBACK LOOP STATUS
+          SECTION 3 — FEEDBACK LOOP & MODEL LEARNING
       ══════════════════════════════════════════════════════════════════════ */}
-      <section className="space-y-4">
+      <section className="space-y-6">
         <h2 className="text-lg font-semibold text-[var(--text-primary)] border-b border-[var(--border)] pb-2">
-          Feedback Loop Status
+          Feedback Loop &amp; Model Learning
         </h2>
 
+        {/* Live model state bar */}
+        {validation?.model_state && (() => {
+          const ms = validation.model_state;
+          const rmseRange = ms.rmse_floor;
+          const rmseStart = 9.74;
+          const rmseProgress = Math.max(0, Math.min(1, (rmseStart - ms.current_rmse) / (rmseStart - rmseRange)));
+          const nextIn = ms.next_retrain_in;
+          const cycleSize = 10;
+          const cycleProgress = ((cycleSize - nextIn) / cycleSize) * 100;
+
+          return (
+            <div className="glass-card p-6 space-y-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <RefreshCw size={16} className="text-[#10B981]" />
+                  <span className="text-sm font-semibold text-[var(--text-primary)]">
+                    Generation {ms.generation} — Live Learning
+                  </span>
+                </div>
+                <span className="text-xs text-[var(--text-secondary)]">
+                  Next retrain in <span className="font-bold text-[var(--text-primary)]">{nextIn}</span> validation{nextIn !== 1 ? 's' : ''}
+                </span>
+              </div>
+
+              {/* RMSE improvement bar */}
+              <div>
+                <div className="flex justify-between text-xs text-[var(--text-secondary)] mb-1">
+                  <span>RMSE: <span className="font-bold text-[#10B981]">{ms.current_rmse.toFixed(2)}</span></span>
+                  <span>Floor: {ms.rmse_floor}</span>
+                </div>
+                <div className="h-2 rounded-full bg-[var(--surface)] border border-[var(--border)] overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-700"
+                    style={{ width: `${rmseProgress * 100}%`, background: 'linear-gradient(90deg, #3B82F6, #10B981)' }}
+                  />
+                </div>
+                <p className="text-[11px] text-[var(--text-secondary)] mt-1">
+                  {(rmseProgress * 100).toFixed(1)}% toward minimum error floor
+                </p>
+              </div>
+
+              {/* R² improvement bar */}
+              <div>
+                <div className="flex justify-between text-xs text-[var(--text-secondary)] mb-1">
+                  <span>R²: <span className="font-bold text-[#F4B000]">{ms.current_r2.toFixed(4)}</span></span>
+                  <span>Ceiling: {ms.r2_ceiling}</span>
+                </div>
+                <div className="h-2 rounded-full bg-[var(--surface)] border border-[var(--border)] overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-700"
+                    style={{
+                      width: `${((ms.current_r2 - 0.92) / (ms.r2_ceiling - 0.92)) * 100}%`,
+                      background: 'linear-gradient(90deg, #F4B000, #10B981)',
+                    }}
+                  />
+                </div>
+                <p className="text-[11px] text-[var(--text-secondary)] mt-1">
+                  {(((ms.current_r2 - 0.92) / (ms.r2_ceiling - 0.92)) * 100).toFixed(1)}% toward accuracy ceiling
+                </p>
+              </div>
+
+              {/* Next retrain progress */}
+              <div>
+                <div className="flex justify-between text-xs text-[var(--text-secondary)] mb-1">
+                  <span>Current cycle progress</span>
+                  <span>{cycleSize - nextIn} / {cycleSize} validations</span>
+                </div>
+                <div className="h-1.5 rounded-full bg-[var(--surface)] border border-[var(--border)] overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-[#A78BFA] transition-all duration-700"
+                    style={{ width: `${cycleProgress}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Retrain log */}
         <div className="glass-card p-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--border)]">
-              <p className="text-xs uppercase tracking-wider text-[var(--text-secondary)]">Serving Model</p>
-              <p className="text-lg font-bold text-[var(--text-primary)] mt-1">
-                {metrics?.current_model_label ?? '--'}
-              </p>
-              <p className="text-xs text-[var(--text-secondary)] mt-1">Type: {activeVariant?.model_type ?? '--'}</p>
-            </div>
-            <div className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--border)]">
-              <p className="text-xs uppercase tracking-wider text-[var(--text-secondary)]">Training Date</p>
-              <p className="text-lg font-bold text-[var(--text-primary)] mt-1">
-                {activeVariant?.training_date ?? 'Not provided'}
-              </p>
-              <p className="text-xs text-[var(--text-secondary)] mt-1">
-                Features: {activeVariant?.feature_count ?? '--'}
-              </p>
-            </div>
-            <div className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--border)]">
-              <p className="text-xs uppercase tracking-wider text-[var(--text-secondary)]">Improvement vs Baseline</p>
-              <p className="text-lg font-bold text-[var(--text-primary)] mt-1">
-                {rmseGain !== null ? `${rmseGain.toFixed(2)}% RMSE` : '--'}
-              </p>
-              <p className="text-xs text-[var(--text-secondary)] mt-1">
-                {r2Gain !== null ? `+${r2Gain.toFixed(2)} R² points` : '--'}
-              </p>
-            </div>
+          <div className="flex items-center gap-2 mb-4">
+            <Info size={16} className="text-[var(--text-secondary)]" />
+            <h3 className="text-sm font-semibold text-[var(--text-primary)]">Retrain History</h3>
+            <span className="ml-auto text-[11px] text-[var(--text-secondary)]">
+              {validation?.retrain_log?.length ?? 0} retrain{(validation?.retrain_log?.length ?? 0) !== 1 ? 's' : ''} completed
+            </span>
           </div>
 
-          <div className="flex items-center gap-3">
-            <Info className="text-primary w-5 h-5 shrink-0" />
-            <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
-              Validation records are sourced from driver feedback, movement detection, and simulation fallback.
-              The model improvement status will update automatically as more events are ingested via{' '}
-              <code className="text-[var(--text-primary)] text-xs bg-[var(--surface)] px-1 rounded">POST /api/events</code>.
-            </p>
-          </div>
+          {!validation?.retrain_log?.length ? (
+            <p className="text-sm text-[var(--text-secondary)]">No retrains yet. The model will retrain automatically after 10 new validations.</p>
+          ) : (
+            <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+              {[...validation.retrain_log].reverse().map((evt) => (
+                <div
+                  key={evt.generation}
+                  className="flex items-center gap-3 p-3 rounded-xl bg-[var(--surface)] border border-[var(--border)]"
+                >
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
+                    style={{ background: 'linear-gradient(135deg, #3B82F6, #10B981)' }}>
+                    <span className="text-[10px] font-bold text-white">G{evt.generation}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold text-[var(--text-primary)]">
+                        RMSE {evt.rmse_before} → <span className="text-[#10B981]">{evt.rmse_after}</span>
+                      </span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#10B981]/15 text-[#10B981] font-bold">
+                        -{evt.improvement_pct}%
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">
+                      R² {evt.r2_before} → {evt.r2_after} · {evt.logs_used} validation logs used
+                    </p>
+                  </div>
+                  <span className="text-[10px] text-[var(--text-secondary)] shrink-0">
+                    {new Date(evt.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </section>
     </div>

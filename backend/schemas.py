@@ -229,6 +229,26 @@ class DriverImpactPoint(BaseModel):
     avg_pickup_min: float
 
 
+class RetrainEvent(BaseModel):
+    timestamp: str
+    generation: int
+    rmse_before: float
+    rmse_after: float
+    r2_before: float
+    r2_after: float
+    improvement_pct: float
+    logs_used: int
+
+
+class ModelLearningState(BaseModel):
+    current_rmse: float
+    current_r2: float
+    generation: int
+    rmse_floor: float
+    r2_ceiling: float
+    next_retrain_in: int  # validations until next retrain
+
+
 class ValidationMetricsResponse(BaseModel):
     generated_at: datetime
     total_predictions: int
@@ -240,3 +260,5 @@ class ValidationMetricsResponse(BaseModel):
     predicted_vs_actual: list[ValidationPointData]
     prediction_breakdown: list[PredictionBreakdown]
     driver_impact: list[DriverImpactPoint]
+    model_state: ModelLearningState
+    retrain_log: list[RetrainEvent]

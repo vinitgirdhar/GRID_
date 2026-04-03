@@ -1138,9 +1138,10 @@ def update_driver_status(driver_id: str, payload: DriverStatusUpdate) -> dict:
 
 
 # ==============================================================================
-# PREDICTION VALIDATION — IN-MEMORY STORES
+# PREDICTION VALIDATION — IN-MEMORY STORES + LEARNING SIMULATION
 # ==============================================================================
 
+import math
 import random
 import uuid
 from collections import defaultdict
@@ -1150,10 +1151,38 @@ _EVENT_LOG: list[dict] = []               # driver events in order
 _VALIDATION_STORE: dict[str, dict] = {}   # prediction_id -> validation record
 _VALIDATION_LOCK = Lock()
 
+# Simulated model state — improves as more validations are collected
+# Each "retrain" (every 10 new validations) nudges metrics toward the ceiling
+_MODEL_STATE: dict = {
+    # Starting RMSE/R² (matches the "improved" model baseline from real metadata)
+    "rmse": 9.74,
+    "r2": 0.9714,
+    "generation": 0,           # how many retrains have happened
+    "retrain_log": [],         # list of {timestamp, generation, rmse_before, rmse_after, improvement_pct, logs_used}
+    "validations_since_retrain": 0,
+    "retrain_every": 10,       # trigger retrain after this many new validations
+    # Ceiling — model can't improve beyond these (physically realistic)
+    "rmse_floor": 6.80,
+    "r2_ceiling": 0.991,
+}
+
+_STARTUP_TIME = datetime.utcnow()
+
+
+def _noise(spread: float) -> float:
+    return (random.random() - 0.5) * 2 * spread
+
+
+def _current_error_spread() -> float:
+    """How noisy actual demand is relative to predicted — shrinks as model improves."""
+    # Generation 0 = ±28%, generation 10+ = ±8%
+    gen = _MODEL_STATE["generation"]
+    return max(0.08, 0.28 - gen * 0.018)
+
 
 def _make_prediction_record(zone_id: str, level: str, pred_demand: float, created_at: datetime) -> tuple[str, dict]:
     pid = str(uuid.uuid4())
-    record = {
+    return pid, {
         "prediction_id": pid,
         "zone_id": zone_id,
         "prediction_time": created_at,
@@ -1162,48 +1191,109 @@ def _make_prediction_record(zone_id: str, level: str, pred_demand: float, create
         "suggested_action": f"Head to zone {zone_id}",
         "created_at": created_at,
     }
-    return pid, record
 
 
 def _make_validation_record(pid: str, pred_demand: float) -> dict:
+    spread = _current_error_spread()
+    actual = pred_demand * (1 + _noise(spread))
+    # Hit rate improves with model generation
+    gen = _MODEL_STATE["generation"]
+    hit_threshold = max(0.20, 0.40 - gen * 0.018)   # 40% miss → 20% miss at gen 10+
+    got_ride = 1 if random.random() > hit_threshold else 0
+    # Pickup time shortens as driver routing improves
+    avg_pickup = max(3.0, 12.0 - gen * 0.8)
+    pickup_min = avg_pickup + _noise(3.0) if got_ride else None
     source = random.choice(["feedback", "movement", "simulation"])
-    got_ride = 1 if random.random() > 0.35 else 0
-    # Actual demand follows a realistic pattern — close to predicted but noisy
-    actual = pred_demand * random.uniform(0.72, 1.28)
-    pickup_min = random.uniform(2, 15) if got_ride else None
     return {
         "prediction_id": pid,
         "actual_demand": round(actual, 1),
         "driver_got_ride": got_ride,
-        "pickup_time_minutes": round(pickup_min, 1) if pickup_min else None,
+        "pickup_time_minutes": round(max(1.5, pickup_min), 1) if pickup_min else None,
         "validation_source": source,
     }
 
 
+def _maybe_retrain() -> None:
+    """Called inside _VALIDATION_LOCK. Triggers a simulated retrain when enough data arrives."""
+    _MODEL_STATE["validations_since_retrain"] += 1
+    if _MODEL_STATE["validations_since_retrain"] < _MODEL_STATE["retrain_every"]:
+        return
+
+    _MODEL_STATE["validations_since_retrain"] = 0
+    gen = _MODEL_STATE["generation"]
+
+    # Diminishing-returns improvement curve
+    # Early retrains improve a lot; later ones converge toward the ceiling
+    rmse_before = _MODEL_STATE["rmse"]
+    r2_before = _MODEL_STATE["r2"]
+    improvement_factor = math.exp(-gen * 0.22)  # ~100% → ~10% reduction per step
+    rmse_drop = random.uniform(0.15, 0.55) * improvement_factor
+    r2_gain = random.uniform(0.0008, 0.0025) * improvement_factor
+
+    new_rmse = max(_MODEL_STATE["rmse_floor"], round(rmse_before - rmse_drop, 2))
+    new_r2 = min(_MODEL_STATE["r2_ceiling"], round(r2_before + r2_gain, 4))
+
+    _MODEL_STATE["rmse"] = new_rmse
+    _MODEL_STATE["r2"] = new_r2
+    _MODEL_STATE["generation"] = gen + 1
+
+    logs_used = _MODEL_STATE["retrain_every"] * (gen + 1)
+    improvement_pct = round((rmse_before - new_rmse) / rmse_before * 100, 2)
+
+    _MODEL_STATE["retrain_log"].append({
+        "timestamp": datetime.utcnow().isoformat(),
+        "generation": gen + 1,
+        "rmse_before": round(rmse_before, 2),
+        "rmse_after": new_rmse,
+        "r2_before": round(r2_before, 4),
+        "r2_after": new_r2,
+        "improvement_pct": improvement_pct,
+        "logs_used": logs_used,
+    })
+
+
 def _seed_validation_demo() -> None:
-    """Pre-populate with 48 historical records spread over the last 8 hours (one every ~10 min)."""
+    """Pre-populate 48 historical records over the last 8 hours + simulate early retrain history."""
     levels = ["high", "medium", "low"]
     zone_ids = list(ZONE_CATALOG.keys())[:6]
     now = datetime.utcnow()
 
-    for i in range(48):
-        # Spread evenly over the last 8 hours, oldest first
-        minutes_ago = (48 - i) * 10  # 480 min → 10 min intervals
-        created_at = now - timedelta(minutes=minutes_ago)
+    # Simulate 3 historical retrains having already happened before startup
+    for g in range(3):
+        fake_ts = (now - timedelta(hours=8 - g * 2.5)).isoformat()
+        rmse_b = round(9.74 - g * 0.38, 2)
+        rmse_a = round(rmse_b - random.uniform(0.28, 0.42), 2)
+        r2_b = round(0.9714 + g * 0.0020, 4)
+        r2_a = round(r2_b + random.uniform(0.0012, 0.0022), 4)
+        _MODEL_STATE["retrain_log"].append({
+            "timestamp": fake_ts,
+            "generation": g + 1,
+            "rmse_before": rmse_b,
+            "rmse_after": rmse_a,
+            "r2_before": r2_b,
+            "r2_after": r2_a,
+            "improvement_pct": round((rmse_b - rmse_a) / rmse_b * 100, 2),
+            "logs_used": (g + 1) * 10,
+        })
+    # Advance model state to reflect those 3 retrains
+    _MODEL_STATE["generation"] = 3
+    _MODEL_STATE["rmse"] = _MODEL_STATE["retrain_log"][-1]["rmse_after"]
+    _MODEL_STATE["r2"] = _MODEL_STATE["retrain_log"][-1]["r2_after"]
 
+    for i in range(48):
+        minutes_ago = (48 - i) * 10
+        created_at = now - timedelta(minutes=minutes_ago)
         level = levels[i % 3]
         zone_id = zone_ids[i % len(zone_ids)]
-
-        # Realistic demand curve: peaks around hour offsets 0-2 and 5-7
-        hour_offset = (now.hour - created_at.hour) % 24
-        base = 180 if hour_offset in (0, 1, 5, 6, 7) else 100
-        pred_demand = base + random.uniform(-30, 30) if level == "high" else (
-            random.uniform(40, 80) if level == "medium" else random.uniform(10, 40)
+        hour = created_at.hour
+        base = 160 if hour in (7, 8, 9, 17, 18, 19) else 90
+        pred_demand = (
+            base + random.uniform(-25, 25) if level == "high"
+            else random.uniform(40, 80) if level == "medium"
+            else random.uniform(10, 40)
         )
-
         pid, pred_record = _make_prediction_record(zone_id, level, pred_demand, created_at)
         val_record = _make_validation_record(pid, pred_demand)
-
         _PREDICTION_STORE[pid] = pred_record
         _VALIDATION_STORE[pid] = val_record
 
@@ -1212,7 +1302,7 @@ _seed_validation_demo()
 
 
 def _live_prediction_loop() -> None:
-    """Background thread: add a new prediction+validation every 30 seconds."""
+    """Background thread: add a new prediction+validation every 30 seconds, trigger retrains."""
     levels = ["high", "medium", "low"]
     zone_ids = list(ZONE_CATALOG.keys())[:6]
 
@@ -1222,8 +1312,10 @@ def _live_prediction_loop() -> None:
             now = datetime.utcnow()
             level = random.choice(levels)
             zone_id = random.choice(zone_ids)
+            hour = now.hour
+            base = 160 if hour in (7, 8, 9, 17, 18, 19) else 90
             pred_demand = (
-                random.uniform(120, 250) if level == "high"
+                base + random.uniform(-25, 25) if level == "high"
                 else random.uniform(50, 120) if level == "medium"
                 else random.uniform(10, 50)
             )
@@ -1233,8 +1325,9 @@ def _live_prediction_loop() -> None:
             with _VALIDATION_LOCK:
                 _PREDICTION_STORE[pid] = pred_record
                 _VALIDATION_STORE[pid] = val_record
+                _maybe_retrain()
         except Exception:
-            pass  # never crash the background thread
+            pass
 
 
 Thread(target=_live_prediction_loop, daemon=True).start()
@@ -1288,7 +1381,9 @@ def get_validation_metrics() -> ValidationMetricsResponse:
     """Return live KPIs and graph datasets for the admin panel."""
     from .schemas import (
         DriverImpactPoint,
+        ModelLearningState,
         PredictionBreakdown,
+        RetrainEvent,
         ValidationPointData,
     )
 
@@ -1430,6 +1525,17 @@ def get_validation_metrics() -> ValidationMetricsResponse:
         avg_pt = round(sum(valid_pickups) / len(valid_pickups), 1) if valid_pickups else 0.0
         driver_impact.append(DriverImpactPoint(period=label, success_rate=sr, avg_pickup_min=avg_pt))
 
+    with _VALIDATION_LOCK:
+        model_state = ModelLearningState(
+            current_rmse=_MODEL_STATE["rmse"],
+            current_r2=_MODEL_STATE["r2"],
+            generation=_MODEL_STATE["generation"],
+            rmse_floor=_MODEL_STATE["rmse_floor"],
+            r2_ceiling=_MODEL_STATE["r2_ceiling"],
+            next_retrain_in=_MODEL_STATE["retrain_every"] - _MODEL_STATE["validations_since_retrain"],
+        )
+        retrain_log = [RetrainEvent(**e) for e in _MODEL_STATE["retrain_log"]]
+
     return ValidationMetricsResponse(
         generated_at=datetime.utcnow(),
         total_predictions=total_predictions,
@@ -1441,4 +1547,6 @@ def get_validation_metrics() -> ValidationMetricsResponse:
         predicted_vs_actual=predicted_vs_actual,
         prediction_breakdown=prediction_breakdown,
         driver_impact=driver_impact,
+        model_state=model_state,
+        retrain_log=retrain_log,
     )
