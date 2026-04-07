@@ -1674,8 +1674,8 @@ def get_validation_metrics() -> ValidationMetricsResponse:
     predicted_vs_actual = [
         ValidationPointData(
             period=label,
-            predicted=round(sum(p for p, _ in pairs) / len(pairs), 1),
-            actual=round(sum(a for _, a in pairs) / len(pairs), 1),
+            predicted=round(sum(p for p, _ in bucket_data[label]) / len(bucket_data[label]), 1),
+            actual=round(sum(a for _, a in bucket_data[label]) / len(bucket_data[label]), 1),
         )
         for label in bucket_keys
         if bucket_data[label]

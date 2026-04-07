@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef } from 'react';
 import { API_BASE_URL } from '../config/api';
 import type {
   Driver,
@@ -24,87 +24,146 @@ export type LiveStreamHandlers = {
   onDisconnected?: () => void;
 };
 
-const RECONNECT_DELAY_MS = 3000;
-const MAX_RECONNECT_DELAY_MS = 30000;
+// ── Singleton SSE Manager ────────────────────────────────────────────────────
+// Only ONE EventSource is ever open, shared across all hook instances.
+
+const RECONNECT_DELAY_MS = 5000;
+const MAX_RECONNECT_DELAY_MS = 60000;
+
+type Subscriber = (event: LiveStreamEvent) => void;
+
+let _es: EventSource | null = null;
+let _reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let _reconnectDelay = RECONNECT_DELAY_MS;
+const _subscribers = new Set<Subscriber>();
+
+function _dispatch(event: LiveStreamEvent) {
+  _subscribers.forEach((sub) => {
+    try { sub(event); } catch { /* subscriber errors must not crash the manager */ }
+  });
+}
+
+function _destroyStream() {
+  if (_reconnectTimer !== null) {
+    clearTimeout(_reconnectTimer);
+    _reconnectTimer = null;
+  }
+  _es?.close();
+  _es = null;
+}
+
+function _createStream() {
+  if (_es && _es.readyState !== EventSource.CLOSED) return; // already open / connecting
+  _destroyStream();
+
+  const url = `${API_BASE_URL}/stream`;
+  const es = new EventSource(url);
+  _es = es;
+
+  es.addEventListener('connected', () => {
+    _reconnectDelay = RECONNECT_DELAY_MS;
+    _dispatch({ type: 'connected' });
+  });
+
+  es.addEventListener('drivers', (e: MessageEvent) => {
+    try {
+      const data = JSON.parse(e.data) as Driver[];
+      _dispatch({ type: 'drivers', data });
+    } catch { /* ignore malformed */ }
+  });
+
+  es.addEventListener('drowsiness', (e: MessageEvent) => {
+    try {
+      const data = JSON.parse(e.data) as DrowsinessResponse;
+      _dispatch({ type: 'drowsiness', data });
+    } catch { /* ignore malformed */ }
+  });
+
+  es.addEventListener('session', (e: MessageEvent) => {
+    try {
+      const data = JSON.parse(e.data) as { is_live: boolean };
+      _dispatch({ type: 'session', data });
+    } catch { /* ignore malformed */ }
+  });
+
+  es.addEventListener('retrain', (e: MessageEvent) => {
+    try {
+      const data = JSON.parse(e.data) as RetrainEvent;
+      _dispatch({ type: 'retrain', data });
+    } catch { /* ignore malformed */ }
+  });
+
+  es.addEventListener('prediction', (e: MessageEvent) => {
+    try {
+      const data = JSON.parse(e.data) as { zone_id: string; level: string; predicted_demand: number; ts: string };
+      _dispatch({ type: 'prediction', data });
+    } catch { /* ignore malformed */ }
+  });
+
+  es.onerror = () => {
+    es.close();
+    if (_es === es) _es = null;
+    // Schedule reconnection with exponential backoff
+    _reconnectTimer = setTimeout(() => {
+      _reconnectDelay = Math.min(_reconnectDelay * 1.5, MAX_RECONNECT_DELAY_MS);
+      if (_subscribers.size > 0) _createStream();
+    }, _reconnectDelay);
+  };
+}
+
+// ── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useLiveStream(handlers: LiveStreamHandlers) {
-  const esRef = useRef<EventSource | null>(null);
-  const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const reconnectDelay = useRef(RECONNECT_DELAY_MS);
-  const mountedRef = useRef(true);
-  // Keep handlers in a ref so reconnects always use the latest callbacks
+  // Keep a ref so the subscriber closure always calls the latest handlers
   const handlersRef = useRef(handlers);
   handlersRef.current = handlers;
 
-  const connect = useCallback(() => {
-    if (!mountedRef.current) return;
-    // Don't connect if backend is clearly not reachable (mock mode on localhost)
-    const streamUrl = `${API_BASE_URL}/stream`;
-
-    const es = new EventSource(streamUrl);
-    esRef.current = es;
-
-    es.addEventListener('connected', () => {
-      reconnectDelay.current = RECONNECT_DELAY_MS;
-      handlersRef.current.onConnected?.();
-    });
-
-    es.addEventListener('drivers', (e: MessageEvent) => {
-      try {
-        const drivers = JSON.parse(e.data) as Driver[];
-        handlersRef.current.onDrivers?.(drivers);
-      } catch { /* ignore malformed */ }
-    });
-
-    es.addEventListener('drowsiness', (e: MessageEvent) => {
-      try {
-        const state = JSON.parse(e.data) as DrowsinessResponse;
-        handlersRef.current.onDrowsiness?.(state);
-      } catch { /* ignore malformed */ }
-    });
-
-    es.addEventListener('session', (e: MessageEvent) => {
-      try {
-        const state = JSON.parse(e.data) as { is_live: boolean };
-        handlersRef.current.onSession?.(state);
-      } catch { /* ignore malformed */ }
-    });
-
-    es.addEventListener('retrain', (e: MessageEvent) => {
-      try {
-        const event = JSON.parse(e.data) as RetrainEvent;
-        handlersRef.current.onRetrain?.(event);
-      } catch { /* ignore malformed */ }
-    });
-
-    es.addEventListener('prediction', (e: MessageEvent) => {
-      try {
-        const event = JSON.parse(e.data) as { zone_id: string; level: string; predicted_demand: number; ts: string };
-        handlersRef.current.onPrediction?.(event);
-      } catch { /* ignore malformed */ }
-    });
-
-    es.onerror = () => {
-      es.close();
-      esRef.current = null;
-      handlersRef.current.onDisconnected?.();
-      if (!mountedRef.current) return;
-      // Exponential backoff reconnect
-      reconnectTimer.current = setTimeout(() => {
-        reconnectDelay.current = Math.min(reconnectDelay.current * 1.5, MAX_RECONNECT_DELAY_MS);
-        connect();
-      }, reconnectDelay.current);
-    };
-  }, []);
-
   useEffect(() => {
-    mountedRef.current = true;
-    connect();
-    return () => {
-      mountedRef.current = false;
-      if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
-      esRef.current?.close();
-      esRef.current = null;
+    let connected = false;
+
+    const subscriber: Subscriber = (event) => {
+      const h = handlersRef.current;
+      switch (event.type) {
+        case 'connected':
+          connected = true;
+          h.onConnected?.();
+          break;
+        case 'drivers':
+          h.onDrivers?.(event.data);
+          break;
+        case 'drowsiness':
+          h.onDrowsiness?.(event.data);
+          break;
+        case 'session':
+          if (!event.data.is_live && connected) {
+            connected = false;
+            h.onDisconnected?.();
+          }
+          h.onSession?.(event.data);
+          break;
+        case 'retrain':
+          h.onRetrain?.(event.data);
+          break;
+        case 'prediction':
+          h.onPrediction?.(event.data);
+          break;
+      }
     };
-  }, [connect]);
+
+    _subscribers.add(subscriber);
+    _createStream(); // no-op if already open
+
+    return () => {
+      _subscribers.delete(subscriber);
+      if (_subscribers.size === 0) {
+        // Last subscriber gone — tear down the stream
+        _destroyStream();
+        _reconnectDelay = RECONNECT_DELAY_MS;
+      }
+      if (connected) {
+        handlersRef.current.onDisconnected?.();
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   AreaChart, Area, LineChart, Line, Legend,
@@ -60,12 +60,24 @@ export default function ModelPerformance() {
     };
   }, []);
 
-  // SSE: append retrain events and refresh validation metrics when a new prediction arrives
+  // SSE: refresh validation metrics on retrain/prediction events.
+  // Predictions are throttled — at most one API call every 10 s to avoid spamming.
+  const predictionThrottleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const refreshValidation = useRef(() => {
+    getValidationMetrics().then(setValidation).catch(() => null);
+  });
+
   useLiveStream({
     onConnected: () => setLive(true),
     onDisconnected: () => setLive(false),
-    onRetrain: () => { getValidationMetrics().then(setValidation).catch(() => null); },
-    onPrediction: () => { getValidationMetrics().then(setValidation).catch(() => null); },
+    onRetrain: () => { refreshValidation.current(); },
+    onPrediction: () => {
+      if (predictionThrottleRef.current) return;
+      predictionThrottleRef.current = setTimeout(() => {
+        predictionThrottleRef.current = null;
+        refreshValidation.current();
+      }, 10_000);
+    },
   });
 
   // ── Section 1 data ──────────────────────────────────────────────────────────
@@ -308,8 +320,8 @@ export default function ModelPerformance() {
                   itemStyle={{ color: 'var(--text-secondary)' }}
                 />
                 <Legend wrapperStyle={{ fontSize: 12, color: 'var(--text-secondary)' }} />
-                <Line type="monotone" dataKey="predicted" stroke="#F4B000" strokeWidth={2} dot={{ r: 4 }} name="Predicted" />
-                <Line type="monotone" dataKey="actual" stroke="#10B981" strokeWidth={2} dot={{ r: 4 }} name="Actual" />
+                <Line type="monotone" dataKey="predicted" stroke="#F4B000" strokeWidth={2} dot={validation?.predicted_vs_actual?.length ? { r: 3, strokeWidth: 2 } : false} activeDot={{ r: 5, strokeWidth: 2 }} name="Predicted" />
+                <Line type="monotone" dataKey="actual" stroke="#10B981" strokeWidth={2} dot={validation?.predicted_vs_actual?.length ? { r: 3, strokeWidth: 2 } : false} activeDot={{ r: 5, strokeWidth: 2 }} name="Actual" />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -364,8 +376,8 @@ export default function ModelPerformance() {
                     }
                   />
                   <Legend wrapperStyle={{ fontSize: 12, color: 'var(--text-secondary)' }} />
-                  <Line type="monotone" dataKey="success_rate" stroke="#F4B000" strokeWidth={2} dot={{ r: 4 }} name="success_rate" />
-                  <Line type="monotone" dataKey="avg_pickup_min" stroke="#A78BFA" strokeWidth={2} dot={{ r: 4 }} name="avg_pickup_min" />
+                  <Line type="monotone" dataKey="success_rate" stroke="#F4B000" strokeWidth={2} dot={validation?.driver_impact?.length ? { r: 3, strokeWidth: 2 } : false} activeDot={{ r: 5, strokeWidth: 2 }} name="success_rate" />
+                  <Line type="monotone" dataKey="avg_pickup_min" stroke="#A78BFA" strokeWidth={2} dot={validation?.driver_impact?.length ? { r: 3, strokeWidth: 2 } : false} activeDot={{ r: 5, strokeWidth: 2 }} name="avg_pickup_min" />
                 </LineChart>
               </ResponsiveContainer>
             </div>

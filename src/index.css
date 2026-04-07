@@ -283,3 +283,17 @@
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
+
+/* Prevent Recharts ResponsiveContainer from measuring negative dimensions during
+   mount / page-transition phases. The container needs a positive min size or
+   the library floods the console with "width(-1) and height(-1)" warnings and
+   triggers expensive no-op re-renders. */
+.recharts-responsive-container {
+  min-width: 1px !important;
+  min-height: 1px !important;
+}
+
+/* Prevent layout shifts on chart container divs */
+.glass-card [class*="h-["] {
+  contain: layout style;
+}

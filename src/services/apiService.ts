@@ -111,6 +111,11 @@ async function fetchJson<T>(
     return getCachedResponse<T>(cacheStore);
   }
 
+  // Fast timeout — if the backend is unreachable, fall back to mock data quickly
+  // instead of waiting for the browser's default TCP timeout (30+ seconds).
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 3000);
+
   try {
     const response = await fetch(`${API_BASE_URL}${path}`, {
       headers: {
@@ -118,7 +123,10 @@ async function fetchJson<T>(
         ...(init?.headers ?? {}),
       },
       ...init,
+      signal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       throw new ApiRequestError(response.status, `API request failed with status ${response.status}`);
@@ -132,7 +140,20 @@ async function fetchJson<T>(
 
     return data;
   } catch (error) {
+    clearTimeout(timeoutId);
+
     if (fallback && isRecoverableApiError(error)) {
+      const data = await Promise.resolve(fallback());
+
+      if (method === 'GET' && cacheStore) {
+        void offlineService.saveToCache(cacheStore, data).catch(() => undefined);
+      }
+
+      return data;
+    }
+
+    // AbortError (from our timeout) should also trigger fallback
+    if (fallback && error instanceof DOMException && error.name === 'AbortError') {
       const data = await Promise.resolve(fallback());
 
       if (method === 'GET' && cacheStore) {

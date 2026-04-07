@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   LineChart, Line, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
@@ -47,6 +47,8 @@ export default function WeatherInsights() {
   const [weather, setWeather] = useState<WeatherResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const peakZoneRef = useRef('132');
+
   useEffect(() => {
     let cancelled = false;
     let intervalId: ReturnType<typeof setInterval> | null = null;
@@ -55,13 +57,17 @@ export default function WeatherInsights() {
       try {
         const [forecastResponse, weatherResponse] = await Promise.all([
           getForecast(),
-          getWeather({ zoneId: forecast?.summary.peak_zone_id ?? '132' }),
+          getWeather({ zoneId: peakZoneRef.current }),
         ]);
 
         if (!cancelled) {
           setForecast(forecastResponse);
           setWeather(weatherResponse);
           setError(null);
+          // Update the ref for the next poll cycle
+          if (forecastResponse.summary.peak_zone_id) {
+            peakZoneRef.current = forecastResponse.summary.peak_zone_id;
+          }
         }
       } catch {
         if (!cancelled) {
@@ -79,7 +85,7 @@ export default function WeatherInsights() {
         clearInterval(intervalId);
       }
     };
-  }, [forecast?.summary.peak_zone_id]);
+  }, []);
 
   const baselineDemand = forecast?.summary.peak_zone_demand ?? 8000;
   const tempDemand = useMemo(() => buildTemperatureCurve(weather?.temp_c ?? 22, baselineDemand), [weather?.temp_c, baselineDemand]);
@@ -135,7 +141,7 @@ export default function WeatherInsights() {
               <Tooltip
                 contentStyle={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)' }}
               />
-              <Line type="monotone" dataKey="value" stroke="#F4B000" strokeWidth={3} dot={{ r: 4, fill: '#F4B000' }} />
+              <Line type="monotone" dataKey="value" stroke="#F4B000" strokeWidth={3} dot={tempDemand.length ? { r: 3, fill: '#F4B000' } : false} activeDot={{ r: 5, fill: '#F4B000' }} />
             </LineChart>
           </ResponsiveContainer>
         </div>

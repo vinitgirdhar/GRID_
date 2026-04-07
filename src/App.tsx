@@ -19,7 +19,7 @@ import {
   Users,
   Wifi,
 } from 'lucide-react';
-import { AnimatePresence, motion } from 'motion/react';
+import { motion } from 'motion/react';
 
 import OfflineBanner from './components/OfflineBanner';
 import DrowsinessMonitor from './components/DrowsinessMonitor';
@@ -519,18 +519,15 @@ function AppShell() {
               userRole === 'driver' ? 'pt-24 pb-32 lg:pb-8 lg:pt-12' : 'pt-12 pb-8',
             )}
           >
-            <AnimatePresence mode="wait">
-              <motion.div
+            <motion.div
                 key={`${userRole}-${activePage}`}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.12, ease: 'easeOut' }}
                 className="h-full"
               >
                 {renderPage()}
               </motion.div>
-            </AnimatePresence>
           </main>
 
           {userRole === 'driver' && (
