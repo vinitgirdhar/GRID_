@@ -140,6 +140,113 @@ async function resolveOpportunity(opp: MissedOpportunity): Promise<void> {
   }
 }
 
+// ─── Mock data seeding ────────────────────────────────────────────────────────
+
+/** Seed the store with realistic mock opportunities (for demo purposes). */
+export function seedMockData(): void {
+  const existing = load();
+  if (existing.length > 0) return; // Don't overwrite real data
+
+  const zones = [
+    { zone_id: '132', zone_name: 'Zone 132', borough: 'Manhattan' },
+    { zone_id: '138', zone_name: 'Zone 138', borough: 'Queens' },
+    { zone_id: '186', zone_name: 'Zone 186', borough: 'Manhattan' },
+    { zone_id: '142', zone_name: 'Zone 142', borough: 'Manhattan' },
+    { zone_id: '161', zone_name: 'Zone 161', borough: 'Manhattan' },
+    { zone_id: '68', zone_name: 'Zone 68', borough: 'Brooklyn' },
+  ];
+
+  const now = Date.now();
+  const opportunities: MissedOpportunity[] = [
+    {
+      id: crypto.randomUUID(),
+      zone_id: '132',
+      zone_name: 'Zone 132',
+      borough: 'Manhattan',
+      skipped_at: new Date(now - 45 * 60 * 1000).toISOString(),
+      predicted_demand: 42,
+      estimated_fare: 15.5,
+      resolved: true,
+      resolved_at: new Date(now - 30 * 60 * 1000).toISOString(),
+      actual_demand: 78,
+      estimated_lost: 29.25,
+      severity: 'high',
+    },
+    {
+      id: crypto.randomUUID(),
+      zone_id: '138',
+      zone_name: 'Zone 138',
+      borough: 'Queens',
+      skipped_at: new Date(now - 40 * 60 * 1000).toISOString(),
+      predicted_demand: 38,
+      estimated_fare: 16.0,
+      resolved: true,
+      resolved_at: new Date(now - 25 * 60 * 1000).toISOString(),
+      actual_demand: 65,
+      estimated_lost: 26.0,
+      severity: 'high',
+    },
+    {
+      id: crypto.randomUUID(),
+      zone_id: '186',
+      zone_name: 'Zone 186',
+      borough: 'Manhattan',
+      skipped_at: new Date(now - 35 * 60 * 1000).toISOString(),
+      predicted_demand: 25,
+      estimated_fare: 14.5,
+      resolved: true,
+      resolved_at: new Date(now - 20 * 60 * 1000).toISOString(),
+      actual_demand: 42,
+      estimated_lost: 9.19,
+      severity: 'medium',
+    },
+    {
+      id: crypto.randomUUID(),
+      zone_id: '142',
+      zone_name: 'Zone 142',
+      borough: 'Manhattan',
+      skipped_at: new Date(now - 30 * 60 * 1000).toISOString(),
+      predicted_demand: 23,
+      estimated_fare: 15.0,
+      resolved: true,
+      resolved_at: new Date(now - 15 * 60 * 1000).toISOString(),
+      actual_demand: 35,
+      estimated_lost: 5.25,
+      severity: 'medium',
+    },
+    {
+      id: crypto.randomUUID(),
+      zone_id: '161',
+      zone_name: 'Zone 161',
+      borough: 'Manhattan',
+      skipped_at: new Date(now - 25 * 60 * 1000).toISOString(),
+      predicted_demand: 21,
+      estimated_fare: 15.0,
+      resolved: true,
+      resolved_at: new Date(now - 10 * 60 * 1000).toISOString(),
+      actual_demand: 32,
+      estimated_lost: 3.75,
+      severity: 'medium',
+    },
+    {
+      id: crypto.randomUUID(),
+      zone_id: '68',
+      zone_name: 'Zone 68',
+      borough: 'Brooklyn',
+      skipped_at: new Date(now - 20 * 60 * 1000).toISOString(),
+      predicted_demand: 20,
+      estimated_fare: 15.0,
+      resolved: true,
+      resolved_at: new Date(now - 5 * 60 * 1000).toISOString(),
+      actual_demand: 31,
+      estimated_lost: 3.88,
+      severity: 'medium',
+    },
+  ];
+
+  save(opportunities);
+}
+
 // ─── Background scanner ───────────────────────────────────────────────────────
 
 let scanInterval: ReturnType<typeof setInterval> | null = null;

@@ -164,9 +164,7 @@ function DriverLoginForm({
           <ArrowLeft size={16} /> Back
         </button>
         <div className="flex items-center gap-3 mb-1">
-          <div className="w-10 h-10 rounded-xl bg-[var(--primary)]/10 flex items-center justify-center">
-            <Navigation size={20} className="text-[var(--primary)]" />
-          </div>
+          <img src="/grid-logo.png" alt="GRID" className="h-14 w-auto object-contain" />
           <h2 className="text-3xl font-bold text-[var(--text-primary)] tracking-tight">Driver Login</h2>
         </div>
         <p className="text-[var(--text-secondary)] text-sm">Enter your phone number and password.</p>
@@ -423,6 +421,7 @@ function RoleSelector({
       className="w-full max-w-md space-y-6 sm:space-y-8 relative z-10"
     >
       <div className="space-y-1">
+        <img src="/grid-logo.png" alt="GRID" className="h-10 w-auto object-contain mb-3" />
         <h2 className="text-2xl sm:text-3xl font-bold text-[var(--text-primary)] tracking-tight">Welcome to GRID</h2>
         <p className="text-[var(--text-secondary)] text-sm">Select your role to continue.</p>
       </div>
@@ -503,35 +502,44 @@ export default function Login({ onLogin }: LoginProps) {
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6 }}
-            className="flex items-center gap-3"
+            className="flex flex-col gap-4"
           >
-            <div className="w-10 h-10 bg-[#facc15] rounded-xl flex items-center justify-center shadow-lg shadow-[#facc15]/20">
-              <Navigation size={20} className="text-[#0f172a]" />
+            <div className="flex items-center gap-2.5 sm:gap-3.5">
+              <img src="/grid-logo.png" alt="GRID" className="h-24 sm:h-32 w-auto object-contain drop-shadow-[0_0_30px_rgba(250,204,21,0.15)]" />
+              <div className="h-12 w-px bg-white/10 hidden sm:block" />
+              <div className="hidden sm:block">
+                <h2 className="text-xl sm:text-2xl font-black text-white tracking-widest leading-none">GRID</h2>
+                <div className="flex items-center gap-1.5 mt-1">
+                  <span className="w-1 h-1 bg-[#facc15] rounded-full animate-pulse" />
+                  <p className="text-white/30 text-[9px] sm:text-[10px] uppercase font-bold tracking-[0.2em]">Urban Intelligence</p>
+                </div>
+              </div>
             </div>
-            <span className="text-xl font-bold text-white tracking-tight">GRID</span>
+            <div className="w-8 h-1 bg-gradient-to-r from-[#facc15] to-transparent rounded-full ml-0.5 opacity-40" />
           </motion.div>
         </div>
 
-        <div className="relative z-10 mt-8 sm:mt-12 lg:my-auto lg:py-0 flex-1 flex flex-col justify-center">
+        <div className="relative z-10 mt-16 sm:mt-24 lg:my-auto lg:py-0 flex-1 flex flex-col justify-center">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2, duration: 0.7 }}
-            className="space-y-3 sm:space-y-4 max-w-lg"
+            className="space-y-4 sm:space-y-6 max-w-lg"
           >
-            <h1 className="text-[2.25rem] leading-[1.05] sm:text-4xl lg:text-5xl xl:text-6xl font-extrabold text-white tracking-tight">
+            <h1 className="text-[2.5rem] leading-[1.05] sm:text-5xl lg:text-6xl xl:text-7xl font-extrabold text-white tracking-tight">
               The OS for <br className="lg:hidden" />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#facc15] to-[#fbbf24]">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#facc15] via-[#fbbf24] to-[#f59e0b]">
                 Modern Mobility
               </span>
             </h1>
-            <p className="text-sm sm:text-base lg:text-lg text-white/55 leading-relaxed max-w-[280px] sm:max-w-sm">
-              Command your fleet. Empower your drivers. Predict demand before it happens.
+            <p className="text-sm sm:text-base lg:text-xl text-white/50 leading-relaxed max-w-[300px] sm:max-w-md font-medium">
+              Command your fleet. Empower your drivers. <br className="hidden sm:block" />
+              Predict demand before it happens.
             </p>
           </motion.div>
 
           {/* Markers */}
-          <div className="grid grid-cols-2 gap-2 mt-6 sm:flex sm:gap-2.5 sm:overflow-x-auto sm:pb-1 lg:flex-wrap lg:overflow-visible no-scrollbar max-w-md">
+          <div className="grid grid-cols-2 gap-3 mt-10 sm:flex sm:gap-3 sm:overflow-x-auto sm:pb-1 lg:flex-wrap lg:overflow-visible no-scrollbar max-w-md">
             <FeaturePill icon={Globe} text="Live Fleet" delay={0.5} />
             <FeaturePill icon={TrendingUp} text="Demand AI" delay={0.6} />
             <FeaturePill icon={Shield} text="Safety" delay={0.7} />
@@ -543,19 +551,19 @@ export default function Login({ onLogin }: LoginProps) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.9, duration: 0.6 }}
-            className="grid grid-cols-3 gap-2 mt-5 max-w-md lg:hidden"
+            className="grid grid-cols-3 gap-2 mt-8 max-w-md lg:hidden"
           >
-            <div className="rounded-2xl border border-white/5 bg-white/[0.02] backdrop-blur-sm px-3 py-3 flex flex-col items-center justify-center text-center">
+            <div className="rounded-2xl border border-white/5 bg-white/[0.02] backdrop-blur-sm px-3 py-4 flex flex-col items-center justify-center text-center">
               <p className="text-lg font-bold text-white tracking-tight">1.2M+</p>
-              <p className="text-[9px] font-semibold uppercase tracking-[0.1em] text-white/40 mt-0.5">Rides</p>
+              <p className="text-[9px] font-semibold uppercase tracking-[0.1em] text-white/40 mt-1">Rides</p>
             </div>
-            <div className="rounded-2xl border border-white/5 bg-white/[0.02] backdrop-blur-sm px-3 py-3 flex flex-col items-center justify-center text-center">
+            <div className="rounded-2xl border border-white/5 bg-white/[0.02] backdrop-blur-sm px-3 py-4 flex flex-col items-center justify-center text-center">
               <p className="text-lg font-bold text-white tracking-tight">99.9%</p>
-              <p className="text-[9px] font-semibold uppercase tracking-[0.1em] text-white/40 mt-0.5">Uptime</p>
+              <p className="text-[9px] font-semibold uppercase tracking-[0.1em] text-white/40 mt-1">Uptime</p>
             </div>
-            <div className="rounded-2xl border border-white/5 bg-white/[0.02] backdrop-blur-sm px-3 py-3 flex flex-col items-center justify-center text-center">
+            <div className="rounded-2xl border border-white/5 bg-white/[0.02] backdrop-blur-sm px-3 py-4 flex flex-col items-center justify-center text-center">
               <p className="text-lg font-bold text-white tracking-tight">24/7</p>
-              <p className="text-[9px] font-semibold uppercase tracking-[0.1em] text-white/40 mt-0.5">Support</p>
+              <p className="text-[9px] font-semibold uppercase tracking-[0.1em] text-white/40 mt-1">Support</p>
             </div>
           </motion.div>
 
@@ -564,27 +572,28 @@ export default function Login({ onLogin }: LoginProps) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 1, duration: 0.8 }}
-            className="relative z-10 mt-6 sm:mt-8 lg:mt-14 group"
+            className="relative z-10 mt-10 sm:mt-12 lg:mt-20 group"
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-[#facc15]/10 to-transparent blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 rounded-3xl" />
-            <div className="relative flex items-center gap-4 lg:gap-5 p-4 lg:p-6 rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-md hover:border-[#facc15]/30 hover:bg-white/[0.06] transition-all duration-500 max-w-sm lg:max-w-md cursor-pointer shadow-[0_8px_32px_rgba(0,0,0,0.12)]"
+            <div className="absolute inset-0 bg-gradient-to-r from-[#facc15]/20 to-transparent blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 rounded-3xl" />
+            <div className="relative flex items-center gap-5 lg:gap-6 p-5 lg:p-7 rounded-3xl border border-white/10 bg-white/[0.04] backdrop-blur-md hover:border-[#facc15]/40 hover:bg-white/[0.08] transition-all duration-500 max-w-sm lg:max-w-lg cursor-pointer shadow-[0_12px_48px_rgba(0,0,0,0.15)]"
                  onClick={() => setStep('driver-register')}>
-              <div className="w-12 h-12 lg:w-14 lg:h-14 rounded-2xl bg-[#facc15]/15 flex items-center justify-center shrink-0 group-hover:scale-105 group-hover:-rotate-3 transition-transform duration-500 border border-[#facc15]/20">
+              <div className="w-14 h-14 lg:w-16 lg:h-16 rounded-2xl bg-[#facc15]/15 flex items-center justify-center shrink-0 group-hover:scale-110 group-hover:-rotate-3 transition-transform duration-500 border border-[#facc15]/20 shadow-inner">
                  <div className="relative">
-                    <Car size={24} className="text-[#facc15] lg:w-7 lg:h-7" />
-                    <div className="absolute -top-1 -right-1 w-2.5 h-2.5 lg:w-3 lg:h-3 bg-green-500 rounded-full border-2 border-[#0c1222] animate-pulse" />
+                    <Car size={28} className="text-[#facc15] lg:w-9 lg:h-9" />
+                    <div className="absolute -top-1.5 -right-1.5 w-3 h-3 lg:w-4 lg:h-4 bg-green-500 rounded-full border-2 border-[#0c1222] animate-pulse shadow-sm" />
                  </div>
               </div>
-              <div className="space-y-1 lg:space-y-1.5 flex-1">
-                <h3 className="text-white font-bold text-sm lg:text-lg tracking-tight">Become a Grid Driver</h3>
+              <div className="space-y-1.5 lg:space-y-2 flex-1">
+                <h3 className="text-white font-bold text-base lg:text-xl tracking-tight">Become a Grid Driver</h3>
                 <p className="text-white/40 text-[11px] lg:text-sm leading-relaxed hidden sm:block">
-                  Join 1,000+ drivers earning on the grid. Dynamic matching & instant payouts.
+                  Join 1,000+ top-rated drivers earning on the grid. <br />
+                  Dynamic matching & instant payouts with zero fees.
                 </p>
-                <div className="flex items-center justify-between mt-1 lg:mt-2">
-                  <span className="text-[#facc15] font-bold text-xs lg:text-sm flex items-center gap-1.5">
+                <div className="flex items-center justify-between mt-2 lg:mt-3">
+                  <span className="text-[#facc15] font-extrabold text-xs lg:text-base flex items-center gap-2 group-hover:gap-3 transition-all">
                     Start Registration
-                    <motion.div animate={{ x: [0, 4, 0] }} transition={{ duration: 1.5, repeat: Infinity }}>
-                      <ArrowRight size={14} />
+                    <motion.div animate={{ x: [0, 6, 0] }} transition={{ duration: 1.5, repeat: Infinity }}>
+                      <ArrowRight size={18} />
                     </motion.div>
                   </span>
                 </div>
@@ -597,23 +606,24 @@ export default function Login({ onLogin }: LoginProps) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 1.2, duration: 0.5 }}
-          className="hidden lg:flex relative z-10 items-center gap-8 text-white/30 text-xs font-medium"
+          className="hidden lg:flex relative z-10 items-center gap-10 text-white/30 text-xs font-medium mt-12"
         >
-          <div className="flex flex-col">
-            <span className="text-xl font-bold text-white/80">1.2M+</span>
-            <span>Rides Managed</span>
+          <div className="flex flex-col gap-1">
+            <span className="text-2xl font-black text-white/90 tracking-tighter">1.2M+</span>
+            <span className="uppercase tracking-[0.1em] text-[10px]">Rides Managed</span>
           </div>
-          <div className="w-px h-8 bg-white/10" />
-          <div className="flex flex-col">
-            <span className="text-xl font-bold text-white/80">99.9%</span>
-            <span>Uptime SLA</span>
+          <div className="w-px h-10 bg-white/10" />
+          <div className="flex flex-col gap-1">
+            <span className="text-2xl font-black text-white/90 tracking-tighter">99.9%</span>
+            <span className="uppercase tracking-[0.1em] text-[10px]">Uptime SLA</span>
           </div>
-          <div className="w-px h-8 bg-white/10" />
-          <div className="flex flex-col">
-            <span className="text-xl font-bold text-white/80">24/7</span>
-            <span>Live Support</span>
+          <div className="w-px h-10 bg-white/10" />
+          <div className="flex flex-col gap-1">
+            <span className="text-2xl font-black text-white/90 tracking-tighter">24/7</span>
+            <span className="uppercase tracking-[0.1em] text-[10px]">Live Support</span>
           </div>
         </motion.div>
+
       </div>
 
       {/* Auth Panel - Bottom Sheet on Mobile */}

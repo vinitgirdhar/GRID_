@@ -9,7 +9,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { getHotspots, getActiveHotspotPeriod } from '../../services/apiService';
-import { getAll, subscribe, MissedOpportunity } from '../../services/opportunityService';
+import { getAll, subscribe, MissedOpportunity, seedMockData } from '../../services/opportunityService';
 import { HotspotsResponse, HotspotZone } from '../../types';
 import MissedOpportunityFeed from '../MissedOpportunityFeed';
 import { cn } from '../../lib/utils';
@@ -19,7 +19,10 @@ function navigateToRide() {
 }
 
 export default function MissedOpportunities() {
-  const [opportunities, setOpportunities] = useState<MissedOpportunity[]>(() => getAll());
+  const [opportunities, setOpportunities] = useState<MissedOpportunity[]>(() => {
+    seedMockData();
+    return getAll();
+  });
   const [hotspots, setHotspots] = useState<HotspotsResponse | null>(null);
   const [loadingHotspots, setLoadingHotspots] = useState(true);
 

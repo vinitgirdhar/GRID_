@@ -106,7 +106,6 @@ function AppShell() {
   const [copilotDest, setCopilotDest] = useState<string | null>(null);
   const [isLive, setIsLive] = useState(true);
   const [missedCount, setMissedCount] = useState(0);
-
   // Start opportunity scanner + subscribe to count changes when driver is logged in
   useEffect(() => {
     if (userRole !== 'driver') return;
@@ -308,37 +307,46 @@ function AppShell() {
             userRole === 'driver' ? 'hidden lg:flex' : 'flex',
           )}
         >
-          <div className="p-6 flex items-center justify-between">
-            {!isSidebarCollapsed && (
+          {/* Sidebar header — layout changes when collapsed */}
+          {isSidebarCollapsed ? (
+            <div className="flex flex-col items-center gap-2 pt-5 pb-3 px-3">
+              <img src="/grid-logo.png" alt="GRID" className="h-10 w-auto object-contain max-w-[56px]" />
+              <button
+                onClick={() => setIsSidebarCollapsed(false)}
+                className="p-1.5 hover:bg-[var(--secondary)] rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                style={{ transition: 'background-color 150ms ease-out, color 150ms ease-out' }}
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          ) : (
+            <div className="p-6 flex items-center justify-between">
               <motion.div
                 initial={{ opacity: 0, x: -8 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
-                className="flex items-center gap-3"
               >
-                <div className="w-10 h-10 bg-[var(--primary)] rounded-full flex items-center justify-center shadow-sm">
-                  <Navigation className="w-5 h-5 text-[var(--accent)]" />
-                </div>
-                <div className="flex flex-col">
-                  <span className="font-bold text-xl text-[var(--text-primary)]">GRID</span>
-                </div>
+                <img src="/grid-logo.png" alt="GRID" className="h-14 w-auto object-contain" />
               </motion.div>
-            )}
-            {isSidebarCollapsed && (
-              <div className="w-10 h-10 bg-[var(--primary)] rounded-full flex items-center justify-center shadow-sm mx-auto">
-                <Navigation className="w-5 h-5 text-[var(--accent)]" />
-              </div>
-            )}
-            <button
-              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-              className="p-2 hover:bg-[var(--secondary)] rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-              style={{ transition: 'background-color 150ms ease-out, color 150ms ease-out' }}
-            >
-              {isSidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
-            </button>
-          </div>
+              <button
+                onClick={() => setIsSidebarCollapsed(true)}
+                className="p-2 hover:bg-[var(--secondary)] rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                style={{ transition: 'background-color 150ms ease-out, color 150ms ease-out' }}
+              >
+                <ChevronLeft size={18} />
+              </button>
+            </div>
+          )}
 
-          <nav className="flex-1 min-h-0 overflow-y-auto px-4 space-y-2 py-6">
+          <nav className="flex-1 min-h-0 overflow-y-auto px-4 space-y-2 py-6 relative">
+            {/* Sliding background indicator */}
+            <motion.div
+              className="absolute left-4 right-4 h-[46px] top-6 rounded-[16px] bg-[var(--primary)] pointer-events-none"
+              animate={{
+                y: sidebarItems.findIndex((item) => isSidebarItemActive(item.id)) * 52,
+              }}
+              transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+            />
             {sidebarItems.map((item, index) => {
               const isActive = isSidebarItemActive(item.id);
 
@@ -350,11 +358,11 @@ function AppShell() {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.2, delay: index * 0.03, ease: [0.23, 1, 0.32, 1] }}
                   className={cn(
-                    'w-full flex items-center gap-4 px-4 py-3 rounded-[16px] group',
-                    'transition-[background-color,color,box-shadow] duration-150 ease-out',
+                    'w-full relative z-10 flex items-center gap-4 px-4 py-3 rounded-[16px] group',
+                    'transition-colors duration-150 ease-out',
                     isActive
-                      ? 'bg-[var(--primary)] text-[var(--text-primary)] shadow-sm font-semibold'
-                      : 'text-[var(--text-secondary)] hover:bg-[var(--secondary)] hover:text-[var(--text-primary)]',
+                      ? 'text-[var(--text-primary)] shadow-sm font-semibold'
+                      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
                   )}
                 >
                   <div className="relative shrink-0">
@@ -425,15 +433,23 @@ function AppShell() {
               </div>
             )}
 
-            <div
-              onClick={() => setActivePage('profile')}
-              className="flex items-center gap-3 p-3 rounded-[16px] bg-[var(--surface)] border border-[var(--border)] shadow-sm hover:shadow-md hover:border-[var(--primary)]/30 cursor-pointer group relative"
-              style={{ transition: 'border-color 150ms ease-out, box-shadow 150ms ease-out' }}
-            >
-              <div className="w-10 h-10 rounded-full bg-[var(--primary)]/20 flex items-center justify-center shrink-0 border border-[var(--primary)]/30">
+            {isSidebarCollapsed ? (
+              <div
+                onClick={() => setActivePage('profile')}
+                className="w-10 h-10 mx-auto rounded-full bg-[var(--primary)]/20 flex items-center justify-center border border-[var(--primary)]/30 cursor-pointer hover:border-[var(--primary)]/60"
+                style={{ transition: 'border-color 150ms ease-out' }}
+              >
                 <User size={18} className="text-[var(--primary-dark)]" />
               </div>
-              {!isSidebarCollapsed && (
+            ) : (
+              <div
+                onClick={() => setActivePage('profile')}
+                className="flex items-center gap-3 p-3 rounded-[16px] bg-[var(--surface)] border border-[var(--border)] shadow-sm hover:shadow-md hover:border-[var(--primary)]/30 cursor-pointer group relative"
+                style={{ transition: 'border-color 150ms ease-out, box-shadow 150ms ease-out' }}
+              >
+                <div className="w-10 h-10 rounded-full bg-[var(--primary)]/20 flex items-center justify-center shrink-0 border border-[var(--primary)]/30">
+                  <User size={18} className="text-[var(--primary-dark)]" />
+                </div>
                 <div className="flex flex-col flex-1 overflow-hidden">
                   <span className="text-sm font-bold truncate text-[var(--text-primary)] capitalize">{currentDriver?.name ?? userRole}</span>
                   <span className={cn('text-xs font-semibold flex items-center gap-1.5 mt-0.5', connectivityTextClass)}>
@@ -441,8 +457,6 @@ function AppShell() {
                     {connectivityLabel}
                   </span>
                 </div>
-              )}
-              {!isSidebarCollapsed && (
                 <button
                   onClick={(e) => { e.stopPropagation(); handleLogout(); }}
                   className="p-2 text-[var(--text-muted)] hover:text-white hover:bg-[var(--danger)] rounded-full ml-auto"
@@ -450,8 +464,8 @@ function AppShell() {
                 >
                   <LogOut size={16} />
                 </button>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </motion.aside>
 
@@ -521,25 +535,40 @@ function AppShell() {
 
           {userRole === 'driver' && (
             <div className="lg:hidden fixed bottom-0 left-0 right-0 flex justify-center z-50 pointer-events-none px-3 pb-[max(16px,env(safe-area-inset-bottom))]">
-              <div className="nav-pill pointer-events-auto">
+              <div className="nav-pill pointer-events-auto relative">
+                {/* Sliding background for active item — x:10 = pill left padding, 44 = item width(40) + gap(4) */}
+                <motion.div
+                  className="absolute top-[6px] left-0 w-10 h-10 rounded-full bg-[var(--primary)] pointer-events-none"
+                  animate={{
+                    x: 10 + DRIVER_ITEMS.findIndex((item) => activePage === item.id) * 44,
+                  }}
+                  transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+                />
                 {DRIVER_ITEMS.map((item) => (
-                  <div
+                  <motion.div
                     key={item.id}
-                    className={cn('nav-pill-item text-[var(--text-secondary)] relative', activePage === item.id && 'active text-white bg-[var(--primary)]')}
+                    className={cn(
+                      'nav-pill-item relative z-10',
+                      activePage === item.id ? 'text-white' : 'text-[var(--text-secondary)]',
+                    )}
                     onClick={() => setActivePage(item.id as Page)}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                   >
-                    <item.icon size={20} strokeWidth={activePage === item.id ? 2.5 : 2} className="transition-all" />
+                    <item.icon size={20} strokeWidth={activePage === item.id ? 2.5 : 2} className="transition-colors" />
                     {item.id === 'overview' && missedCount > 0 && (
                       <span className="absolute top-0.5 right-0.5 w-2.5 h-2.5 rounded-full bg-[var(--danger)] border-2 border-white" />
                     )}
-                  </div>
+                  </motion.div>
                 ))}
-                <div
-                  className="w-10 h-10 ml-2 rounded-full border-2 border-[var(--primary)] overflow-hidden cursor-pointer"
+                <motion.div
+                  className="w-10 h-10 ml-2 rounded-full border-2 border-[var(--primary)] overflow-hidden cursor-pointer relative z-10"
                   onClick={() => setActivePage('profile')}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                 >
                   <img src="https://picsum.photos/seed/driver/100/100" alt="Profile" className="w-full h-full object-cover" />
-                </div>
+                </motion.div>
               </div>
             </div>
           )}
