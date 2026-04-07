@@ -19,13 +19,21 @@ import { useLiveStream } from '../../hooks/useLiveStream';
 const formatFeatureName = (value: string) =>
   value.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
 
-const REFRESH_INTERVAL_MS = 30000;
+const REFRESH_INTERVAL_MS = 600000; // 10 minutes
+
+function parseUtcTimestamp(ts: string): number {
+  // Python's datetime.utcnow().isoformat() has no 'Z' — JS would treat it as local.
+  // Append 'Z' so it's always parsed as UTC.
+  if (!ts.endsWith('Z') && !ts.includes('+')) return new Date(ts + 'Z').getTime();
+  return new Date(ts).getTime();
+}
 
 function formatRefreshAge(generatedAt?: string) {
   if (!generatedAt) return 'Waiting for metrics';
-  const seconds = Math.max(0, Math.floor((Date.now() - new Date(generatedAt).getTime()) / 1000));
-  if (seconds < 60) return `${seconds}s ago`;
-  return `${Math.floor(seconds / 60)}m ago`;
+  const seconds = Math.max(0, Math.floor((Date.now() - parseUtcTimestamp(generatedAt)) / 1000));
+  const minutes = Math.floor(seconds / 60);
+  if (minutes === 0) return 'just now';
+  return `${minutes}m ago`;
 }
 
 export default function ModelPerformance() {
@@ -33,6 +41,12 @@ export default function ModelPerformance() {
   const [validation, setValidation] = useState<ValidationMetricsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [live, setLive] = useState(false);
+  // Tick every minute so the "last refresh" counter stays accurate
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick((t: number) => t + 1), 60000);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -186,7 +200,7 @@ export default function ModelPerformance() {
             <span className="font-semibold text-[var(--text-primary)]">
               {formatRefreshAge(metrics?.generated_at)}
             </span>{' '}
-            (auto every 20s)
+            (auto every 10m)
           </p>
         </div>
       </div>
