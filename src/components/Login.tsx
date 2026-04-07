@@ -154,7 +154,7 @@ function DriverLoginForm({
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -30 }}
       transition={{ duration: 0.3 }}
-      className="w-full max-w-md space-y-8 relative z-10"
+      className="w-full max-w-md space-y-6 relative z-10"
     >
       <div className="space-y-2">
         <button
@@ -418,7 +418,7 @@ function RoleSelector({
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -30 }}
       transition={{ duration: 0.3 }}
-      className="w-full max-w-md space-y-6 sm:space-y-8 relative z-10"
+      className="w-full max-w-md space-y-6 relative z-10"
     >
       <div className="space-y-1">
         <img src="/grid-logo.png" alt="GRID" className="h-10 w-auto object-contain mb-3" />
@@ -494,7 +494,7 @@ export default function Login({ onLogin }: LoginProps) {
 
       <div className="relative lg:flex-[3] flex flex-col justify-between overflow-hidden
                       pt-8 pb-16 px-5 sm:p-10
-                      lg:min-h-screen lg:p-16">
+                      lg:min-h-screen lg:p-12">
         <GridBackground />
 
         <div className="relative z-10 flex-shrink-0">
@@ -505,7 +505,7 @@ export default function Login({ onLogin }: LoginProps) {
             className="flex flex-col gap-4"
           >
             <div className="flex items-center gap-2.5 sm:gap-3.5">
-              <img src="/grid-logo.png" alt="GRID" className="h-24 sm:h-32 w-auto object-contain drop-shadow-[0_0_30px_rgba(250,204,21,0.15)]" />
+              <img src="/grid-logo.png" alt="GRID" className="h-20 sm:h-28 w-auto object-contain drop-shadow-[0_0_30px_rgba(250,204,21,0.15)]" />
               <div className="h-12 w-px bg-white/10 hidden sm:block" />
               <div className="hidden sm:block">
                 <h2 className="text-xl sm:text-2xl font-black text-white tracking-widest leading-none">GRID</h2>
@@ -519,14 +519,14 @@ export default function Login({ onLogin }: LoginProps) {
           </motion.div>
         </div>
 
-        <div className="relative z-10 mt-16 sm:mt-24 lg:my-auto lg:py-0 flex-1 flex flex-col justify-center">
+        <div className="relative z-10 mt-10 sm:mt-14 lg:my-auto lg:py-0 flex-1 flex flex-col justify-center">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2, duration: 0.7 }}
             className="space-y-4 sm:space-y-6 max-w-lg"
           >
-            <h1 className="text-[2.5rem] leading-[1.05] sm:text-5xl lg:text-6xl xl:text-7xl font-extrabold text-white tracking-tight">
+            <h1 className="text-[2.5rem] leading-[1.05] sm:text-5xl lg:text-5xl xl:text-6xl font-extrabold text-white tracking-tight">
               The OS for <br className="lg:hidden" />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#facc15] via-[#fbbf24] to-[#f59e0b]">
                 Modern Mobility
@@ -572,7 +572,7 @@ export default function Login({ onLogin }: LoginProps) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 1, duration: 0.8 }}
-            className="relative z-10 mt-10 sm:mt-12 lg:mt-20 group"
+            className="relative z-10 mt-10 sm:mt-12 lg:mt-14 group"
           >
             <div className="absolute inset-0 bg-gradient-to-r from-[#facc15]/20 to-transparent blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 rounded-3xl" />
             <div className="relative flex items-center gap-5 lg:gap-6 p-5 lg:p-7 rounded-3xl border border-white/10 bg-white/[0.04] backdrop-blur-md hover:border-[#facc15]/40 hover:bg-white/[0.08] transition-all duration-500 max-w-sm lg:max-w-lg cursor-pointer shadow-[0_12px_48px_rgba(0,0,0,0.15)]"
@@ -606,7 +606,7 @@ export default function Login({ onLogin }: LoginProps) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 1.2, duration: 0.5 }}
-          className="hidden lg:flex relative z-10 items-center gap-10 text-white/30 text-xs font-medium mt-12"
+          className="hidden lg:flex relative z-10 items-center gap-10 text-white/30 text-xs font-medium mt-8"
         >
           <div className="flex flex-col gap-1">
             <span className="text-2xl font-black text-white/90 tracking-tighter">1.2M+</span>
@@ -628,7 +628,7 @@ export default function Login({ onLogin }: LoginProps) {
 
       {/* Auth Panel - Bottom Sheet on Mobile */}
       <div className="flex-1 lg:flex-[2] bg-[var(--background)] flex items-start lg:items-center justify-center
-                      px-4 pb-8 -mt-6 sm:-mt-10 lg:mt-0 lg:p-16
+                      px-4 pb-8 -mt-6 sm:-mt-10 lg:mt-0 lg:p-12
                       relative z-20">
         <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--primary)]/5 blur-[100px] rounded-full pointer-events-none" />
 
