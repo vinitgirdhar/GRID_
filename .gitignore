@@ -14,3 +14,6 @@ grid_ml/notebooks/.ipynb_checkpoints/
 
 # Local Netlify folder
 .netlify
+
+# Sensitive MCP config
+.mcp.json
