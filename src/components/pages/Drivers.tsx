@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Search, Star, MapPin, TrendingUp, ShieldCheck, ShieldAlert, Shield, Trophy, Wifi, WifiOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../../lib/utils';
@@ -34,13 +34,16 @@ export default function Drivers({ onSelectDriver }: DriversProps) {
     onDrivers: (data) => { setDrivers(data); setError(false); setLoading(false); },
   });
 
-  const filteredDrivers = drivers.filter((driver: Driver) => {
-    const matchesFilter = filter === 'all' || driver.status === filter;
-    const matchesSearch =
-      driver.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      driver.borough.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesFilter && matchesSearch;
-  });
+  const filteredDrivers = useMemo(() => {
+    const q = searchQuery.toLowerCase();
+    return drivers.filter((driver: Driver) => {
+      const matchesFilter = filter === 'all' || driver.status === filter;
+      const matchesSearch =
+        driver.name.toLowerCase().includes(q) ||
+        driver.borough.toLowerCase().includes(q);
+      return matchesFilter && matchesSearch;
+    });
+  }, [drivers, filter, searchQuery]);
 
   const getStatusColor = (status: DriverStatus) => {
     switch (status) {

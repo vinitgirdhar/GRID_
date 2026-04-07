@@ -7,7 +7,7 @@ import { getDrowsinessStatus } from '../services/apiService';
 import { DrowsinessResponse, DrowsinessSeverity } from '../types';
 
 
-const REFRESH_INTERVAL_MS = 2000;
+const REFRESH_INTERVAL_MS = 15000;
 
 
 function truncate(text: string | null | undefined, maxLength = 110): string | null {

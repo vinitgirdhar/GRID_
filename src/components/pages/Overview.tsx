@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import { Activity, Car, ChevronRight, CloudRain, DollarSign, Target, Users } from 'lucide-react';
 import {
@@ -68,28 +68,39 @@ export default function Overview() {
     };
   }, []);
 
-  const activePeriod = hotspots ? getActiveHotspotPeriod(hotspots) : null;
-  const hourlyDemand = forecast?.forecast.map((point) => ({
-    name: `${point.hour}:00`,
-    value: Math.round(point.total_predicted_demand),
-  })) ?? [];
-  const demandBuckets = forecast
-    ? Array.from({ length: 6 }, (_, bucketIndex) => {
-        const slice = forecast.forecast.slice(bucketIndex * 4, (bucketIndex + 1) * 4);
-
-        return {
-          name: `${slice[0]?.hour ?? bucketIndex * 4}:00`,
-          value: Math.round(slice.reduce((sum, point) => sum + point.total_predicted_demand, 0)),
-        };
-      })
-    : [];
-  const zoneDistribution = activePeriod?.zones.map((zone) => ({
-    name: zone.zone_name,
-    value: Math.round(zone.predicted_demand),
-  })) ?? [];
-  const demandBucketMax = Math.max(0, ...demandBuckets.map((item) => item.value));
-  const zoneDemandMax = Math.max(0, ...zoneDistribution.map((item) => item.value));
-  const hourlyDemandMax = Math.max(0, ...hourlyDemand.map((item) => item.value));
+  const activePeriod = useMemo(
+    () => (hotspots ? getActiveHotspotPeriod(hotspots) : null),
+    [hotspots],
+  );
+  const hourlyDemand = useMemo(
+    () => forecast?.forecast.map((point) => ({
+      name: `${point.hour}:00`,
+      value: Math.round(point.total_predicted_demand),
+    })) ?? [],
+    [forecast],
+  );
+  const demandBuckets = useMemo(
+    () => forecast
+      ? Array.from({ length: 6 }, (_, bucketIndex) => {
+          const slice = forecast.forecast.slice(bucketIndex * 4, (bucketIndex + 1) * 4);
+          return {
+            name: `${slice[0]?.hour ?? bucketIndex * 4}:00`,
+            value: Math.round(slice.reduce((sum, point) => sum + point.total_predicted_demand, 0)),
+          };
+        })
+      : [],
+    [forecast],
+  );
+  const zoneDistribution = useMemo(
+    () => activePeriod?.zones.map((zone) => ({
+      name: zone.zone_name,
+      value: Math.round(zone.predicted_demand),
+    })) ?? [],
+    [activePeriod],
+  );
+  const demandBucketMax = useMemo(() => Math.max(0, ...demandBuckets.map((item) => item.value)), [demandBuckets]);
+  const zoneDemandMax = useMemo(() => Math.max(0, ...zoneDistribution.map((item) => item.value)), [zoneDistribution]);
+  const hourlyDemandMax = useMemo(() => Math.max(0, ...hourlyDemand.map((item) => item.value)), [hourlyDemand]);
 
   const demandBucketTooltip = {
     title: 'Predicted Ride Volume',

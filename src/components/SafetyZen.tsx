@@ -61,7 +61,7 @@ export default function SafetyZen({ isLive }: { isLive?: boolean }) {
       }
     };
 
-    const poll = setInterval(fetchWellness, 2000); // Poll every 2s
+    const poll = setInterval(fetchWellness, 15000); // Poll every 15s
     fetchWellness();
     return () => clearInterval(poll);
   }, [hasDismissedBreakModal]);
