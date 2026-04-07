@@ -19,6 +19,7 @@ import { API_BASE_URL } from '../config/api';
 import { CacheStoreName, offlineService } from './offlineService';
 import {
   mockAskCopilot,
+  mockComputeGoalRoute,
   mockGetDrowsinessStatus,
   mockGetValidationMetrics,
   mockListDrivers,
@@ -366,6 +367,44 @@ export async function logoutDriver(driverId: string) {
     { method: 'POST' },
     () => mockLogoutDriver(driverId),
   );
+}
+
+// ==============================================================================
+// GOAL-BASED ROUTING
+// ==============================================================================
+
+export interface GoalRouteRequest {
+  time_hours: number;
+  earnings_target: number;
+}
+
+export interface GoalRouteZone {
+  rank: number;
+  zone_id: string;
+  zone_name: string;
+  borough: string;
+  lat: number;
+  lng: number;
+  estimated_minutes: number;
+  estimated_trips: number;
+  estimated_earnings: number;
+}
+
+export interface GoalRouteResponse {
+  generated_at: string;
+  time_budget_hours: number;
+  earnings_target: number;
+  projected_earnings: number;
+  meets_target: boolean;
+  zones: GoalRouteZone[];
+  summary_text: string;
+}
+
+export async function computeGoalRoute(payload: GoalRouteRequest): Promise<GoalRouteResponse> {
+  return fetchJson<GoalRouteResponse>('/goal-route', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }, () => mockComputeGoalRoute(payload));
 }
 
 export async function getWellnessStatus(): Promise<WellnessStatus> {

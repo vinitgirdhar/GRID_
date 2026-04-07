@@ -72,8 +72,8 @@ const ADMIN_ITEMS = [
 const DRIVER_ITEMS = [
   { id: 'overview', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'go-for-ride', label: 'Go For Ride', icon: Navigation },
-  { id: 'drowsiness-camera', label: 'Drowsiness Camera', icon: ShieldAlert },
   { id: 'where-next', label: 'Where should I go next', icon: BrainCircuit },
+  { id: 'drowsiness-camera', label: 'Drowsiness Camera', icon: ShieldAlert },
   { id: 'driver-performance', label: 'Performance', icon: LineChartIcon },
   { id: 'missed-opportunities', label: 'Missed Opportunities', icon: TrendingDown },
 ] as const;

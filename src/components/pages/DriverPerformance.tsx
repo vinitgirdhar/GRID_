@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { motion } from 'motion/react';
 import { Activity, Award, Clock3, DollarSign, Gauge, Medal, Plus, Sparkles, Star, Target, TrendingUp, Trophy, X, Zap } from 'lucide-react';
+import PlanMyShift from './PlanMyShift';
 import { DRIVER_EARNINGS } from '../../constants';
 import { cn } from '../../lib/utils';
 import { getActiveHotspotPeriod, getHotspots } from '../../services/apiService';
@@ -197,11 +198,11 @@ function InfoDot() {
 
 function TaxiBrandMark({ compact = false }: { compact?: boolean }) {
   return (
-    <div className={cn('inline-flex items-center gap-2.5 rounded-2xl bg-[#1f1a1c] text-white border border-white/10 shadow-lg', compact ? 'px-3 py-2' : 'px-4 py-3')}>
-      <div className={cn('rounded-xl bg-white text-black font-black flex items-center justify-center', compact ? 'w-10 h-10 text-[10px]' : 'w-12 h-12 text-xs')}>
+    <div className={cn('inline-flex items-center gap-2 rounded-2xl bg-[#1f1a1c] text-white border border-white/10 shadow-lg', compact ? 'px-2.5 py-2' : 'px-4 py-3')}>
+      <div className={cn('rounded-xl bg-white text-black font-black flex items-center justify-center', compact ? 'w-8 h-8 text-[9px]' : 'w-12 h-12 text-xs')}>
         NYC
       </div>
-      <span className={cn('font-black tracking-tight leading-none', compact ? 'text-xl' : 'text-2xl sm:text-[2rem]')}>TAXI</span>
+      <span className={cn('font-black tracking-tight leading-none', compact ? 'text-lg' : 'text-2xl sm:text-[2rem]')}>TAXI</span>
     </div>
   );
 }
@@ -563,40 +564,23 @@ export default function DriverPerformance() {
         </div>
         <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-3">
           <button type="button" onClick={() => setShowSetupModal(true)} className="px-4 py-3 rounded-xl border border-[var(--border)] text-[var(--text-secondary)] font-bold text-sm">
-            {shiftSession ? 'Edit Shift' : 'Start Shift'}
+            {shiftSession ? 'Update Goal' : 'Start Shift'}
+          </button>
+          <button
+            type="button"
+            onClick={openManualLogging}
+            className="px-4 py-3 rounded-xl bg-primary text-white font-black shadow-lg shadow-primary/20 flex items-center justify-center gap-2 text-sm"
+          >
+            <Plus size={14} />
+            {shiftSession ? 'Log Trip' : 'Set Goal'}
           </button>
           <button type="button" onClick={resetShift} className="px-4 py-3 rounded-xl bg-[var(--background)] border border-[var(--border)] text-[var(--text-secondary)] font-bold text-sm">
-            Reset Session
+            Reset
           </button>
         </div>
       </div>
 
       {hotspotError && <div className="glass-card p-4 border border-[var(--warning)]/15 text-sm text-[var(--text-secondary)]">{hotspotError}</div>}
-
-      <div className="glass-card p-4 sm:p-6 border border-[var(--primary)]/15">
-        <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-          <div className="flex-1 flex items-center">
-            <TaxiBrandMark />
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full lg:w-auto">
-            <button
-              type="button"
-              onClick={() => setShowSetupModal(true)}
-              className="px-5 py-3 rounded-xl border border-[var(--border)] text-[var(--text-secondary)] font-bold text-sm whitespace-nowrap"
-            >
-              {shiftSession ? 'Update Goal' : 'Set Goal'}
-            </button>
-            <button
-              type="button"
-              onClick={openManualLogging}
-              className="px-5 py-3 rounded-xl bg-primary text-white font-black shadow-lg shadow-primary/20 flex items-center justify-center gap-2 text-sm whitespace-nowrap"
-            >
-              <Plus size={16} />
-              {shiftSession ? 'Preview Meter Trip' : 'Set Goal To Enable Meter'}
-            </button>
-          </div>
-        </div>
-      </div>
 
       {!shiftSession && (
         <div className="glass-card p-5 sm:p-8 border border-[var(--primary)]/15 bg-[radial-gradient(circle_at_top_left,rgba(244,176,0,0.14),transparent_52%)]">
@@ -614,7 +598,7 @@ export default function DriverPerformance() {
 
       {shiftSession && (
         <>
-          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.95fr)] gap-6">
+          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.7fr)_minmax(300px,0.7fr)] gap-6">
             <div className="glass-card p-4 sm:p-6 lg:p-8 overflow-hidden relative">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(244,176,0,0.16),transparent_45%),radial-gradient(circle_at_bottom_right,rgba(47,158,110,0.12),transparent_35%)] pointer-events-none" />
               <div className="relative flex flex-col lg:flex-row gap-6 lg:gap-8 lg:items-center">
@@ -654,11 +638,12 @@ export default function DriverPerformance() {
                     <p className="text-sm text-[var(--text-secondary)] mt-2 max-w-2xl">{statusVisual.copy}</p>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    {shiftQuickStats.map((stat) => (
-                      <div key={stat.label} className="rounded-2xl border border-[var(--border)] bg-[var(--background)]/90 p-3 sm:p-4">
-                        <p className="text-[10px] uppercase tracking-[0.18em] font-black text-[var(--text-secondary)]">{stat.label}</p>
-                        <p className="text-base sm:text-lg font-black text-[var(--text-primary)] mt-2 break-words">{stat.value}</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {performanceKpis.map((kpi) => (
+                      <div key={kpi.label} className={cn('rounded-2xl border p-3 sm:p-4', kpi.panel)}>
+                        <p className="text-[10px] uppercase tracking-[0.16em] font-black text-[var(--text-secondary)]">{kpi.label}</p>
+                        <p className={cn('text-base sm:text-lg font-black mt-2 break-words', kpi.tone)}>{kpi.value}</p>
+                        <p className="text-[10px] text-[var(--text-secondary)] mt-1">{kpi.meta}</p>
                       </div>
                     ))}
                   </div>
@@ -722,23 +707,6 @@ export default function DriverPerformance() {
                 </div>
               </div>
             </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-            {performanceKpis.map((kpi) => (
-              <div key={kpi.label} className="glass-card p-4 sm:p-5">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-[10px] uppercase tracking-[0.18em] font-black text-[var(--text-secondary)]">{kpi.label}</p>
-                    <p className="text-xl sm:text-2xl font-black text-[var(--text-primary)] mt-2 break-words">{kpi.value}</p>
-                    <p className="text-xs text-[var(--text-secondary)] mt-2">{kpi.meta}</p>
-                  </div>
-                  <div className={cn('w-11 h-11 rounded-xl border flex items-center justify-center', kpi.panel)}>
-                    <kpi.icon className={cn('w-5 h-5', kpi.tone)} />
-                  </div>
-                </div>
-              </div>
-            ))}
           </div>
         </>
       )}
@@ -926,6 +894,8 @@ export default function DriverPerformance() {
 
       <ShiftSetupModal open={showSetupModal} onClose={() => setShowSetupModal(false)} onSave={startShift} />
       <AddEarningsModal open={showEntryModal} onClose={() => setShowEntryModal(false)} zones={availableZones} onSave={logTrip} />
+
+      <PlanMyShift />
     </div>
   );
 }

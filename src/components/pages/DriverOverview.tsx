@@ -57,6 +57,7 @@ export default function DriverOverview({
   const [theme, setTheme] = useState<Theme>('dark');
   const [expandedCard, setExpandedCard] = useState<'demand' | 'weather' | 'event' | null>(null);
   const [ecoMode, setEcoMode] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   // Virtual driver location: Midtown Manhattan, NYC (fixed — no real GPS)
   const VIRTUAL_DRIVER_LOCATION: [number, number] = [40.7549, -73.9840];
 
@@ -152,27 +153,27 @@ export default function DriverOverview({
 
   const liveKpis = [
     {
-      label: 'Peak Zone Demand',
+      label: 'Busiest Area Right Now',
       value: currentForecastPoint ? `${currentForecastPoint.total_predicted_demand.toFixed(0)}` : (primaryZone ? `${primaryZone.predicted_demand.toFixed(1)}` : '--'),
-      change: currentForecastPoint?.top_zone_name ?? primaryZone?.zone_name ?? '--',
+      change: currentForecastPoint?.top_zone_name ?? primaryZone?.zone_name ?? 'Best place to be',
       icon: DollarSign,
     },
     {
-      label: 'Recommended Zones',
+      label: 'Hot Zones — Where to Go',
       value: String(activePeriod?.recommended_zones.length ?? 0),
-      change: activeHour < 15 ? 'Morning Window' : 'Evening Window',
+      change: `${activePeriod?.recommended_zones.length ?? 0} hot zones active right now`,
       icon: CheckCircle,
     },
     {
-      label: 'Active Forecast Hour',
-      value: dynamicPeak ? `${dynamicPeak.hour}:00` : '--',
-      change: dynamicPeak ? `Peak: ${dynamicPeak.total_predicted_demand.toFixed(0)} rides` : '--',
+      label: 'Best Time to Drive',
+      value: dynamicPeak ? `${dynamicPeak.hour % 12 || 12}:00 ${dynamicPeak.hour >= 12 ? 'PM' : 'AM'}` : '--',
+      change: dynamicPeak ? `Earnings peak at ${dynamicPeak.hour % 12 || 12}:00 ${dynamicPeak.hour >= 12 ? 'PM' : 'AM'}` : '--',
       icon: Percent,
     },
     {
-      label: 'Weather Signal',
+      label: 'Weather Boost',
       value: primaryZone?.weather_condition ?? '--',
-      change: primaryZone?.borough ?? '--',
+      change: 'Rainy weather means more rides',
       icon: Zap,
     },
   ];
@@ -219,6 +220,13 @@ export default function DriverOverview({
           >
             <Leaf size={13} />
             {ecoMode ? 'Eco On' : 'Eco'}
+          </button>
+          <button
+            onClick={() => setShowAdvanced((prev: boolean) => !prev)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-bold transition-all duration-200 ${showAdvanced ? 'bg-[var(--primary)]/15 border-[var(--primary)]/30 text-[var(--primary-dark)]' : 'bg-[var(--surface)] border-[var(--border)] text-[var(--text-secondary)]'}`}
+            title="Toggle advanced data"
+          >
+            🔬 Deep Data {showAdvanced ? '▴' : '▾'}
           </button>
           <button
             onClick={async () => {
@@ -283,24 +291,65 @@ export default function DriverOverview({
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {liveKpis.map((kpi, idx) => (
           <div key={kpi.label} className="kpi-card !p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="p-1.5 bg-primary/10 rounded-lg shrink-0">
+            <div className="mb-3">
+              <div className="p-1.5 bg-primary/10 rounded-lg inline-flex">
                 {idx === 0 && <DollarSign className="text-primary w-4 h-4" />}
                 {idx === 1 && <CheckCircle className="text-success w-4 h-4" />}
                 {idx === 2 && <Percent className="text-warning w-4 h-4" />}
                 {idx === 3 && <Zap className="text-sky-500 w-4 h-4" />}
               </div>
-              <div className="flex items-center gap-1 text-[10px] font-medium text-success justify-end ml-2 min-w-0 max-w-[55%]">
-                <TrendingUp size={11} className="shrink-0" />
-                <span className="truncate">{kpi.change}</span>
-              </div>
             </div>
             <div>
               <p className="text-[11px] font-semibold text-[var(--text-secondary)] mb-1 leading-tight">{kpi.label}</p>
-              <p className="text-2xl font-extrabold text-[var(--text-primary)] leading-none tracking-tight">{kpi.value}</p>
+              {idx === 0 ? (
+                <>
+                  <p className="text-lg font-extrabold text-[var(--text-primary)] leading-tight tracking-tight truncate">{kpi.change}</p>
+                  <p className="text-[11px] text-[var(--text-secondary)] font-semibold mt-0.5">{kpi.value} rides predicted</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-xl font-extrabold text-[var(--text-primary)] leading-tight tracking-tight">{kpi.value}</p>
+                  <p className="text-[11px] text-[var(--text-secondary)] font-semibold mt-0.5 truncate">{kpi.change}</p>
+                </>
+              )}
             </div>
           </div>
         ))}
+      </div>
+
+      <div className="glass-card p-6">
+        <div className="flex flex-wrap gap-3 items-center justify-between mb-6">
+          <div className="flex items-center gap-2">
+            <div className="p-2 bg-sky-500/10 rounded-lg">
+              <MapPin className="text-sky-500 w-5 h-5" />
+            </div>
+            <h3 className="font-bold text-[var(--text-primary)]">Hotspot Map</h3>
+          </div>
+          <div className="flex gap-3 flex-wrap">
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-danger shrink-0"></div>
+              <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">High</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-warning shrink-0"></div>
+              <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">Moderate</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-primary shrink-0"></div>
+              <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">Low</span>
+            </div>
+          </div>
+        </div>
+
+        <MapComponent
+          zones={mapZones}
+          theme={theme}
+          height="450px"
+          simplified={true}
+          zoom={15}
+          showYouAreHere={true}
+          youAreHerePosition={VIRTUAL_DRIVER_LOCATION}
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
@@ -312,14 +361,14 @@ export default function DriverOverview({
             <div className="p-2 bg-primary/10 rounded-lg">
               <TrendingUp className="text-primary w-5 h-5" />
             </div>
-            <h3 className="font-bold text-[var(--text-primary)]">Demand Intelligence</h3>
+            <h3 className="font-bold text-[var(--text-primary)]">Where Money Is</h3>
           </div>
 
           <div className="flex-1 space-y-6">
             <div className="space-y-4">
               <div className="flex items-start justify-between">
                 <p className="text-lg font-black text-[var(--danger)] leading-tight">High Demand Expected</p>
-                <span className="px-2 py-1 bg-[var(--danger)]/10 text-[var(--danger)] text-[10px] font-black rounded uppercase border border-[var(--danger)]/20">Critical</span>
+                <span className="px-2 py-1 bg-[var(--danger)]/10 text-[var(--danger)] text-[10px] font-black rounded uppercase border border-[var(--danger)]/20">HIGH DEMAND</span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -328,45 +377,47 @@ export default function DriverOverview({
                   <p className="text-sm font-bold text-[var(--text-primary)]">{primaryZone ? `${primaryZone.borough} - ${primaryZone.zone_name}` : '--'}</p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-widest">Time Window</p>
+                  <p className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-widest">Best time to be there</p>
                   <p className="text-sm font-bold text-[var(--text-primary)]">{activePeriod?.target_time ?? '--'}</p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-widest">Predicted Rides</p>
+                  <p className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-widest">Expected pickups</p>
                   <p className="text-sm font-bold text-[var(--text-primary)]">{primaryZone ? primaryZone.predicted_demand.toFixed(1) : '--'}</p>
                 </div>
               </div>
             </div>
 
-            <div className="h-[100px] w-full mt-4">
-              <p className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-widest mb-2">3 Hour Trend</p>
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={trendData} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorDemand" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.6} />
-                      <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <Area
-                    type="basis"
-                    dataKey="value"
-                    stroke="var(--primary-dark)"
-                    fillOpacity={1}
-                    fill="url(#colorDemand)"
-                    strokeWidth={3}
-                    activeDot={{ r: 4, fill: "var(--primary)", stroke: "var(--surface)", strokeWidth: 2 }}
-                  />
-                  <XAxis dataKey="name" hide />
-                  <YAxis hide domain={['dataMin - 500', 'dataMax + 500']} />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', fontSize: '11px', boxShadow: 'var(--shadow-md)' }}
-                    itemStyle={{ color: 'var(--text-primary)', fontWeight: 'bold' }}
-                    cursor={{ stroke: 'var(--border)', strokeWidth: 1, strokeDasharray: '3 3' }}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
+            {showAdvanced && (
+              <div className="h-[100px] w-full mt-4">
+                <p className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-widest mb-2">3 Hour Trend</p>
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={trendData} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorDemand" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.6} />
+                        <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <Area
+                      type="basis"
+                      dataKey="value"
+                      stroke="var(--primary-dark)"
+                      fillOpacity={1}
+                      fill="url(#colorDemand)"
+                      strokeWidth={3}
+                      activeDot={{ r: 4, fill: "var(--primary)", stroke: "var(--surface)", strokeWidth: 2 }}
+                    />
+                    <XAxis dataKey="name" hide />
+                    <YAxis hide domain={['dataMin - 500', 'dataMax + 500']} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', fontSize: '11px', boxShadow: 'var(--shadow-md)' }}
+                      itemStyle={{ color: 'var(--text-primary)', fontWeight: 'bold' }}
+                      cursor={{ stroke: 'var(--border)', strokeWidth: 1, strokeDasharray: '3 3' }}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            )}
           </div>
 
           <div className="mt-6 pt-4 border-t border-[var(--border)] mt-auto">
@@ -387,14 +438,16 @@ export default function DriverOverview({
             <div className="p-2 bg-sky-500/10 rounded-lg">
               <CloudRain className="text-sky-500 w-5 h-5" />
             </div>
-            <h3 className="font-bold text-[var(--text-primary)]">Weather Intelligence</h3>
+            <h3 className="font-bold text-[var(--text-primary)]">Weather Effect</h3>
           </div>
 
           <div className="flex-1 space-y-6">
             <div className="space-y-4">
               <div className="flex items-start justify-between">
                 <p className="text-lg font-black text-[var(--accent)] leading-tight">Weather-Adjusted Demand</p>
-                <span className="px-2 py-1 bg-slate-100 text-slate-600 text-[10px] font-black rounded uppercase border border-slate-200">Active Alert</span>
+                <span className="px-2 py-1 bg-sky-100 text-sky-700 text-[10px] font-black rounded uppercase border border-sky-200">
+                  {weather?.condition ?? primaryZone?.weather_condition ?? 'Checking...'}
+                </span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -403,7 +456,7 @@ export default function DriverOverview({
                   <p className="text-sm font-bold text-[var(--text-primary)]">{weather?.location_name ?? primaryZone?.borough ?? '--'}</p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-widest">Time Window</p>
+                  <p className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-widest">Best time to be there</p>
                   <p className="text-sm font-bold text-[var(--text-primary)]">{activePeriod?.label ?? '--'}</p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -444,14 +497,14 @@ export default function DriverOverview({
             <div className="p-2 bg-warning/10 rounded-lg">
               <Calendar className="text-warning w-5 h-5" />
             </div>
-            <h3 className="font-bold text-[var(--text-primary)]">Event Intelligence</h3>
+            <h3 className="font-bold text-[var(--text-primary)]">Nearby Events</h3>
           </div>
 
           <div className="flex-1 space-y-6">
             <div className="space-y-4">
               <div className="flex items-start justify-between">
-                <p className="text-lg font-black text-[var(--warning)] leading-tight">Positioning Recommendations</p>
-                <span className="px-2 py-1 bg-[var(--warning)]/10 text-[var(--warning)] text-[10px] font-black rounded uppercase border border-[var(--warning)]/20">Surge Risk</span>
+                <p className="text-lg font-black text-[var(--warning)] leading-tight">Events Boosting Rides</p>
+                <span className="px-2 py-1 bg-[var(--warning)]/10 text-[var(--warning)] text-[10px] font-black rounded uppercase border border-[var(--warning)]/20">EVENT BOOST</span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -460,7 +513,7 @@ export default function DriverOverview({
                   <p className="text-sm font-bold text-[var(--text-primary)]">{activePeriod?.recommended_zones[0]?.zone_name ?? '--'}</p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-widest">Time Window</p>
+                  <p className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-widest">Best time to be there</p>
                   <p className="text-sm font-bold text-[var(--text-primary)]">{activePeriod?.target_time ?? '--'}</p>
                 </div>
                 <div className="space-y-1">
@@ -489,73 +542,48 @@ export default function DriverOverview({
         </div>
       </div>
 
-      <div className="glass-card p-6">
-        <div className="flex flex-wrap gap-3 items-center justify-between mb-6">
-          <div className="flex items-center gap-2">
-            <div className="p-2 bg-sky-500/10 rounded-lg">
-              <MapPin className="text-sky-500 w-5 h-5" />
-            </div>
-            <h3 className="font-bold text-[var(--text-primary)]">Hotspot Map</h3>
+      {showAdvanced && (
+        <div className="glass-card p-6">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="px-2 py-0.5 text-[10px] font-black uppercase tracking-wider bg-[var(--primary)]/10 text-[var(--primary-dark)] rounded border border-[var(--primary)]/20">
+              Advanced data is showing — charts &amp; raw numbers
+            </span>
           </div>
-          <div className="flex gap-3 flex-wrap">
-            <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-danger shrink-0"></div>
-              <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">High</span>
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h3 className="font-bold text-[var(--text-primary)]">Demand Breakdown</h3>
+              <p className="text-sm text-[var(--text-secondary)] mt-1">
+                How GRID calculates demand: base + weather + events + time-of-day boost.
+              </p>
             </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-warning shrink-0"></div>
-              <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">Moderate</span>
+            <div className="text-right">
+              <p className="text-xs uppercase tracking-wider text-[var(--text-secondary)]">Estimated Next-Hour Demand</p>
+              <p className="text-2xl font-bold text-[var(--primary)]">{formulaPrediction.toFixed(1)}</p>
             </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-primary shrink-0"></div>
-              <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">Low</span>
-            </div>
+          </div>
+
+          <div className="h-[250px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={formulaData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
+                <Tooltip
+                  contentStyle={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '8px' }}
+                  formatter={(value: number) => [value.toFixed(2), 'Contribution']}
+                />
+                <Bar dataKey="value" fill="var(--primary)" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </div>
-
-        <MapComponent 
-          zones={mapZones} 
-          theme={theme} 
-          height="450px" 
-          simplified={true} 
-          zoom={15}
-          showYouAreHere={true}
-          youAreHerePosition={VIRTUAL_DRIVER_LOCATION}
-        />
-      </div>
-
-      <div className="glass-card p-6">
-        <div className="flex items-center justify-between mb-5">
-          <div>
-            <h3 className="font-bold text-[var(--text-primary)]">Prediction Formula Breakdown</h3>
-            <p className="text-sm text-[var(--text-secondary)] mt-1">
-              Formula: Base demand + weather lift + event lift + short-horizon forecast lift.
-            </p>
-          </div>
-          <div className="text-right">
-            <p className="text-xs uppercase tracking-wider text-[var(--text-secondary)]">Estimated Next-Hour Demand</p>
-            <p className="text-2xl font-bold text-[var(--primary)]">{formulaPrediction.toFixed(1)}</p>
-          </div>
-        </div>
-
-        <div className="h-[250px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={formulaData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
-              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
-              <Tooltip
-                contentStyle={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '8px' }}
-                formatter={(value: number) => [value.toFixed(2), 'Contribution']}
-              />
-              <Bar dataKey="value" fill="var(--primary)" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
+      )}
 
       {/* Missed Opportunity Feed */}
-      <MissedOpportunityFeed onCountChange={() => {}} />
+      <div>
+        <h3 className="font-bold text-[var(--text-primary)] mb-3">Trips You Missed Nearby</h3>
+        <MissedOpportunityFeed onCountChange={() => {}} />
+      </div>
 
       {/* Dynamic Details Modal */}
       {expandedCard && (
@@ -576,7 +604,7 @@ export default function DriverOverview({
                       <TrendingUp className="text-primary w-6 h-6" />
                     </div>
                     <div>
-                      <h2 className="text-2xl font-black text-[var(--text-primary)]">Demand Intelligence</h2>
+                      <h2 className="text-2xl font-black text-[var(--text-primary)]">Where Money Is</h2>
                       <p className="text-[var(--text-secondary)] font-medium text-sm mt-0.5">Detailed hotspot volume breakdown</p>
                     </div>
                   </>
@@ -587,7 +615,7 @@ export default function DriverOverview({
                       <CloudRain className="text-sky-500 w-6 h-6" />
                     </div>
                     <div>
-                      <h2 className="text-2xl font-black text-[var(--text-primary)]">Weather Intelligence</h2>
+                      <h2 className="text-2xl font-black text-[var(--text-primary)]">Weather Effect</h2>
                       <p className="text-[var(--text-secondary)] font-medium text-sm mt-0.5">Atmospheric conditions and demand impact</p>
                     </div>
                   </>
@@ -598,7 +626,7 @@ export default function DriverOverview({
                       <Calendar className="text-warning w-6 h-6" />
                     </div>
                     <div>
-                      <h2 className="text-2xl font-black text-[var(--text-primary)]">Event Intelligence</h2>
+                      <h2 className="text-2xl font-black text-[var(--text-primary)]">Nearby Events</h2>
                       <p className="text-[var(--text-secondary)] font-medium text-sm mt-0.5">Regional activity and surge tracking</p>
                     </div>
                   </>

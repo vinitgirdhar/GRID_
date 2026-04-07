@@ -746,3 +746,63 @@ export async function mockGetValidationMetrics(): Promise<ValidationMetricsRespo
 export function isMockApiError(error: unknown): error is MockApiError {
   return error instanceof MockApiError;
 }
+
+// ==============================================================================
+// GOAL-BASED ROUTING MOCK
+// ==============================================================================
+
+const MOCK_ZONES = [
+  { zone_id: 'times_sq', zone_name: 'Times Square', borough: 'Manhattan', lat: 40.7580, lng: -73.9855, demand: 120 },
+  { zone_id: 'grand_central', zone_name: 'Grand Central', borough: 'Manhattan', lat: 40.7527, lng: -73.9772, demand: 95 },
+  { zone_id: 'penn_station', zone_name: 'Penn Station', borough: 'Manhattan', lat: 40.7506, lng: -73.9971, demand: 85 },
+  { zone_id: 'midtown_east', zone_name: 'Midtown East', borough: 'Manhattan', lat: 40.7549, lng: -73.9660, demand: 72 },
+  { zone_id: 'jfk_airport', zone_name: 'JFK Airport', borough: 'Queens', lat: 40.6413, lng: -73.7781, demand: 110 },
+];
+
+import type { GoalRouteRequest, GoalRouteResponse, GoalRouteZone } from './apiService';
+
+export function mockComputeGoalRoute(payload: GoalRouteRequest): GoalRouteResponse {
+  const AVG_TRAVEL_MINUTES = 15;
+  const AVG_FARE = 12.0;
+
+  const sorted = [...MOCK_ZONES].sort((a, b) => b.demand - a.demand);
+  let timeRemaining = payload.time_hours * 60;
+  const zones: GoalRouteZone[] = [];
+  let projectedEarnings = 0;
+
+  for (const z of sorted) {
+    if (timeRemaining <= 0) break;
+    const stayMinutes = Math.min(timeRemaining, Math.max(AVG_TRAVEL_MINUTES, Math.floor(z.demand * 0.5)));
+    const estimatedTrips = Math.max(1, Math.floor(z.demand * 0.08));
+    const estimatedEarnings = parseFloat((estimatedTrips * AVG_FARE).toFixed(2));
+    zones.push({
+      rank: zones.length + 1,
+      zone_id: z.zone_id,
+      zone_name: z.zone_name,
+      borough: z.borough,
+      lat: z.lat,
+      lng: z.lng,
+      estimated_minutes: stayMinutes,
+      estimated_trips: estimatedTrips,
+      estimated_earnings: estimatedEarnings,
+    });
+    projectedEarnings += estimatedEarnings;
+    timeRemaining -= stayMinutes + AVG_TRAVEL_MINUTES;
+  }
+
+  const meetsTarget = projectedEarnings >= payload.earnings_target;
+  const names = zones.map((z) => z.zone_name);
+  const summaryText = names.length > 1
+    ? `With ${payload.time_hours}h and a $${payload.earnings_target} target, start at ${names[0]} for the surge, then move to ${names[1]}${names.length > 2 ? `, and wrap up in ${names[names.length - 1]}` : ''}. Projected: $${projectedEarnings.toFixed(0)}.`
+    : `Head to ${names[0] ?? 'the top zone'} — that's where the money is right now.`;
+
+  return {
+    generated_at: new Date().toISOString(),
+    time_budget_hours: payload.time_hours,
+    earnings_target: payload.earnings_target,
+    projected_earnings: parseFloat(projectedEarnings.toFixed(2)),
+    meets_target: meetsTarget,
+    zones,
+    summary_text: summaryText,
+  };
+}

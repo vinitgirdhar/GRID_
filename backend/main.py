@@ -31,6 +31,9 @@ from .schemas import (
     ForecastPoint,
     ForecastResponse,
     ForecastSummary,
+    GoalRouteRequest,
+    GoalRouteResponse,
+    GoalRouteZone,
     HealthResponse,
     HotspotPeriod,
     HotspotsResponse,
@@ -1757,4 +1760,87 @@ def get_validation_metrics() -> ValidationMetricsResponse:
         driver_impact=driver_impact,
         model_state=model_state,
         retrain_log=retrain_log,
+    )
+
+
+# ==============================================================================
+# GOAL-BASED ROUTING
+# ==============================================================================
+
+@app.post(f"{settings.api_prefix}/goal-route", response_model=GoalRouteResponse)
+def compute_goal_route(request: GoalRouteRequest) -> GoalRouteResponse:
+    """Greedy zone sequencer: picks the highest-scoring zones until the time
+    budget is exhausted, then returns per-zone earnings estimates."""
+
+    hotspots: HotspotsResponse | None = getattr(app.state, "hotspots", None)
+    if hotspots is None:
+        raise HTTPException(status_code=503, detail="Hotspot data not yet loaded.")
+
+    active_hour = datetime.utcnow().hour
+    active_period: HotspotPeriod = hotspots.morning if active_hour < 15 else hotspots.evening
+    zones: list[HotspotZone] = active_period.zones
+
+    AVG_TRAVEL_MINUTES = 15
+    AVG_FARE = 12.0
+
+    def zone_score(z: HotspotZone) -> float:
+        multiplier = 1.15 if z.demand_level == "High" else (1.08 if z.demand_level == "Medium" else 1.0)
+        return (z.predicted_demand * multiplier) / AVG_TRAVEL_MINUTES
+
+    sorted_zones = sorted(zones, key=zone_score, reverse=True)
+
+    time_remaining = request.time_hours * 60  # minutes
+    result_zones: list[GoalRouteZone] = []
+    projected_earnings = 0.0
+    rank = 1
+
+    for z in sorted_zones:
+        if time_remaining <= 0:
+            break
+        stay_minutes = min(int(time_remaining), max(AVG_TRAVEL_MINUTES, int(z.predicted_demand * 0.5)))
+        estimated_trips = max(1, int(z.predicted_demand * 0.08))
+        estimated_earnings = round(estimated_trips * AVG_FARE, 2)
+        result_zones.append(GoalRouteZone(
+            rank=rank,
+            zone_id=z.zone_id,
+            zone_name=z.zone_name,
+            borough=z.borough,
+            lat=z.lat,
+            lng=z.lng,
+            estimated_minutes=stay_minutes,
+            estimated_trips=estimated_trips,
+            estimated_earnings=estimated_earnings,
+        ))
+        projected_earnings += estimated_earnings
+        time_remaining -= stay_minutes + AVG_TRAVEL_MINUTES
+        rank += 1
+
+    meets_target = projected_earnings >= request.earnings_target
+
+    if result_zones:
+        zone_names = [z.zone_name for z in result_zones]
+        if len(zone_names) == 1:
+            summary_text = (
+                f"With {request.time_hours:.0f}h and a ${request.earnings_target:.0f} target, "
+                f"head straight to {zone_names[0]} — that's where the demand is highest right now."
+            )
+        else:
+            summary_text = (
+                f"With {request.time_hours:.0f}h and a ${request.earnings_target:.0f} target, "
+                f"start at {zone_names[0]} for the highest demand, "
+                f"then move to {zone_names[1]}"
+                + (f", and finish in {zone_names[-1]}" if len(zone_names) > 2 else "")
+                + f". Projected earnings: ${projected_earnings:.0f}."
+            )
+    else:
+        summary_text = "No zones matched your time budget. Try increasing your available hours."
+
+    return GoalRouteResponse(
+        generated_at=datetime.utcnow(),
+        time_budget_hours=request.time_hours,
+        earnings_target=request.earnings_target,
+        projected_earnings=round(projected_earnings, 2),
+        meets_target=meets_target,
+        zones=result_zones,
+        summary_text=summary_text,
     )

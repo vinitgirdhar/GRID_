@@ -262,3 +262,34 @@ class ValidationMetricsResponse(BaseModel):
     driver_impact: list[DriverImpactPoint]
     model_state: ModelLearningState
     retrain_log: list[RetrainEvent]
+
+
+# ==============================================================================
+# GOAL-BASED ROUTING SCHEMAS
+# ==============================================================================
+
+class GoalRouteRequest(BaseModel):
+    time_hours: float = Field(ge=0.5, le=12)
+    earnings_target: float = Field(ge=0, le=1000)
+
+
+class GoalRouteZone(BaseModel):
+    rank: int
+    zone_id: str
+    zone_name: str
+    borough: str
+    lat: float
+    lng: float
+    estimated_minutes: int
+    estimated_trips: int
+    estimated_earnings: float
+
+
+class GoalRouteResponse(BaseModel):
+    generated_at: datetime
+    time_budget_hours: float
+    earnings_target: float
+    projected_earnings: float
+    meets_target: bool
+    zones: list[GoalRouteZone]
+    summary_text: str

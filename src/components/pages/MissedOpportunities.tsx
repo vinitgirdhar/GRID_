@@ -93,8 +93,11 @@ export default function MissedOpportunities() {
         </div>
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">Missed Opportunities</h1>
-          <p className="text-sm text-[var(--text-secondary)] mt-0.5">
-            Live demand intelligence + skip outcome tracking
+          <p className="text-sm font-medium text-[var(--text-secondary)] mt-1.5 leading-relaxed bg-[var(--primary)]/5 p-3 rounded-lg border border-[var(--primary)]/10">
+            {opportunities.length > 0 
+              ? `Shift Insight: You've skipped ${opportunities.length} rides (roughly $${totalLost.toFixed(0)} in lost earnings) but made ${goodCalls} smart passes. ${hotZones[0] ? `Right now, ${hotZones[0].zone_name} is your best-performing zone.` : ''}`
+              : `Shift Insight: You haven't passed on any rides yet. ${hotZones[0] ? `Right now, ${hotZones[0].zone_name} is the most lucrative area to head towards.` : 'Review live demand below to plan your next move.'}`
+            }
           </p>
         </div>
       </motion.div>

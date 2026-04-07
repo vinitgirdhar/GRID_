@@ -64,51 +64,55 @@ function SmartStrategyCard({ prediction, zoneName }: { prediction: PredictionRes
     <motion.div
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass-card p-6 border border-[var(--primary)]/20 bg-[var(--primary)]/3"
+      className="glass-card p-4 border border-[var(--primary)]/20 shadow-sm"
     >
-      <div className="flex items-center gap-2 mb-4">
-        <div className="p-2 bg-[var(--primary)]/10 rounded-xl">
-          <Flame className="w-5 h-5 text-[var(--primary-dark)]" />
-        </div>
-        <div>
-          <h3 className="font-bold text-[var(--text-primary)]">AI Smart Strategy</h3>
-          <p className="text-xs text-[var(--text-secondary)]">Event-driven recommendation</p>
-        </div>
-        <span className="ml-auto px-2 py-1 bg-[var(--primary)]/10 text-[var(--primary-dark)] text-[10px] font-black rounded uppercase border border-[var(--primary)]/20">
-          Live
-        </span>
-      </div>
-
-      <p className="text-sm text-[var(--text-primary)] leading-relaxed mb-3">{baseAdvice}</p>
-
-      <div className="p-3 rounded-xl border border-[var(--primary)]/10 bg-[var(--primary)]/5 mb-4">
-        <div className="flex items-start gap-2">
-          <BrainCircuit size={14} className="text-[var(--primary-dark)] mt-0.5 shrink-0" />
-          <p className="text-xs text-[var(--text-secondary)] leading-relaxed">{mlInsight}</p>
-        </div>
-      </div>
-
-      {matchedEvent && (
-        <div className={cn('p-3 rounded-xl border mb-4', matchedEvent.bg)}>
-          <div className="flex items-center gap-2 mb-1">
-            <matchedEvent.icon size={14} className={matchedEvent.color} />
-            <span className="text-xs font-bold text-[var(--text-primary)]">{matchedEvent.name}</span>
-            <span className="ml-auto text-[10px] font-black text-[var(--warning)]">{matchedEvent.time}</span>
-          </div>
-          <p className="text-xs text-[var(--text-secondary)]">
-            Estimated demand lift near <span className="font-bold text-[var(--text-primary)]">{matchedEvent.zone}</span>:
-            <span className={cn('font-black ml-1', matchedEvent.color)}>{matchedEvent.surge}</span>
-          </p>
-        </div>
-      )}
-
-      <div className="flex items-center gap-3 p-3 bg-[var(--success)]/5 border border-[var(--success)]/20 rounded-xl">
-        <Navigation size={16} className="text-[var(--success)] shrink-0" />
-        <p className="text-xs font-semibold text-[var(--text-primary)]">
-          GRID recommends: <span className="text-[var(--success)] font-black">
-            {matchedEvent ? `Head to ${matchedEvent.zone} — ${surgeTotal}% surge opportunity` : `Stay in ${zoneName} for continued high demand`}
+      <div className="flex items-center gap-2 mb-3">
+        <Sparkles className="w-4 h-4 text-[var(--primary)]" />
+        <h3 className="font-bold text-[var(--text-primary)] text-sm tracking-wide">GRID Copilot Strategy</h3>
+        <div className="ml-auto flex items-center gap-1.5 px-2 py-0.5 rounded border border-emerald-500/20 bg-emerald-500/10">
+          <span className="relative flex h-1.5 w-1.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
           </span>
-        </p>
+          <span className="text-[9px] font-bold tracking-widest uppercase text-emerald-600 dark:text-emerald-400">
+            Active
+          </span>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        {/* Directive & Advice */}
+        <div className="flex items-start gap-2.5">
+          <div className="mt-0.5 p-1.5 bg-[var(--primary)]/10 rounded-md">
+            <Navigation size={14} className="text-[var(--primary-dark)]" />
+          </div>
+          <div>
+            <p className="text-sm font-bold text-[var(--text-primary)]">
+              {matchedEvent ? `Navigate to ${matchedEvent.zone} for ${surgeTotal}% surge opportunity` : `Hold position in ${zoneName} for steady volume`}
+            </p>
+            <p className="text-xs text-[var(--text-secondary)] mt-0.5 leading-relaxed">
+              {baseAdvice}
+            </p>
+          </div>
+        </div>
+
+        {/* Intelligence / Events Inline */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 pt-3 border-t border-[var(--border)]">
+          <div className="flex items-start gap-2 flex-1">
+            <BrainCircuit size={14} className="text-[var(--text-secondary)] mt-0.5 shrink-0" />
+            <p className="text-xs text-[var(--text-secondary)] leading-snug">
+              {mlInsight.replace('ML Insight: ', '')}
+            </p>
+          </div>
+          
+          {matchedEvent && (
+            <div className={cn('flex items-center gap-2 text-[11px] py-1 px-2.5 rounded-md border shrink-0', matchedEvent.bg)}>
+              <matchedEvent.icon size={12} className={matchedEvent.color} />
+              <span className="font-bold text-[var(--text-primary)]">{matchedEvent.name}</span>
+              <span className={cn('font-black', matchedEvent.color)}>{matchedEvent.surge}</span>
+            </div>
+          )}
+        </div>
       </div>
     </motion.div>
   );
@@ -124,10 +128,22 @@ export default function DemandPrediction() {
   const [error, setError] = useState<string | null>(null);
   const [prediction, setPrediction] = useState<PredictionResponse | null>(null);
   const [topZones, setTopZones] = useState<HotspotZone[]>([]);
-  const [selectedDate, setSelectedDate] = useState(getDefaultDate());
+  const [dateOffset, setDateOffset] = useState(0);
   const [selectedHour, setSelectedHour] = useState('live');
   const [selectedZoneId, setSelectedZoneId] = useState('');
   const hasAutoPredicted = useRef(false);
+
+  const targetDateObj = new Date();
+  targetDateObj.setDate(targetDateObj.getDate() + dateOffset);
+  const selectedDate = targetDateObj.toISOString().split('T')[0];
+
+  const dayLabels = [0, 1, 2, 3].map(offset => {
+    const d = new Date();
+    d.setDate(d.getDate() + offset);
+    if (offset === 0) return 'Today';
+    if (offset === 1) return 'Tomorrow';
+    return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+  });
 
   const handlePredict = async (zoneIdOverride?: string) => {
     const zoneToPredict = zoneIdOverride ?? selectedZoneId;
@@ -193,7 +209,7 @@ export default function DemandPrediction() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight text-[var(--text-primary)]">Where Should I Go Next?</h1>
-        <p className="text-[var(--text-secondary)] mt-1">Live XGBoost demand forecasts — auto-targeting the highest-demand zone</p>
+        <p className="text-[var(--text-secondary)] mt-1">AI tells you where rider demand is highest right now</p>
       </div>
 
       {error && (
@@ -219,7 +235,7 @@ export default function DemandPrediction() {
                   <BrainCircuit className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-primary w-4 h-4" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-[var(--text-primary)] animate-pulse">Running XGBoost Inference…</p>
+                  <p className="text-sm font-semibold text-[var(--text-primary)] animate-pulse">AI is thinking... 🤔</p>
                   <p className="text-xs text-[var(--text-secondary)]">Scoring the highest-demand zone automatically</p>
                 </div>
               </div>
@@ -234,25 +250,36 @@ export default function DemandPrediction() {
           <div className="glass-card p-5 sm:p-6 space-y-5">
             <div className="flex items-center gap-2">
               <Sparkles className="text-primary w-5 h-5" />
-              <h2 className="text-base font-semibold text-[var(--text-primary)]">Forecast Parameters</h2>
+              <h2 className="text-base font-semibold text-[var(--text-primary)]">Set Your Search</h2>
             </div>
 
             <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">Target Date</label>
-                <div className="relative">
-                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] w-4 h-4" />
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">When are you driving?</label>
+                  <span className="text-[11px] font-bold text-[var(--primary)] px-2 py-0.5 rounded-md bg-[var(--primary)]/10">{dayLabels[dateOffset]}</span>
+                </div>
+                <div className="relative pt-2 pb-1 px-1">
                   <input
-                    type="date"
-                    value={selectedDate}
-                    onChange={(event) => setSelectedDate(event.target.value)}
-                    className="w-full bg-[var(--background)] border border-[var(--border)] rounded-lg py-3 pl-10 pr-4 text-sm focus:outline-none focus:border-primary/50 transition-colors text-[var(--text-primary)]"
+                    type="range"
+                    min="0"
+                    max="3"
+                    step="1"
+                    value={dateOffset}
+                    onChange={(event) => setDateOffset(parseInt(event.target.value, 10))}
+                    className="w-full h-2 bg-[var(--border)] rounded-lg appearance-none cursor-pointer accent-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20"
                   />
+                  <div className="flex justify-between mt-3 px-0.5 text-[10px] uppercase font-black tracking-wider text-[var(--text-muted)]">
+                    <span className={dateOffset === 0 ? 'text-[var(--text-primary)]' : ''}>Today</span>
+                    <span className={dateOffset === 1 ? 'text-[var(--text-primary)]' : ''}>+1d</span>
+                    <span className={dateOffset === 2 ? 'text-[var(--text-primary)]' : ''}>+2d</span>
+                    <span className={dateOffset === 3 ? 'text-[var(--text-primary)]' : ''}>+3d</span>
+                  </div>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">Hour of Day</label>
+                <label className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">What time?</label>
                 <div className="relative">
                   <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] w-4 h-4" />
                   <select
@@ -269,7 +296,7 @@ export default function DemandPrediction() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">Target Zone</label>
+                <label className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">Pick a neighborhood</label>
                 <div className="relative">
                   <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] w-4 h-4" />
                   <select
@@ -299,7 +326,7 @@ export default function DemandPrediction() {
               ) : (
                 <>
                   <Zap size={16} />
-                  Generate Forecast
+                  Find Best Zone
                 </>
               )}
             </button>
@@ -345,7 +372,7 @@ export default function DemandPrediction() {
                     <BrainCircuit className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-primary w-8 h-8" />
                   </div>
                   <div className="text-center">
-                    <p className="text-lg font-semibold animate-pulse text-[var(--text-primary)]">Processing XGBoost Inference</p>
+                    <p className="text-lg font-semibold animate-pulse text-[var(--text-primary)]">AI is thinking... 🤔</p>
                     <p className="text-[var(--text-secondary)] text-sm">Scoring the selected zone using the preloaded backend model...</p>
                   </div>
                 </motion.div>
@@ -359,7 +386,7 @@ export default function DemandPrediction() {
                   className="w-full space-y-8"
                 >
                   <div className="text-center">
-                    <p className="text-sm font-medium text-[var(--text-secondary)] uppercase tracking-widest mb-2">Predicted Demand</p>
+                    <p className="text-sm font-medium text-[var(--text-secondary)] uppercase tracking-widest mb-2">Expected Pickups</p>
                     <div className="text-5xl sm:text-7xl font-bold text-primary tracking-tighter break-words">
                       {prediction.predicted_demand.toLocaleString()}
                       <span className="block sm:inline text-xl sm:text-2xl font-medium text-[var(--text-secondary)] sm:ml-2">Trips</span>
@@ -386,7 +413,7 @@ export default function DemandPrediction() {
 
                   <div className="pt-6 border-t border-[var(--border)] space-y-3">
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-[var(--text-secondary)]">Model Confidence</span>
+                      <span className="text-[var(--text-secondary)]">AI Confidence</span>
                       <span className="font-bold text-success">{(prediction.confidence * 100).toFixed(1)}%</span>
                     </div>
                     <div className="w-full h-1.5 bg-[var(--background)] rounded-full overflow-hidden">
@@ -398,7 +425,7 @@ export default function DemandPrediction() {
                       />
                     </div>
                     <p className="text-sm text-[var(--text-secondary)]">
-                      Serving <span className="text-[var(--text-primary)] font-semibold">{prediction.model_label}</span> for {prediction.borough} at {selectedHour === 'live' ? 'Live Time' : `${selectedHour.padStart(2, '0')}:00`}.
+                      GRID's AI checked <span className="text-[var(--text-primary)] font-semibold">{prediction.borough}</span> for you at {selectedHour === 'live' ? 'Live Time' : `${selectedHour.padStart(2, '0')}:00`}.
                     </p>
                   </div>
                 </motion.div>

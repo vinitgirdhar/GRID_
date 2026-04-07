@@ -36,3 +36,11 @@ Fall back to Grep/Glob/Read **only** when the graph doesn't cover what you need.
 2. Use `detect_changes` for code review.
 3. Use `get_affected_flows` to understand impact.
 4. Use `query_graph` pattern="tests_for" to check coverage.
+
+## Implementation Plans
+
+**ALWAYS update `implement.md` whenever you create or modify an implementation plan.** This file serves as the single source of truth for current development roadmap and architectural decisions.
+
+- Ensure the plan is properly formatted in `implement.md`.
+- The plan should include clear steps, modified files, and verification goals.
+- If the user provides feedback on the plan, update the file accordingly BEFORE starting any coding.
