@@ -183,7 +183,7 @@ export default function ModelPerformance() {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(250,204,21,0.08)" />
                 <XAxis dataKey="period" axisLine={false} tickLine={false} tick={tickStyle} />
                 <YAxis axisLine={false} tickLine={false} tick={tickStyle} />
-                <Tooltip contentStyle={chartStyle} labelStyle={{ color: '#e8edf3', fontWeight: 600 }} itemStyle={{ color: '#94a3b8' }} />
+                <Tooltip contentStyle={chartStyle} labelStyle={{ color: '#e8edf3', fontWeight: 600 }} itemStyle={{ color: '#94a3b8' }} cursor={{ stroke: 'rgba(250,204,21,0.15)', strokeWidth: 1, strokeDasharray: '4 4' }} />
                 <Legend wrapperStyle={{ fontSize: 11, color: '#94a3b8', fontFamily: 'JetBrains Mono, monospace' }} />
                 <Line type="monotone" dataKey="predicted" stroke="#facc15" strokeWidth={2} dot={validation?.predicted_vs_actual?.length ? { r: 3, strokeWidth: 2, fill: '#facc15' } : false} activeDot={{ r: 4 }} name="Predicted" />
                 <Line type="monotone" dataKey="actual" stroke="#34d399" strokeWidth={2} dot={validation?.predicted_vs_actual?.length ? { r: 3, strokeWidth: 2, fill: '#34d399' } : false} activeDot={{ r: 4 }} name="Actual" />
@@ -206,7 +206,7 @@ export default function ModelPerformance() {
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(250,204,21,0.08)" />
                   <XAxis dataKey="level" axisLine={false} tickLine={false} tick={tickStyle} />
                   <YAxis axisLine={false} tickLine={false} tick={tickStyle} />
-                  <Tooltip contentStyle={chartStyle} labelStyle={{ color: '#e8edf3', fontWeight: 600 }} itemStyle={{ color: '#94a3b8' }}
+                  <Tooltip contentStyle={chartStyle} labelStyle={{ color: '#e8edf3', fontWeight: 600 }} itemStyle={{ color: '#94a3b8' }} cursor={{ fill: 'rgba(250,204,21,0.04)' }}
                     formatter={(value: number, name: string) => name === 'hit_rate' ? [`${value}%`, 'Hit Rate'] : [value, name === 'total' ? 'Total' : 'Hits']} />
                   <Legend wrapperStyle={{ fontSize: 11, color: '#94a3b8', fontFamily: 'JetBrains Mono, monospace' }} />
                   <Bar dataKey="total" fill="#38bdf8" radius={[4, 4, 0, 0]} barSize={24} name="Total" />
@@ -228,7 +228,7 @@ export default function ModelPerformance() {
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(250,204,21,0.08)" />
                   <XAxis dataKey="period" axisLine={false} tickLine={false} tick={tickStyle} />
                   <YAxis axisLine={false} tickLine={false} tick={tickStyle} />
-                  <Tooltip contentStyle={chartStyle} labelStyle={{ color: '#e8edf3', fontWeight: 600 }} itemStyle={{ color: '#94a3b8' }}
+                  <Tooltip contentStyle={chartStyle} labelStyle={{ color: '#e8edf3', fontWeight: 600 }} itemStyle={{ color: '#94a3b8' }} cursor={{ stroke: 'rgba(250,204,21,0.15)', strokeWidth: 1, strokeDasharray: '4 4' }}
                     formatter={(value: number, name: string) => name === 'success_rate' ? [`${value}%`, 'Success Rate'] : [`${value} min`, 'Avg Pickup']} />
                   <Legend wrapperStyle={{ fontSize: 11, color: '#94a3b8', fontFamily: 'JetBrains Mono, monospace' }} />
                   <Line type="monotone" dataKey="success_rate" stroke="#facc15" strokeWidth={2} dot={validation?.driver_impact?.length ? { r: 3, fill: '#facc15' } : false} activeDot={{ r: 4 }} name="success_rate" />
@@ -285,7 +285,7 @@ export default function ModelPerformance() {
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(250,204,21,0.08)" />
                   <XAxis dataKey="label" axisLine={false} tickLine={false} tick={tickStyle} />
                   <YAxis axisLine={false} tickLine={false} tick={tickStyle} domain={[0.9, 1]} />
-                  <Tooltip content={<InsightTooltip config={r2Tooltip} />} />
+                  <Tooltip content={<InsightTooltip config={r2Tooltip} />} cursor={{ stroke: 'rgba(250,204,21,0.15)', strokeWidth: 1, strokeDasharray: '4 4' }} />
                   <Area type="monotone" dataKey="value" stroke="#facc15" strokeWidth={2} fillOpacity={1} fill="url(#colorR2)" activeDot={{ r: 4, fill: '#facc15', stroke: '#050514', strokeWidth: 2 }} />
                 </AreaChart>
               </ResponsiveContainer>
@@ -304,7 +304,7 @@ export default function ModelPerformance() {
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(250,204,21,0.08)" />
                   <XAxis type="number" hide />
                   <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 10, fontFamily: 'Inter, sans-serif' }} width={150} />
-                  <Tooltip content={<InsightTooltip config={featureTooltip} />} />
+                  <Tooltip content={<InsightTooltip config={featureTooltip} />} cursor={{ fill: 'rgba(250,204,21,0.04)' }} />
                   <Bar dataKey="value" fill="#facc15" radius={[0, 6, 6, 0]} barSize={18} />
                 </BarChart>
               </ResponsiveContainer>

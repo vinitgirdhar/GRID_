@@ -139,7 +139,7 @@ export default function WeatherInsights() {
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(250,204,21,0.08)" />
               <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#4b5e78', fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }} />
               <YAxis axisLine={false} tickLine={false} tick={{ fill: '#4b5e78', fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }} />
-              <Tooltip contentStyle={{ backgroundColor: '#0a0a1e', border: '1px solid rgba(250,204,21,0.15)', borderRadius: '12px', color: '#e8edf3', fontFamily: 'JetBrains Mono, monospace', fontSize: 11 }} />
+              <Tooltip contentStyle={{ backgroundColor: '#0a0a1e', border: '1px solid rgba(250,204,21,0.15)', borderRadius: '12px', color: '#e8edf3', fontFamily: 'JetBrains Mono, monospace', fontSize: 11 }} cursor={{ stroke: 'rgba(250,204,21,0.15)', strokeWidth: 1, strokeDasharray: '4 4' }} />
               <Line type="monotone" dataKey="value" stroke="#facc15" strokeWidth={2} dot={tempDemand.length ? { r: 3, fill: '#facc15', stroke: '#050514', strokeWidth: 2 } : false} activeDot={{ r: 5, fill: '#facc15', stroke: '#050514', strokeWidth: 2 }} />
             </LineChart>
           </ResponsiveContainer>
@@ -165,7 +165,7 @@ export default function WeatherInsights() {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(250,204,21,0.08)" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#4b5e78', fontSize: 11, fontFamily: 'JetBrains Mono, monospace' }} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fill: '#4b5e78', fontSize: 11, fontFamily: 'JetBrains Mono, monospace' }} />
-                <Tooltip contentStyle={{ backgroundColor: '#0a0a1e', border: '1px solid rgba(250,204,21,0.15)', borderRadius: '12px', color: '#e8edf3', fontFamily: 'JetBrains Mono, monospace', fontSize: 11 }} />
+                <Tooltip contentStyle={{ backgroundColor: '#0a0a1e', border: '1px solid rgba(250,204,21,0.15)', borderRadius: '12px', color: '#e8edf3', fontFamily: 'JetBrains Mono, monospace', fontSize: 11 }} cursor={{ fill: 'rgba(250,204,21,0.04)' }} />
                 <Bar dataKey="value" radius={[6, 6, 0, 0]} barSize={50}>
                   {rainDemand.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={index > 1 ? '#facc15' : 'rgba(250,204,21,0.25)'} stroke="#facc15" strokeWidth={1} />
@@ -193,7 +193,7 @@ export default function WeatherInsights() {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(250,204,21,0.08)" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#4b5e78', fontSize: 11, fontFamily: 'JetBrains Mono, monospace' }} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fill: '#4b5e78', fontSize: 11, fontFamily: 'JetBrains Mono, monospace' }} />
-                <Tooltip contentStyle={{ backgroundColor: '#0a0a1e', border: '1px solid rgba(250,204,21,0.15)', borderRadius: '12px', color: '#e8edf3', fontFamily: 'JetBrains Mono, monospace', fontSize: 11 }} />
+                <Tooltip contentStyle={{ backgroundColor: '#0a0a1e', border: '1px solid rgba(250,204,21,0.15)', borderRadius: '12px', color: '#e8edf3', fontFamily: 'JetBrains Mono, monospace', fontSize: 11 }} cursor={{ stroke: 'rgba(250,204,21,0.15)', strokeWidth: 1, strokeDasharray: '4 4' }} />
                 <Line type="monotone" dataKey="value" stroke="#facc15" strokeWidth={2} dot={false} activeDot={{ r: 4, fill: '#facc15', stroke: '#050514', strokeWidth: 2 }} />
               </LineChart>
             </ResponsiveContainer>

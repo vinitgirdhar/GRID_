@@ -764,7 +764,7 @@ export default function DriverPerformance() {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} dy={10} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} tickFormatter={(value) => `$${value}`} />
-                <Tooltip content={<CustomTooltip />} />
+                <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(250,204,21,0.15)', strokeWidth: 1, strokeDasharray: '4 4' }} />
                 <Area type="monotone" dataKey="value" stroke="#F4B000" strokeWidth={4} fillOpacity={1} fill="url(#colorEarnings)" />
               </AreaChart>
             </ResponsiveContainer>
@@ -829,7 +829,7 @@ export default function DriverPerformance() {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
-                <Tooltip content={<CustomTooltip />} />
+                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(250,204,21,0.04)' }} />
                 <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={30}>
                   {availableZones.slice(0, 5).map((zone, index) => (
                     <Cell key={zone.zone_id} fill={index === 0 ? '#2F9E6E' : '#F4B000'} />

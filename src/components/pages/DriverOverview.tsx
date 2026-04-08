@@ -585,6 +585,7 @@ export default function DriverOverview({
                 <Tooltip
                   contentStyle={{ backgroundColor: '#0d0d20', border: '1px solid rgba(250,204,21,0.15)', borderRadius: '8px' }}
                   formatter={(value: number) => [value.toFixed(2), 'Contribution']}
+                  cursor={{ fill: 'rgba(250,204,21,0.04)' }}
                 />
                 <Bar dataKey="value" fill="var(--primary)" radius={[6, 6, 0, 0]} />
               </BarChart>

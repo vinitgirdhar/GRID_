@@ -118,7 +118,7 @@ export default function DataInsights() {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(250,204,21,0.08)" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#4b5e78', fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }} interval={3} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fill: '#4b5e78', fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }} />
-                <Tooltip content={<InsightTooltip config={hourlyTooltip} />} />
+                <Tooltip content={<InsightTooltip config={hourlyTooltip} />} cursor={{ stroke: 'rgba(250,204,21,0.15)', strokeWidth: 1, strokeDasharray: '4 4' }} />
                 <Line type="stepAfter" dataKey="value" stroke="#facc15" strokeWidth={2} dot={false} activeDot={{ r: 4, fill: '#facc15', stroke: '#050514', strokeWidth: 2 }} />
               </LineChart>
             </ResponsiveContainer>
@@ -142,7 +142,7 @@ export default function DataInsights() {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(250,204,21,0.08)" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#4b5e78', fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fill: '#4b5e78', fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }} />
-                <Tooltip content={<InsightTooltip config={topZonesTooltip} />} />
+                <Tooltip content={<InsightTooltip config={topZonesTooltip} />} cursor={{ fill: 'rgba(250,204,21,0.04)' }} />
                 <Bar dataKey="value" fill="#facc15" radius={[6, 6, 0, 0]} barSize={28} />
               </BarChart>
             </ResponsiveContainer>
@@ -171,7 +171,7 @@ export default function DataInsights() {
                     <Cell key={entry.name} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip content={<InsightTooltip config={hotspotShareTooltip} />} />
+                <Tooltip content={<InsightTooltip config={hotspotShareTooltip} />} cursor={false} />
                 <Legend verticalAlign="bottom" height={32} iconType="circle" wrapperStyle={{ fontSize: 11, color: '#94a3b8', fontFamily: 'JetBrains Mono, monospace' }} />
               </PieChart>
             </ResponsiveContainer>
@@ -195,7 +195,7 @@ export default function DataInsights() {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(250,204,21,0.08)" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#4b5e78', fontSize: 11, fontFamily: 'JetBrains Mono, monospace' }} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fill: '#4b5e78', fontSize: 11, fontFamily: 'JetBrains Mono, monospace' }} />
-                <Tooltip content={<InsightTooltip config={periodTooltip} />} />
+                <Tooltip content={<InsightTooltip config={periodTooltip} />} cursor={{ fill: 'rgba(250,204,21,0.04)' }} />
                 <Bar dataKey="value" radius={[6, 6, 0, 0]} barSize={60}>
                   {periodComparison.map((entry, index) => (
                     <Cell key={entry.name} fill={index === 0 ? '#facc15' : '#34d399'} />
