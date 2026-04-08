@@ -101,9 +101,16 @@ npm run dev
 
 ### 2. Backend
 ```bash
-cd backend
-pip install -r requirements.txt
-uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
+# Create and activate virtual environment (first time only)
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1  # On Windows
+# source .venv/bin/activate  # On Linux/Mac
+
+# Install dependencies
+pip install -r backend\requirements.txt
+
+# Start the backend server
+python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 ---

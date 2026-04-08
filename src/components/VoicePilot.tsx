@@ -20,6 +20,8 @@ const SpeechRecognition =
 type VoiceState = 'idle' | 'listening' | 'computing' | 'speaking' | 'error';
 type OfflineCommand = 'start-ride' | 'end-ride' | 'where-to-go';
 
+const VOICE_BAR_LEVELS = [0.38, 0.62, 0.84, 0.56, 0.76, 0.48, 0.9, 0.58, 0.7, 0.44, 0.8, 0.52];
+
 function normalizeTranscript(text: string) {
   return text
     .toLowerCase()
@@ -416,12 +418,24 @@ export default function VoicePilot() {
 
             {(voiceState === 'listening' || voiceState === 'speaking') && (
               <div className="absolute bottom-0 left-0 right-0 h-1 flex gap-0.5 px-2 pb-1 opacity-50">
-                {[...Array(20)].map((_, index) => (
+                {VOICE_BAR_LEVELS.map((level, index) => (
                   <motion.div
                     key={index}
-                    animate={{ height: ['20%', `${Math.random() * 100}%`, '20%'] }}
-                    transition={{ duration: 0.5 + Math.random() * 0.5, repeat: Infinity, ease: 'easeInOut' }}
-                    className={cn('flex-1 rounded-t-sm', voiceState === 'listening' ? 'bg-[var(--danger)]' : 'bg-[var(--primary)]')}
+                    animate={{
+                      scaleY: voiceState === 'listening'
+                        ? [0.25, level, 0.25]
+                        : [0.3, Math.min(1, level + 0.12), 0.3],
+                    }}
+                    transition={{
+                      duration: 0.85 + (index % 4) * 0.08,
+                      repeat: Infinity,
+                      ease: 'easeInOut',
+                      delay: index * 0.04,
+                    }}
+                    className={cn(
+                      'flex-1 rounded-t-sm origin-bottom',
+                      voiceState === 'listening' ? 'bg-[var(--danger)]' : 'bg-[var(--primary)]',
+                    )}
                   />
                 ))}
               </div>

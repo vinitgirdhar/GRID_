@@ -1340,8 +1340,8 @@ def _build_feature_row(zone_id: str, pred_demand: float, ts: datetime) -> dict:
 
 def _run_real_retrain() -> None:
     """
-    Perform a genuine XGBoost incremental retrain using accumulated validation data.
-    Runs in the background thread (NOT holding _VALIDATION_LOCK during training).
+    Perform a LightGBM incremental retrain using accumulated validation data.
+    Runs in the background thread without holding _VALIDATION_LOCK during training.
     """
     # Snapshot data without holding lock during slow training
     with _VALIDATION_LOCK:
@@ -1354,59 +1354,68 @@ def _run_real_retrain() -> None:
     # Build training rows from validated predictions
     feature_names = getattr(app.state, "feature_names", None)
     booster = getattr(app.state, "booster", None)
-    if feature_names is None or booster is None:
+    if not feature_names or booster is None:
         return  # backend not fully initialised yet
 
-    rows_X, rows_y = [], []
+    feature_rows, rows_y = [], []
     for pid, val in val_snapshot.items():
         pred = pred_snapshot.get(pid)
         if pred is None or val.get("actual_demand") is None:
             continue
         row = _build_feature_row(pred["zone_id"], pred["predicted_demand"], pred["created_at"])
-        rows_X.append([row[f] for f in feature_names])
+        feature_rows.append(row)
         rows_y.append(float(val["actual_demand"]))
 
-    if len(rows_X) < 5:
+    if len(feature_rows) < 5:
         return  # not enough data to bother
 
-    X = pd.DataFrame(rows_X, columns=feature_names)
-    y = pd.Series(rows_y)
+    X = pd.DataFrame(feature_rows).reindex(columns=feature_names, fill_value=0.0)
+    y = pd.Series(rows_y, dtype="float64")
 
     # 80/20 split for eval
     split = max(1, int(len(X) * 0.8))
+    if split >= len(X):
+        split = len(X) - 1
+    if split < 1:
+        return
     X_train, X_val = X.iloc[:split], X.iloc[split:]
     y_train, y_val = y.iloc[:split], y.iloc[split:]
 
-    dtrain = xgb.DMatrix(X_train, label=y_train, feature_names=feature_names)
-    dval   = xgb.DMatrix(X_val,   label=y_val,   feature_names=feature_names)
+    train_set = lgb.Dataset(X_train, label=y_train, feature_name=feature_names, free_raw_data=False)
+    val_set = lgb.Dataset(X_val, label=y_val, feature_name=feature_names, free_raw_data=False)
 
-    # Incremental: continue from current booster weights, add 30 more trees
-    evals_result: dict = {}
-    new_booster = xgb.train(
+    # Incremental: continue from current booster weights, add 30 more trees.
+    evals_result: dict[str, dict[str, list[float]]] = {}
+    new_booster = lgb.train(
         params={
-            "objective": "reg:squarederror",
+            "objective": "regression",
+            "metric": "rmse",
             "learning_rate": max(0.005, 0.05 * math.exp(-gen * 0.15)),
-            "max_depth": 8,
-            "subsample": 0.8,
-            "colsample_bytree": 0.8,
-            "min_child_weight": 3,
-            "gamma": 0.1,
-            "verbosity": 0,
+            "num_leaves": 63,
+            "feature_fraction": 0.8,
+            "bagging_fraction": 0.8,
+            "bagging_freq": 1,
+            "min_data_in_leaf": 20,
+            "verbosity": -1,
         },
-        dtrain=dtrain,
+        train_set=train_set,
         num_boost_round=30,
-        xgb_model=booster,           # ← key: continues from existing weights
-        evals=[(dtrain, "train"), (dval, "val")],
-        evals_result=evals_result,
-        verbose_eval=False,
+        init_model=booster,
+        valid_sets=[train_set, val_set],
+        valid_names=["train", "val"],
+        callbacks=[lgb.record_evaluation(evals_result)],
     )
 
     # Extract real RMSE from eval
     new_rmse_raw = evals_result["val"]["rmse"][-1]
-    new_r2_raw = float(1 - (
-        sum((y_val - pd.Series(new_booster.predict(dval)))**2) /
-        max(sum((y_val - y_val.mean())**2), 1e-9)
-    ))
+    val_predictions = pd.Series(new_booster.predict(X_val), index=y_val.index)
+    new_r2_raw = float(
+        1
+        - (
+            float(((y_val - val_predictions) ** 2).sum())
+            / max(float(((y_val - y_val.mean()) ** 2).sum()), 1e-9)
+        )
+    )
 
     new_rmse = round(float(new_rmse_raw), 4)
     new_r2   = round(float(new_r2_raw), 4)
@@ -1420,7 +1429,7 @@ def _run_real_retrain() -> None:
     app.state.booster = new_booster
 
     improvement_pct = round((rmse_before - new_rmse) / max(rmse_before, 1e-9) * 100, 2)
-    logs_used = len(rows_X)
+    logs_used = len(feature_rows)
 
     with _VALIDATION_LOCK:
         _MODEL_STATE["rmse"] = new_rmse
@@ -1447,7 +1456,7 @@ def _maybe_retrain() -> None:
     if _MODEL_STATE["validations_since_retrain"] < _MODEL_STATE["retrain_every"]:
         return
     _MODEL_STATE["validations_since_retrain"] = 0
-    # Run the actual XGBoost retrain off the lock in a daemon thread
+    # Run the actual LightGBM retrain off the lock in a daemon thread
     Thread(target=_run_real_retrain, daemon=True).start()
 
 

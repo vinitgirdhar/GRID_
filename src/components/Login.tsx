@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { UserRole, Driver } from '../types';
 import { loginDriver, registerDriver } from '../services/apiService';
+import { initUnicornStudioBackground } from '../lib/unicornStudio';
 
 interface LoginProps {
   onLogin: (role: UserRole, driver?: Driver) => void;
@@ -25,58 +26,24 @@ const CAR_MODELS = [
   'Chevrolet Malibu',
 ];
 
-/* ─── Animated grid background for the branding panel ─── */
-const GridBackground = () => (
-  <div className="absolute inset-0 overflow-hidden">
-    <div className="absolute inset-0 bg-gradient-to-br from-[#0c1222] via-[#111827] to-[#0f172a]" />
-    <div
-      className="absolute inset-0 opacity-[0.07]"
-      style={{
-        backgroundImage: `linear-gradient(rgba(250,204,21,0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(250,204,21,0.4) 1px, transparent 1px)`,
-        backgroundSize: '60px 60px',
-      }}
-    />
-    <motion.div
-      animate={{ opacity: [0.15, 0.35, 0.15] }}
-      transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-      className="absolute top-[20%] left-[10%] w-[80%] h-[60%]"
-    >
-      <svg viewBox="0 0 400 300" className="w-full h-full" fill="none">
-        <motion.path
-          d="M 50 250 Q 100 100 200 150 T 350 80"
-          stroke="rgba(250,204,21,0.3)"
-          strokeWidth="2"
-          strokeDasharray="8 6"
-          initial={{ pathLength: 0 }}
-          animate={{ pathLength: 1 }}
-          transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
-        />
-        <motion.path
-          d="M 30 80 Q 150 200 250 120 T 380 200"
-          stroke="rgba(250,204,21,0.2)"
-          strokeWidth="1.5"
-          strokeDasharray="6 8"
-          initial={{ pathLength: 0 }}
-          animate={{ pathLength: 1 }}
-          transition={{ duration: 4, delay: 1, repeat: Infinity, ease: 'linear' }}
-        />
-        <motion.circle cx="200" cy="150" r="4" fill="rgba(250,204,21,0.5)"
-          animate={{ r: [3, 6, 3], opacity: [0.5, 1, 0.5] }}
-          transition={{ duration: 2, repeat: Infinity }}
-        />
-        <motion.circle cx="100" cy="80" r="3" fill="rgba(250,204,21,0.4)"
-          animate={{ r: [2, 5, 2], opacity: [0.4, 0.8, 0.4] }}
-          transition={{ duration: 2.5, delay: 0.5, repeat: Infinity }}
-        />
-        <motion.circle cx="320" cy="120" r="3" fill="rgba(250,204,21,0.4)"
-          animate={{ r: [2, 5, 2], opacity: [0.3, 0.7, 0.3] }}
-          transition={{ duration: 3, delay: 1, repeat: Infinity }}
-        />
-      </svg>
-    </motion.div>
-    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[#facc15]/5 blur-[120px] rounded-full" />
-  </div>
-);
+/* ─── WebGL Hero Animation from Landing Page ─── */
+const HeroAnimation = () => {
+  return (
+    <div className="absolute inset-0 z-0 pointer-events-none">
+      <div 
+        data-us-project="WL20Cho3hr5Ge8Pk2QUl"
+        data-us-scale="0.75"
+        data-us-dpi="1"
+        data-us-fps="30"
+        data-us-lazyload="true"
+        data-us-production="true"
+        style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
+      />
+      {/* Dark overlay to ensure text readability */}
+      <div className="absolute inset-0 bg-gradient-to-b from-[#050514]/40 via-transparent to-[#050514]" />
+    </div>
+  );
+};
 
 const FeaturePill = ({ icon: Icon, text, delay }: { icon: React.ElementType; text: string; delay: number }) => (
   <motion.div
@@ -487,6 +454,10 @@ export default function Login({ onLogin }: LoginProps) {
   type Step = 'select' | 'driver-login' | 'driver-register';
   const [step, setStep] = useState<Step>('select');
 
+  React.useEffect(() => {
+    void initUnicornStudioBackground();
+  }, []);
+
   const handleDriverSuccess = (driver: Driver) => onLogin('driver', driver);
 
   return (
@@ -495,7 +466,7 @@ export default function Login({ onLogin }: LoginProps) {
       <div className="relative lg:flex-[3] flex flex-col justify-between overflow-hidden
                       pt-8 pb-16 px-5 sm:p-10
                       lg:min-h-screen lg:p-12">
-        <GridBackground />
+        <HeroAnimation />
 
         <div className="relative z-10 flex-shrink-0">
           <motion.div

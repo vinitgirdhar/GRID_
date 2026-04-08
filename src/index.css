@@ -103,7 +103,11 @@
   /* No box-shadow on base — avoids repaint on every scroll frame */
   overflow: hidden;
   /* Only animate transform + border-color (GPU-composited, no repaint) */
-  transition: transform 0.25s ease, border-color 0.25s ease;
+  transition:
+    transform 0.3s var(--ease-out),
+    border-color 0.3s var(--ease-out),
+    background-color 0.3s var(--ease-out),
+    box-shadow 0.3s var(--ease-out);
   position: relative;
   /* Promote to own compositor layer */
   will-change: transform;
@@ -118,20 +122,193 @@
   height: 1px;
   background: linear-gradient(90deg, transparent, rgba(250,204,21,0.5), transparent);
   opacity: 0;
-  transition: opacity 0.3s ease;
+  transition:
+    opacity 0.3s var(--ease-out),
+    left 0.3s var(--ease-out),
+    right 0.3s var(--ease-out);
   pointer-events: none;
 }
 
 .glass-card:hover {
-  transform: translateY(-2px);
-  border-color: rgba(250,204,21,0.22);
+  transform: translateY(-3px);
+  border-color: rgba(250,204,21,0.24);
+  background: rgba(255,255,255,0.045);
+  box-shadow: 0 8px 32px rgba(250,204,21,0.08);
 }
 
 .glass-card:hover::before {
   opacity: 1;
+  left: 10%;
+  right: 10%;
 }
 
 /* ── KPI CARD ── */
+.grid-page-shell {
+  width: 100%;
+  max-width: 80rem;
+  margin: 0 auto;
+}
+
+.grid-eyebrow,
+.grid-data-label {
+  font-family: var(--font-mono, monospace);
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: var(--text-muted);
+}
+
+.grid-eyebrow {
+  font-size: 11px;
+}
+
+.grid-data-label {
+  font-size: 10px;
+}
+
+.grid-page-title {
+  font-family: var(--font-heading, sans-serif);
+  font-size: clamp(2rem, 4vw, 3.25rem);
+  font-weight: 300;
+  letter-spacing: -0.04em;
+  line-height: 1.02;
+  color: var(--accent);
+}
+
+.grid-page-subtitle {
+  margin-top: 0.9rem;
+  max-width: 52rem;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.7;
+}
+
+.grid-icon-badge {
+  width: 2.5rem;
+  height: 2.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.9rem;
+  border: 1px solid rgba(250,204,21,0.16);
+  background: rgba(250,204,21,0.1);
+  color: var(--accent);
+}
+
+.grid-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.6rem 0.95rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(250,204,21,0.14);
+  background: rgba(255,255,255,0.04);
+  color: var(--text-secondary);
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.grid-action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  padding: 0.8rem 1.15rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(250,204,21,0.3);
+  background: rgba(250,204,21,0.05);
+  color: var(--accent);
+  font-weight: 500;
+  transition:
+    transform 160ms var(--ease-out),
+    background-color 200ms var(--ease-out),
+    border-color 200ms var(--ease-out),
+    box-shadow 200ms var(--ease-out),
+    color 200ms var(--ease-out);
+}
+
+.grid-action-button:hover {
+  transform: translateY(-2px);
+  background: rgba(250,204,21,0.15);
+  border-color: rgba(250,204,21,0.6);
+  box-shadow: 0 4px 20px rgba(250,204,21,0.15);
+}
+
+.grid-action-button:active {
+  transform: scale(0.97);
+}
+
+.grid-action-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.grid-action-button[data-variant="muted"] {
+  color: var(--text-primary);
+  border-color: rgba(250,204,21,0.16);
+  background: rgba(255,255,255,0.04);
+}
+
+.grid-action-button[data-variant="danger"] {
+  color: #fca5a5;
+  border-color: rgba(239,68,68,0.28);
+  background: rgba(239,68,68,0.08);
+}
+
+.grid-input-surface {
+  width: 100%;
+  border-radius: 1rem;
+  border: 1px solid rgba(250,204,21,0.15);
+  background: rgba(255,255,255,0.05);
+  padding: 0.85rem 1rem;
+  color: var(--text-primary);
+  transition:
+    border-color 160ms var(--ease-out),
+    box-shadow 160ms var(--ease-out),
+    background-color 160ms var(--ease-out);
+}
+
+.grid-input-surface:focus {
+  outline: none;
+  border-color: rgba(250,204,21,0.4);
+  box-shadow: 0 0 0 3px rgba(250,204,21,0.08);
+  background: rgba(255,255,255,0.07);
+}
+
+.grid-input-surface::placeholder {
+  color: var(--text-muted);
+}
+
+.grid-note-panel {
+  border: 1px solid rgba(250,204,21,0.16);
+  background: rgba(250,204,21,0.06);
+  border-radius: 1.4rem;
+  padding: 1rem;
+}
+
+.driver-performance-page h1,
+.driver-performance-page h2,
+.driver-performance-page h3,
+.plan-shift-panel h1,
+.plan-shift-panel h2,
+.plan-shift-panel h3 {
+  font-family: var(--font-heading, sans-serif);
+  font-weight: 300;
+  letter-spacing: -0.03em;
+  line-height: 1.08;
+}
+
+.driver-performance-number,
+.plan-shift-panel .driver-performance-number {
+  font-family: var(--font-heading, sans-serif);
+  font-weight: 300;
+  letter-spacing: -0.04em;
+}
+
 .kpi-card {
   background: rgba(255,255,255,0.03);
   border: 1px solid var(--border);

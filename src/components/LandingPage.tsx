@@ -13,6 +13,7 @@ import {
     RefreshCw,
     Shield,
 } from 'lucide-react';
+import { initUnicornStudioBackground } from '../lib/unicornStudio';
 
 // --- CUSTOM COMPONENTS ---
 
@@ -83,13 +84,7 @@ interface LandingPageProps {
 export default function LandingPage({ onBeginAsDriver, onAdminAccess }: LandingPageProps) {
 
     useEffect(() => {
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/gh/hiunicornstudio/unicornstudio.js@v2.1.3/dist/unicornStudio.umd.js';
-        script.async = true;
-        script.onload = () => {
-            if ((window as any).UnicornStudio) (window as any).UnicornStudio.init();
-        };
-        document.body.appendChild(script);
+        void initUnicornStudioBackground();
 
         const revealObserver = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
@@ -131,7 +126,6 @@ export default function LandingPage({ onBeginAsDriver, onAdminAccess }: LandingP
             revealObserver.disconnect();
             widgetObserver.disconnect();
             lineObserver.disconnect();
-            if (document.body.contains(script)) document.body.removeChild(script);
         };
     }, []);
 

@@ -237,12 +237,12 @@ function ShiftSetupModal({
       <motion.div
         initial={{ opacity: 0, y: 16, scale: 0.96 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        className="w-full max-w-lg glass-card p-6 sm:p-7 border border-[var(--primary)]/15 shadow-2xl"
+        className="driver-performance-modal w-full max-w-lg glass-card p-6 sm:p-7 border border-[var(--primary)]/15 shadow-2xl"
       >
         <div className="flex items-start justify-between gap-4 mb-5">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.22em] text-[var(--primary)]">Start Shift</p>
-            <h2 className="text-2xl font-black text-[var(--text-primary)] mt-2">Set today's earnings target</h2>
+            <p className="grid-eyebrow text-[var(--primary)]">Start Shift</p>
+            <h2 className="text-2xl text-[var(--text-primary)] mt-2">Set today's earnings target</h2>
             <p className="text-sm text-[var(--text-secondary)] mt-2">
               Configure the shift once, then log each completed fare from the Performance page.
             </p>
@@ -258,7 +258,7 @@ function ShiftSetupModal({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <label className="space-y-2">
-            <span className="text-xs font-bold uppercase tracking-widest text-[var(--text-secondary)]">Daily Goal</span>
+            <span className="grid-data-label">Daily Goal</span>
             <div className="relative">
               <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
               <input
@@ -267,13 +267,13 @@ function ShiftSetupModal({
                 step="1"
                 value={goalAmount}
                 onChange={(event) => setGoalAmount(event.target.value)}
-                className="w-full bg-white/5 border border-[rgba(250,204,21,0.15)] rounded-xl py-3 pl-10 pr-4 text-sm text-[#e8edf3] focus:outline-none focus:border-[rgba(250,204,21,0.4)]"
+                className="grid-input-surface pl-10 text-sm"
               />
             </div>
           </label>
 
           <label className="space-y-2">
-            <span className="text-xs font-bold uppercase tracking-widest text-[var(--text-secondary)]">Shift Length</span>
+            <span className="grid-data-label">Shift Length</span>
             <div className="relative">
               <Clock3 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
               <input
@@ -283,7 +283,7 @@ function ShiftSetupModal({
                 step="0.5"
                 value={shiftHours}
                 onChange={(event) => setShiftHours(event.target.value)}
-                className="w-full bg-white/5 border border-[rgba(250,204,21,0.15)] rounded-xl py-3 pl-10 pr-4 text-sm text-[#e8edf3] focus:outline-none focus:border-[rgba(250,204,21,0.4)]"
+                className="grid-input-surface pl-10 text-sm"
               />
             </div>
           </label>
@@ -293,14 +293,15 @@ function ShiftSetupModal({
           <button
             type="button"
             onClick={() => onSave(Number(goalAmount), Number(shiftHours))}
-            className="flex-1 px-5 py-3 rounded-xl bg-primary text-white font-black shadow-lg shadow-primary/20"
+            className="grid-action-button flex-1"
           >
             Start Tracking
           </button>
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-3 rounded-xl border border-[var(--border)] text-[var(--text-secondary)] font-bold"
+            className="grid-action-button"
+            data-variant="muted"
           >
             Later
           </button>
@@ -342,12 +343,12 @@ function AddEarningsModal({
       <motion.div
         initial={{ opacity: 0, y: 14, scale: 0.97 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        className="w-full max-w-md glass-card p-6 border border-[var(--primary)]/15 shadow-2xl"
+        className="driver-performance-modal w-full max-w-md glass-card p-6 border border-[var(--primary)]/15 shadow-2xl"
       >
         <div className="flex items-start justify-between gap-4 mb-5">
           <div>
             <TaxiBrandMark compact />
-            <h2 className="text-xl font-black text-[var(--text-primary)] mt-3">Preview synced trips</h2>
+            <h2 className="text-xl text-[var(--text-primary)] mt-3">Preview synced trips</h2>
           </div>
           <button
             type="button"
@@ -360,7 +361,7 @@ function AddEarningsModal({
 
         <div className="space-y-4">
           <label className="space-y-2">
-            <span className="text-xs font-bold uppercase tracking-widest text-[var(--text-secondary)]">Meter Fare</span>
+            <span className="grid-data-label">Meter Fare</span>
             <div className="relative">
               <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
               <input
@@ -370,17 +371,17 @@ function AddEarningsModal({
                 value={fare}
                 onChange={(event) => setFare(event.target.value)}
                 placeholder="20.00"
-                className="w-full bg-white/5 border border-[rgba(250,204,21,0.15)] rounded-xl py-3 pl-10 pr-4 text-sm text-[#e8edf3] focus:outline-none focus:border-[rgba(250,204,21,0.4)]"
+                className="grid-input-surface pl-10 text-sm"
               />
             </div>
           </label>
 
           <label className="space-y-2">
-            <span className="text-xs font-bold uppercase tracking-widest text-[var(--text-secondary)]">Meter Zone</span>
+            <span className="grid-data-label">Meter Zone</span>
             <select
               value={zoneId}
               onChange={(event) => setZoneId(event.target.value)}
-              className="w-full bg-white/5 border border-[rgba(250,204,21,0.15)] rounded-xl py-3 px-4 text-sm text-[#e8edf3] focus:outline-none focus:border-[rgba(250,204,21,0.4)]"
+              className="grid-input-surface text-sm"
             >
               {zones.map((zone) => (
                 <option key={zone.zone_id} value={zone.zone_id}>
@@ -395,14 +396,15 @@ function AddEarningsModal({
           <button
             type="button"
             onClick={() => onSave(Number(fare), zoneId)}
-            className="flex-1 px-5 py-3 rounded-xl bg-primary text-white font-black shadow-lg shadow-primary/20"
+            className="grid-action-button flex-1"
           >
             Add Meter Trip
           </button>
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-3 rounded-xl border border-[var(--border)] text-[var(--text-secondary)] font-bold"
+            className="grid-action-button"
+            data-variant="muted"
           >
             Cancel
           </button>
@@ -557,27 +559,42 @@ export default function DriverPerformance() {
   };
 
   return (
-    <div className="space-y-6 sm:space-y-8 pb-24">
+    <div className="driver-performance-page grid-page-shell space-y-6 sm:space-y-8 pb-24">
       <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-light tracking-tight text-[#facc15]" style={{fontFamily:'Outfit,sans-serif',letterSpacing:'-0.03em'}}>Performance Analytics</h1>
+          <p className="grid-eyebrow">Driver Dashboard</p>
+          <h1 className="grid-page-title">Performance Analytics</h1>
+          <p className="grid-page-subtitle">
+            Track the live shift, compare pace against your target, and follow GRID strategy guidance without losing the clean, high-contrast rhythm from the new dashboard system.
+          </p>
         </div>
         <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-3">
-          <button type="button" onClick={() => setShowSetupModal(true)} className="px-4 py-3 rounded-xl border border-[var(--border)] text-[var(--text-secondary)] font-bold text-sm">
+          <button type="button" onClick={() => setShowSetupModal(true)} className="grid-action-button" data-variant="muted">
             {shiftSession ? 'Update Goal' : 'Start Shift'}
           </button>
           <button
             type="button"
             onClick={openManualLogging}
-            className="px-4 py-3 rounded-xl bg-primary text-white font-black shadow-lg shadow-primary/20 flex items-center justify-center gap-2 text-sm"
+            className="grid-action-button"
           >
             <Plus size={14} />
             {shiftSession ? 'Log Trip' : 'Set Goal'}
           </button>
-          <button type="button" onClick={resetShift} className="px-4 py-3 rounded-xl bg-white/5 border border-[rgba(250,204,21,0.1)] text-[var(--text-secondary)] font-bold text-sm">
+          <button type="button" onClick={resetShift} className="grid-action-button" data-variant="danger">
             Reset
           </button>
         </div>
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {shiftQuickStats.map((stat) => (
+          <div key={stat.label} className="glass-card p-4 sm:p-5">
+            <p className="grid-data-label">{stat.label}</p>
+            <p className="driver-performance-number mt-4 text-2xl sm:text-[2rem] text-[var(--text-primary)]">
+              {stat.value}
+            </p>
+          </div>
+        ))}
       </div>
 
       {hotspotError && <div className="glass-card p-4 border border-[var(--warning)]/15 text-sm text-[var(--text-secondary)]">{hotspotError}</div>}
@@ -586,10 +603,13 @@ export default function DriverPerformance() {
         <div className="glass-card p-5 sm:p-8 border border-[var(--primary)]/15 bg-[radial-gradient(circle_at_top_left,rgba(244,176,0,0.14),transparent_52%)]">
           <div className="flex flex-col lg:flex-row lg:items-center gap-5">
             <div className="flex-1">
-              <p className="text-xs font-black uppercase tracking-[0.24em] text-[var(--primary)]">Shift Initialization</p>
-              <h2 className="text-xl sm:text-2xl font-black text-[var(--text-primary)] mt-3">Set a goal before you start the shift</h2>
+              <p className="grid-eyebrow text-[var(--primary)]">Shift Initialization</p>
+              <h2 className="text-xl sm:text-2xl text-[var(--text-primary)] mt-3">Set a goal before you start the shift</h2>
+              <p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--text-secondary)]">
+                Establish the target once, then let the rest of the page focus on pace, zone quality, and shift decisions.
+              </p>
             </div>
-            <button type="button" onClick={() => setShowSetupModal(true)} className="w-full sm:w-auto px-5 py-3 rounded-xl bg-primary text-white font-black shadow-lg shadow-primary/20">
+            <button type="button" onClick={() => setShowSetupModal(true)} className="grid-action-button w-full sm:w-auto">
               Configure Shift
             </button>
           </div>
@@ -620,30 +640,36 @@ export default function DriverPerformance() {
                     />
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-5">
-                    <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-secondary)]">Earned / Goal</p>
-                    <p className="text-3xl sm:text-4xl font-black text-[var(--text-primary)] mt-2">{Math.round(earningsProgress * 100)}%</p>
-                    <p className="text-xs sm:text-sm font-bold text-[var(--text-secondary)] mt-2">{formatCurrency(totalEarned)} of {formatCurrency(goalAmount)}</p>
+                    <p className="grid-data-label">Earned / Goal</p>
+                    <p className="driver-performance-number text-3xl sm:text-5xl text-[var(--text-primary)] mt-2">{Math.round(earningsProgress * 100)}%</p>
+                    <p className="text-xs sm:text-sm font-medium text-[var(--text-secondary)] mt-2">{formatCurrency(totalEarned)} of {formatCurrency(goalAmount)}</p>
                   </div>
                 </div>
 
                 <div className="flex-1 space-y-5">
                   <div className="flex flex-wrap items-center gap-3">
-                    <span className={cn('px-3 py-1.5 rounded-full border text-xs font-black uppercase tracking-[0.18em]', statusVisual.badge)}>{statusVisual.label}</span>
-                    <span className="px-3 py-1.5 rounded-full bg-white/5 border border-[rgba(250,204,21,0.1)] text-xs font-bold text-[var(--text-secondary)]">Meter live since {formatClock(shiftSession.startedAt)}</span>
-                    <span className="px-3 py-1.5 rounded-full bg-white/5 border border-[rgba(250,204,21,0.1)] text-xs font-bold text-[var(--text-secondary)]">{shiftHours} hr plan</span>
+                    <span className={cn('grid-chip border', statusVisual.badge)}>{statusVisual.label}</span>
+                    <span className="grid-chip">Meter live since {formatClock(shiftSession.startedAt)}</span>
+                    <span className="grid-chip">{shiftHours} hr plan</span>
                   </div>
 
                   <div>
-                    <h2 className="text-xl sm:text-3xl font-black text-[var(--text-primary)]">Live Shift Tracker</h2>
+                    <p className="grid-eyebrow">Live Shift</p>
+                    <h2 className="text-xl sm:text-3xl text-[var(--text-primary)]">Live Shift Tracker</h2>
                     <p className="text-sm text-[var(--text-secondary)] mt-2 max-w-2xl">{statusVisual.copy}</p>
                   </div>
 
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     {performanceKpis.map((kpi) => (
-                      <div key={kpi.label} className={cn('rounded-2xl border p-3 sm:p-4', kpi.panel)}>
-                        <p className="text-[10px] uppercase tracking-[0.16em] font-black text-[var(--text-secondary)]">{kpi.label}</p>
-                        <p className={cn('text-base sm:text-lg font-black mt-2 break-words', kpi.tone)}>{kpi.value}</p>
-                        <p className="text-[10px] text-[var(--text-secondary)] mt-1">{kpi.meta}</p>
+                      <div key={kpi.label} className={cn('rounded-[22px] border p-3 sm:p-4', kpi.panel)}>
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="grid-data-label">{kpi.label}</p>
+                          <div className="grid-icon-badge">
+                            <kpi.icon size={16} />
+                          </div>
+                        </div>
+                        <p className={cn('driver-performance-number text-xl sm:text-2xl mt-5 break-words', kpi.tone)}>{kpi.value}</p>
+                        <p className="text-[11px] leading-6 text-[var(--text-secondary)] mt-2">{kpi.meta}</p>
                       </div>
                     ))}
                   </div>
@@ -651,12 +677,12 @@ export default function DriverPerformance() {
                   <div className={cn('rounded-2xl border p-4', statusVisual.panel)}>
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                       <div>
-                        <p className="text-xs uppercase tracking-[0.18em] font-black text-[var(--text-secondary)]">Pace Snapshot</p>
-                        <p className="text-base sm:text-lg font-black text-[var(--text-primary)] mt-1">{paceDelta >= 0 ? 'Meter totals are ahead of target' : 'Meter totals are below target'}</p>
+                        <p className="grid-data-label">Pace Snapshot</p>
+                        <p className="text-base sm:text-lg font-medium text-[var(--text-primary)] mt-1">{paceDelta >= 0 ? 'Meter totals are ahead of target' : 'Meter totals are below target'}</p>
                       </div>
                       <div className="sm:text-right">
-                        <p className="text-xs font-bold text-[var(--text-secondary)]">Required from here</p>
-                        <p className="text-lg sm:text-xl font-black text-[var(--text-primary)]">{remainingHours > 0 ? `${formatCurrency(requiredHourlyRate)}/hr` : formatCurrency(remainingGoal)}</p>
+                        <p className="grid-data-label">Required from here</p>
+                        <p className="driver-performance-number text-lg sm:text-2xl text-[var(--text-primary)]">{remainingHours > 0 ? `${formatCurrency(requiredHourlyRate)}/hr` : formatCurrency(remainingGoal)}</p>
                       </div>
                     </div>
                     <div className="mt-4 w-full h-2 rounded-full bg-white/10 overflow-hidden">
@@ -673,35 +699,36 @@ export default function DriverPerformance() {
 
             <div className="glass-card p-4 sm:p-6">
               <div className="flex items-center gap-2 mb-5">
-                <div className="p-2 rounded-xl bg-[var(--primary)]/10 border border-[var(--primary)]/20">
+                <div className="grid-icon-badge">
                   <Sparkles className="w-4 h-4 text-[var(--primary-dark)]" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-[var(--text-primary)]">AI Strategy Dispatcher</h3>
-                  <p className="text-xs text-[var(--text-secondary)]">{activePeriod.label} guidance</p>
+                  <p className="grid-data-label">Strategy</p>
+                  <h3 className="text-[var(--text-primary)]">AI Strategy Dispatcher</h3>
+                  <p className="text-xs text-[var(--text-secondary)] mt-1">{activePeriod.label} guidance</p>
                 </div>
               </div>
 
               <div className="space-y-4">
                 <div className={cn('rounded-2xl border p-4', statusVisual.panel)}>
-                  <p className="text-xs uppercase tracking-[0.18em] font-black text-[var(--text-secondary)]">{strategyTitle}</p>
-                  <p className="text-base font-bold text-[var(--text-primary)] mt-2 leading-relaxed">{strategyCopy}</p>
+                  <p className="grid-data-label">{strategyTitle}</p>
+                  <p className="text-base font-medium text-[var(--text-primary)] mt-2 leading-relaxed">{strategyCopy}</p>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="rounded-2xl border border-[rgba(250,204,21,0.1)] bg-white/5 p-4">
-                    <p className="text-[10px] uppercase tracking-[0.18em] font-black text-[var(--text-secondary)]">Best Zone</p>
-                    <p className="text-sm font-black text-[var(--text-primary)] mt-2">{leadZone.zone_name}</p>
+                    <p className="grid-data-label">Best Zone</p>
+                    <p className="text-sm font-medium text-[var(--text-primary)] mt-2">{leadZone.zone_name}</p>
                     <p className="text-xs text-[var(--text-secondary)] mt-1">Meter avg fare {formatCurrency(leadZoneFare)}</p>
                   </div>
                   <div className="rounded-2xl border border-[rgba(250,204,21,0.1)] bg-white/5 p-4">
-                    <p className="text-[10px] uppercase tracking-[0.18em] font-black text-[var(--text-secondary)]">Next Support</p>
-                    <p className="text-sm font-black text-[var(--text-primary)] mt-2">{supportZone.zone_name}</p>
+                    <p className="grid-data-label">Next Support</p>
+                    <p className="text-sm font-medium text-[var(--text-primary)] mt-2">{supportZone.zone_name}</p>
                     <p className="text-xs text-[var(--text-secondary)] mt-1">Peak in about 15 min</p>
                   </div>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-[var(--primary)]/5 border border-[var(--primary)]/10 flex items-start gap-3">
+                <div className="grid-note-panel flex items-start gap-3">
                   <Activity className="w-5 h-5 text-[var(--primary-dark)] shrink-0 mt-0.5" />
                   <p className="text-sm text-[var(--text-secondary)]"><span className="font-bold text-[var(--text-primary)]">GRID advisory:</span> {strategyFooter}</p>
                 </div>
@@ -715,10 +742,15 @@ export default function DriverPerformance() {
         <div className="glass-card p-4 sm:p-8">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
             <div className="flex items-center gap-2">
-              <DollarSign className="text-primary w-5 h-5" />
-              <h2 className="text-xl font-bold text-[var(--text-primary)]">Weekly Earnings Trend</h2>
+              <div className="grid-icon-badge">
+                <DollarSign className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="grid-data-label">Trend</p>
+                <h2 className="text-xl text-[var(--text-primary)]">Weekly Earnings Trend</h2>
+              </div>
             </div>
-            <div className="px-3 py-1.5 rounded-full bg-white/5 border border-[rgba(250,204,21,0.1)] text-xs font-bold text-[var(--text-secondary)]">Historical reference</div>
+            <div className="grid-chip">Historical reference</div>
           </div>
           <div className="h-[240px] sm:h-[330px] w-full">
             <ResponsiveContainer width="100%" height="100%">
@@ -737,7 +769,7 @@ export default function DriverPerformance() {
               </AreaChart>
             </ResponsiveContainer>
           </div>
-          <div className="mt-8 p-4 bg-primary/5 border border-primary/10 rounded-2xl flex items-start gap-3">
+          <div className="grid-note-panel mt-8 flex items-start gap-3">
             <InfoDot />
             <p className="text-sm text-[var(--text-secondary)] italic">
               <span className="font-bold text-[var(--text-primary)] not-italic">Benchmark:</span> Use the manual shift tracker above for live decisions and this weekly curve as the baseline earnings context.
@@ -747,11 +779,12 @@ export default function DriverPerformance() {
 
         <div className="glass-card p-4 sm:p-6">
           <div className="flex items-center gap-2 mb-6">
-            <div className="p-2 rounded-xl bg-[var(--primary)]/10 border border-[var(--primary)]/20">
+            <div className="grid-icon-badge">
               <Clock3 className="w-4 h-4 text-[var(--primary-dark)]" />
             </div>
             <div>
-              <h3 className="font-bold text-[var(--text-primary)]">Trip Feed</h3>
+              <p className="grid-data-label">Trips</p>
+              <h3 className="text-[var(--text-primary)]">Trip Feed</h3>
               <p className="text-xs text-[var(--text-secondary)]">Recent trip updates</p>
             </div>
           </div>
@@ -762,21 +795,21 @@ export default function DriverPerformance() {
                 <div key={trip.id} className="p-4 rounded-2xl border border-[rgba(250,204,21,0.1)] bg-white/5">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-sm font-black text-[var(--text-primary)]">{trip.zoneName}</p>
+                      <p className="text-sm font-medium text-[var(--text-primary)]">{trip.zoneName}</p>
                       <p className="text-xs text-[var(--text-secondary)] mt-1">{trip.borough}, {formatClock(trip.loggedAt)}, distance {formatDistance(Math.max(1.2, trip.fare / 4.4))}</p>
                     </div>
-                    <p className="text-base font-black text-[var(--primary-dark)]">{formatCurrencyPrecise(trip.fare)}</p>
+                    <p className="driver-performance-number text-base text-[var(--primary-dark)]">{formatCurrencyPrecise(trip.fare)}</p>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
             <div className="rounded-2xl border border-dashed border-[var(--border)] p-6 text-center">
-              <p className="text-sm font-bold text-[var(--text-primary)]">No trips yet</p>
+              <p className="text-sm font-medium text-[var(--text-primary)]">No trips yet</p>
               <button
                 type="button"
                 onClick={openManualLogging}
-                className="mt-4 px-4 py-2.5 rounded-xl bg-primary text-white font-black inline-flex items-center gap-2"
+                className="grid-action-button mt-4"
               >
                 <Plus size={14} />
                 {shiftSession ? 'Add First Trip' : 'Set Goal First'}
@@ -788,7 +821,8 @@ export default function DriverPerformance() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="glass-card p-4 sm:p-6">
-          <h3 className="text-lg font-bold mb-6 text-[var(--text-primary)]">Top Suggested Zones</h3>
+          <p className="grid-data-label mb-2">Demand</p>
+          <h3 className="text-lg mb-6 text-[var(--text-primary)]">Top Suggested Zones</h3>
           <div className="h-[220px] sm:h-[250px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={availableZones.slice(0, 5).map((zone) => ({ name: zone.zone_name, value: zone.predicted_demand }))}>
@@ -804,7 +838,7 @@ export default function DriverPerformance() {
               </BarChart>
             </ResponsiveContainer>
           </div>
-          <div className="mt-6 p-4 bg-success/5 border border-success/10 rounded-2xl flex items-start gap-3">
+          <div className="mt-6 rounded-2xl border border-emerald-500/18 bg-emerald-500/6 p-4 flex items-start gap-3">
             <Sparkles className="text-success w-5 h-5 shrink-0 mt-0.5" />
             <p className="text-sm text-[var(--text-secondary)] italic">
               <span className="font-bold text-[var(--text-primary)] not-italic">AI Tip:</span> {leadZone.zone_name} is the strongest live opportunity right now, with an estimated {leadZone.expected_trips_per_hour.toFixed(0)} trips per hour.
@@ -814,11 +848,12 @@ export default function DriverPerformance() {
 
         <div className="glass-card p-4 sm:p-6">
           <div className="flex items-center gap-2 mb-6">
-            <div className="p-2 bg-yellow-500/10 rounded-xl">
+            <div className="grid-icon-badge">
               <Trophy className="w-5 h-5 text-yellow-500" />
             </div>
             <div>
-              <h3 className="font-bold text-[var(--text-primary)]">Achievements & Badges</h3>
+              <p className="grid-data-label">Progress</p>
+              <h3 className="text-[var(--text-primary)]">Achievements & Badges</h3>
               <p className="text-xs text-[var(--text-secondary)]">{dynamicBadges.filter((badge) => badge.earned).length} of {dynamicBadges.length} unlocked</p>
             </div>
           </div>
@@ -832,9 +867,9 @@ export default function DriverPerformance() {
                 <div className={cn('p-2 rounded-xl', badge.earned ? badge.bg : 'bg-white/10')}>
                   <badge.icon size={20} className={badge.earned ? badge.color : 'text-[var(--text-muted)]'} />
                 </div>
-                <p className={cn('text-xs font-black', badge.earned ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]')}>{badge.label}</p>
+                <p className={cn('text-xs font-medium', badge.earned ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]')}>{badge.label}</p>
                 <p className="text-[10px] text-[var(--text-secondary)] leading-tight">{badge.desc}</p>
-                {badge.earned && <span className={cn('text-[9px] font-black px-2 py-0.5 rounded-full border', badge.bg, badge.color)}>UNLOCKED</span>}
+                {badge.earned && <span className={cn('text-[9px] font-medium px-2 py-0.5 rounded-full border', badge.bg, badge.color)}>UNLOCKED</span>}
               </div>
             ))}
           </div>
@@ -843,11 +878,12 @@ export default function DriverPerformance() {
 
       <div className="glass-card p-4 sm:p-6">
         <div className="flex items-center gap-2 mb-6">
-          <div className="p-2 bg-[var(--primary)]/10 rounded-xl">
+          <div className="grid-icon-badge">
             <Medal className="w-5 h-5 text-[var(--primary-dark)]" />
           </div>
           <div>
-            <h3 className="font-bold text-[var(--text-primary)]">Fleet Leaderboard</h3>
+            <p className="grid-data-label">Leaderboard</p>
+            <h3 className="text-[var(--text-primary)]">Fleet Leaderboard</h3>
             <p className="text-xs text-[var(--text-secondary)]">Goal-tracking markers for today's active drivers</p>
           </div>
         </div>
@@ -861,16 +897,16 @@ export default function DriverPerformance() {
               transition={{ delay: idx * 0.05 }}
               className={cn('flex items-start sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-2xl border transition-all', driver.highlight ? 'bg-[var(--primary)]/10 border-[var(--primary)]/30 shadow-sm' : 'bg-white/5 border-[rgba(250,204,21,0.1)]')}
             >
-              <div className={cn('w-9 h-9 rounded-full flex items-center justify-center text-sm font-black shrink-0', driver.rank === 1 ? 'bg-yellow-500/20 text-yellow-500' : driver.rank === 2 ? 'bg-slate-300/20 text-slate-400' : driver.rank === 3 ? 'bg-orange-400/20 text-orange-400' : 'bg-white/10 text-[var(--text-muted)]')}>
+              <div className={cn('w-9 h-9 rounded-full flex items-center justify-center text-sm font-medium shrink-0', driver.rank === 1 ? 'bg-yellow-500/20 text-yellow-500' : driver.rank === 2 ? 'bg-slate-300/20 text-slate-400' : driver.rank === 3 ? 'bg-orange-400/20 text-orange-400' : 'bg-white/10 text-[var(--text-muted)]')}>
                 {driver.rank}
               </div>
 
               <div className="flex-1">
-                <p className={cn('text-sm font-bold flex flex-wrap items-center gap-2', driver.highlight ? 'text-[var(--primary-dark)]' : 'text-[var(--text-primary)]')}>
+                <p className={cn('text-sm font-medium flex flex-wrap items-center gap-2', driver.highlight ? 'text-[var(--primary-dark)]' : 'text-[var(--text-primary)]')}>
                   <span>{driver.name}</span>
-                  {driver.highlight && <span className="text-[10px] text-[var(--primary)] font-black uppercase tracking-[0.16em]">You</span>}
+                  {driver.highlight && <span className="grid-data-label text-[var(--primary)]">You</span>}
                   {driver.goalHit && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-black text-emerald-500 uppercase tracking-[0.14em]">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-medium text-emerald-500 uppercase tracking-[0.14em]">
                       <Target size={10} />
                       Goal Hit
                     </span>
@@ -879,12 +915,12 @@ export default function DriverPerformance() {
                 <p className="text-xs text-[var(--text-secondary)] mt-1">Score: {driver.score.toFixed(1)}</p>
               </div>
 
-              <p className={cn('text-sm font-black shrink-0', driver.highlight ? 'text-[var(--primary-dark)]' : 'text-[var(--text-primary)]')}>{formatCurrency(driver.earnings)}</p>
+              <p className={cn('driver-performance-number text-lg shrink-0', driver.highlight ? 'text-[var(--primary-dark)]' : 'text-[var(--text-primary)]')}>{formatCurrency(driver.earnings)}</p>
             </motion.div>
           ))}
         </div>
 
-        <div className="mt-4 p-4 bg-[var(--primary)]/5 border border-[var(--primary)]/10 rounded-2xl flex items-start gap-3">
+        <div className="grid-note-panel mt-4 flex items-start gap-3">
           <Sparkles className="text-[var(--primary-dark)] w-5 h-5 shrink-0 mt-0.5" />
           <p className="text-sm text-[var(--text-secondary)] italic">
             <span className="font-bold text-[var(--text-primary)] not-italic">GRID Challenge:</span> Hit your configured goal today to light up the leaderboard marker and unlock the Goal Crusher badge.

@@ -17,3 +17,8 @@ grid_ml/notebooks/.ipynb_checkpoints/
 
 # Sensitive MCP config
 .mcp.json
+
+# Python virtual environment and cache artifacts
+.venv/
+__pycache__/
+*.pyc

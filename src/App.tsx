@@ -310,7 +310,7 @@ function AppShell() {
         topClassName={userRole === 'driver' ? 'top-20 lg:top-4' : 'top-4'}
       />
 
-      <div className="flex min-h-screen bg-[#050514] text-[#e8edf3] font-sans overflow-hidden relative">
+      <div className="flex min-h-screen bg-[#050514] text-[#e8edf3] font-sans overflow-x-hidden relative">
         <div className="fixed inset-0 pointer-events-none">
           <div
             className="absolute inset-0 opacity-[0.04]"
@@ -494,19 +494,19 @@ function AppShell() {
           </div>
         </motion.aside>
 
-        <div
-          style={{ transition: 'margin-left 220ms cubic-bezier(0.32, 0.72, 0, 1)' }}
-          className={cn(
-            'flex-1 flex flex-col min-h-screen relative',
-            userRole === 'driver'
-              ? isSidebarCollapsed
-                ? 'lg:ml-[80px]'
-                : 'lg:ml-[260px]'
-              : isSidebarCollapsed
-                ? 'ml-[80px]'
-                : 'ml-[260px]',
-          )}
-        >
+          <div
+            style={{ transition: 'margin-left 220ms cubic-bezier(0.32, 0.72, 0, 1)' }}
+            className={cn(
+              'flex-1 flex flex-col min-h-[100dvh] relative',
+              userRole === 'driver'
+                ? isSidebarCollapsed
+                  ? 'lg:ml-[80px]'
+                  : 'lg:ml-[260px]'
+                : isSidebarCollapsed
+                  ? 'ml-[80px]'
+                  : 'ml-[260px]',
+            )}
+          >
           {userRole === 'driver' && (
             <div className="lg:hidden fixed top-0 left-0 right-0 p-4 sm:p-6 flex justify-between items-center z-40 pointer-events-none gap-3">
               <div className="flex items-center gap-2 pointer-events-auto bg-[rgba(10,10,30,0.92)] backdrop-blur-md border border-[rgba(250,204,21,0.12)] rounded-full p-1 pl-4 pr-1">
@@ -538,22 +538,22 @@ function AppShell() {
             </div>
           )}
 
-          <main
-            className={cn(
-              'flex-1 w-full max-w-7xl mx-auto px-4 md:px-8 overflow-y-auto overscroll-none',
-              userRole === 'driver' ? 'pt-24 pb-32 lg:pb-8 lg:pt-12' : 'pt-12 pb-8',
-            )}
-          >
-            <motion.div
+            <main
+              className={cn(
+                'flex-1 w-full max-w-7xl mx-auto px-4 md:px-8 overflow-x-hidden',
+                userRole === 'driver' ? 'pt-24 pb-32 lg:pb-8 lg:pt-12' : 'pt-12 pb-8',
+              )}
+            >
+              <motion.div
                 key={`${userRole}-${activePage}`}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.12, ease: 'easeOut' }}
-                className="h-full"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.1, ease: [0.23, 1, 0.32, 1] }}
+                className="min-h-0"
               >
                 {renderPage()}
               </motion.div>
-          </main>
+            </main>
 
           {userRole === 'driver' && (
             <div className="lg:hidden fixed bottom-0 left-0 right-0 flex justify-center z-50 pointer-events-none px-3 pb-[max(16px,env(safe-area-inset-bottom))]">

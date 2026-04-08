@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { Driver } from '../types';
 import { loginDriver, registerDriver } from '../services/apiService';
+import { initUnicornStudioBackground } from '../lib/unicornStudio';
 
 const NYC_BOROUGHS = ['Manhattan', 'Brooklyn', 'Queens', 'Bronx', 'Staten Island'];
 const CAR_MODELS = [
@@ -17,6 +18,25 @@ interface DriverLoginProps {
     onSuccess: (driver: Driver) => void;
     onBack: () => void;
 }
+
+/* ─── WebGL Hero Animation from Landing Page ─── */
+const HeroAnimation = () => {
+    return (
+        <div className="absolute inset-0 z-0 pointer-events-none">
+            <div
+                data-us-project="WL20Cho3hr5Ge8Pk2QUl"
+                data-us-scale="0.75"
+                data-us-dpi="1"
+                data-us-fps="30"
+                data-us-lazyload="true"
+                data-us-production="true"
+                style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
+            />
+            {/* Dark overlay to ensure text readability */}
+            <div className="absolute inset-0 bg-gradient-to-b from-[#050514]/40 via-transparent to-[#050514]" />
+        </div>
+    );
+};
 
 /* ─── Shared input style ─── */
 const inputCls = 'w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm focus:outline-none focus:border-[#facc15]/50 focus:ring-1 focus:ring-[#facc15]/20 transition-all text-white placeholder:text-white/30 disabled:opacity-50';
@@ -319,26 +339,17 @@ function RegisterForm({ onSuccess, onGoLogin }: { onSuccess: (d: Driver) => void
     );
 }
 
-/* ─── Main DriverLogin Component ─── */
 export default function DriverLogin({ onSuccess, onBack }: DriverLoginProps) {
     const [view, setView] = useState<'login' | 'register'>('login');
+    React.useEffect(() => {
+        void initUnicornStudioBackground();
+    }, []);
 
     return (
         <div
-            className="min-h-screen flex items-center justify-center relative overflow-hidden"
-            style={{ background: '#050514' }}
+            className="min-h-screen flex items-center justify-center relative overflow-hidden bg-[#050514]"
         >
-            {/* Background grid + glow */}
-            <div
-                className="absolute inset-0 opacity-[0.06]"
-                style={{
-                    backgroundImage: `linear-gradient(rgba(250,204,21,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(250,204,21,0.5) 1px, transparent 1px)`,
-                    backgroundSize: '60px 60px',
-                }}
-            />
-            <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full"
-                style={{ background: 'radial-gradient(ellipse, rgba(250,204,21,0.06) 0%, transparent 70%)' }}
-            />
+            <HeroAnimation />
 
             {/* Back to landing */}
             <button
