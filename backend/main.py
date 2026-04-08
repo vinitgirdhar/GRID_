@@ -13,7 +13,7 @@ from urllib.parse import urlencode
 from urllib.request import urlopen
 
 import pandas as pd
-import xgboost as xgb
+import lightgbm as lgb
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, StreamingResponse
@@ -426,37 +426,38 @@ def _load_hotspot_period(csv_path: Path, recommendation_path: Path, label: str) 
     )
 
 
-def _build_metrics_response(metadata_map: dict[str, dict], booster: xgb.Booster) -> MetricsResponse:
+def _build_metrics_response(metadata_map: dict[str, dict], booster: lgb.Booster) -> MetricsResponse:
     variants = [
-        ("baseline", "Base Model"),
-        ("events", "Event-Enriched Model"),
-        ("improved", "Improved Model"),
+        ("lightgbm", "Production Model"),
     ]
-    model_variants = [
-        ModelVariantMetric(
-            key=key,
-            label=label,
-            model_type=metadata_map[key].get("model_type", label),
-            training_date=metadata_map[key].get("training_date"),
-            test_rmse=float(metadata_map[key]["test_rmse"]),
-            test_r2=float(metadata_map[key]["test_r2"]),
-            train_rmse=float(metadata_map[key]["train_rmse"]) if metadata_map[key].get("train_rmse") is not None else None,
-            train_r2=float(metadata_map[key]["train_r2"]) if metadata_map[key].get("train_r2") is not None else None,
-            feature_count=len(metadata_map[key].get("features", [])),
+    model_variants = []
+    for key, label in variants:
+        meta = metadata_map.get(key, {})
+        model_variants.append(
+            ModelVariantMetric(
+                key=key,
+                label=label,
+                model_type=meta.get("model", label),
+                training_date=meta.get("training_date", datetime.utcnow().isoformat()),
+                test_rmse=float(meta.get("test_metrics", {}).get("rmse", 0.0)),
+                test_r2=float(meta.get("test_metrics", {}).get("r2", 0.0)),
+                train_rmse=float(meta.get("train_metrics", {}).get("rmse", 0.0)),
+                train_r2=float(meta.get("train_metrics", {}).get("r2", 0.0)),
+                feature_count=meta.get("n_features", 0),
+            )
         )
-        for key, label in variants
-    ]
 
-    raw_importance = booster.get_score(importance_type="gain")
+    meta = metadata_map.get("lightgbm", {})
+    raw_importance = meta.get("feature_importance", {})
     feature_importance = [
-        FeatureImportancePoint(name=name, value=float(value[0] if isinstance(value, list) else value))
+        FeatureImportancePoint(name=name, value=float(value))
         for name, value in sorted(raw_importance.items(), key=lambda item: item[1], reverse=True)[:8]
     ]
 
     return MetricsResponse(
         generated_at=datetime.utcnow(),
-        current_model_key="improved",
-        current_model_label="Improved Model",
+        current_model_key="lightgbm",
+        current_model_label="Production Model",
         model_variants=model_variants,
         feature_importance=feature_importance,
     )
@@ -522,12 +523,12 @@ def _build_feature_frame(prediction_time: datetime, zone_id: str, hotspots: Hots
 
 
 def _predict_for_zone(app: FastAPI, prediction_time: datetime, zone_id: str) -> PredictionResponse:
-    booster: xgb.Booster = app.state.booster
+    booster: lgb.Booster = app.state.booster
     features: list[str] = app.state.feature_names
     hotspots: HotspotsResponse = app.state.hotspots
     frame = _build_feature_frame(prediction_time, zone_id, hotspots)
     frame = frame.reindex(columns=features, fill_value=0.0)
-    prediction = float(booster.predict(xgb.DMatrix(frame))[0])
+    prediction = float(booster.predict(frame)[0])
     zone_profile = _get_zone_profile(zone_id)
     adjusted_prediction = round(prediction * float(zone_profile["multiplier"]), 2)
     active_period_name = _active_period(prediction_time)
@@ -544,8 +545,8 @@ def _predict_for_zone(app: FastAPI, prediction_time: datetime, zone_id: str) -> 
         demand_level=_demand_level(adjusted_prediction),
         confidence=0.96,
         active_period=active_period_name,
-        model_key="improved",
-        model_label="Improved Model",
+        model_key="lightgbm",
+        model_label="Production Model",
     )
 
 
@@ -555,13 +556,10 @@ async def lifespan(app: FastAPI):
     outputs_dir = settings.outputs_dir
 
     metadata_map = {
-        "baseline": _load_json(models_dir / "model_metadata.json"),
-        "events": _load_json(models_dir / "model_metadata_with_events.json"),
-        "improved": _load_json(models_dir / "model_metadata_improved.json"),
+        "lightgbm": _load_json(models_dir / "lightgbm_metadata.json"),
     }
 
-    booster = xgb.Booster()
-    booster.load_model(str(models_dir / "xgboost_demand_model_improved.json"))
+    booster = lgb.Booster(model_file=str(models_dir / "production_model.txt"))
 
     feature_names = [
         name.strip()

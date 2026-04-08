@@ -2,7 +2,7 @@ fastapi>=0.115.0,<0.120.0
 starlette>=0.40.0,<0.42.0
 uvicorn[standard]
 pandas
-xgboost
+lightgbm
 psycopg2
 sqlalchemy
 geoalchemy2

@@ -1,30 +1,3 @@
-
-======================================================================
-DRIVER POSITIONING RECOMMENDATIONS
-======================================================================
-Target Time: Sunday, January 25, 2026 at 18:00
-Generated: 2026-01-24 20:33:31
-======================================================================
-
-TOP 10 RECOMMENDED ZONES (Highest Predicted Demand):
-
-98. Zone 132 - Expected 467.6 trips/hour
-104. Zone 138 - Expected 369.0 trips/hour
-146. Zone 186 - Expected 149.8 trips/hour
-108. Zone 142 - Expected  77.9 trips/hour
-49. Zone  68 - Expected  75.6 trips/hour
-199. Zone 249 - Expected  71.3 trips/hour
-126. Zone 162 - Expected  70.6 trips/hour
-182. Zone 230 - Expected  69.7 trips/hour
-125. Zone 161 - Expected  68.4 trips/hour
-191. Zone 239 - Expected  61.8 trips/hour
-
-======================================================================
-AVOID THESE ZONES (Lowest Predicted Demand):
-
-  Zone 112 - Expected   0.4 trips/hour
-  Zone 133 - Expected   0.4 trips/hour
-  Zone  36 - Expected   0.4 trips/hour
-  Zone  21 - Expected   0.4 trips/hour
-  Zone 193 - Expected   0.4 trips/hour
-======================================================================
+Target Time: 18:00 PM
+1. Zone 138 - Expected 150 trips/hour
+Zone 142 - Expected 15 trips/hour
