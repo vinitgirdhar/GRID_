@@ -5,7 +5,6 @@ import { cn } from '../../lib/utils';
 import { getActiveHotspotPeriod, getHotspots, getPrediction } from '../../services/apiService';
 import { HotspotZone, PredictionResponse } from '../../types';
 
-// Simulated live NYC events for AI strategy (displayed even without backend)
 const LIVE_EVENTS = [
   {
     id: 1,
@@ -14,7 +13,7 @@ const LIVE_EVENTS = [
     surge: '+28%',
     type: 'music',
     icon: Music,
-    color: 'text-purple-500',
+    color: 'text-purple-400',
     bg: 'bg-purple-500/10 border-purple-500/20',
     time: '9:00 PM',
     attendees: '20,000 attendees',
@@ -27,8 +26,8 @@ const LIVE_EVENTS = [
     surge: '+18%',
     type: 'sports',
     icon: Trophy,
-    color: 'text-blue-500',
-    bg: 'bg-blue-500/10 border-blue-500/20',
+    color: 'text-sky-400',
+    bg: 'bg-sky-500/10 border-sky-500/20',
     time: '7:30 PM',
     attendees: '47,000 attendees',
     scale: 'Stadium Capacity',
@@ -40,7 +39,7 @@ const LIVE_EVENTS = [
     surge: '+12%',
     type: 'weather',
     icon: Cloud,
-    color: 'text-sky-500',
+    color: 'text-sky-400',
     bg: 'bg-sky-500/10 border-sky-500/20',
     time: 'Now',
     attendees: 'City-wide',
@@ -57,59 +56,62 @@ function SmartStrategyCard({ prediction, zoneName }: { prediction: PredictionRes
   const surgeTotal = matchedEvent ? parseInt(matchedEvent.surge) + (prediction.predicted_demand > 50 ? 8 : 3) : 0;
 
   const mlInsight = matchedEvent
-    ? `ML Insight: ${prediction.confidence > 0.8 ? Math.round(prediction.confidence * 100) : 85}% of unexpected surge here correlates with the ${matchedEvent.name} — ${matchedEvent.attendees} expected in ${matchedEvent.zone}.`
-    : `ML Insight: Demand pattern matches historical ${prediction.active_period} peak for ${zoneName} based on time-of-day seasonality.`;
+    ? `${prediction.confidence > 0.8 ? Math.round(prediction.confidence * 100) : 85}% of unexpected surge here correlates with the ${matchedEvent.name} — ${matchedEvent.attendees} expected in ${matchedEvent.zone}.`
+    : `Demand pattern matches historical ${prediction.active_period} peak for ${zoneName} based on time-of-day seasonality.`;
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass-card p-4 border border-[var(--primary)]/20 shadow-sm"
+      className="relative overflow-hidden bg-white/5 border border-[var(--border)] rounded-2xl p-6 hover:-translate-y-1 hover:border-[var(--accent)]/50 hover:bg-white/10 hover:shadow-[0_8px_32px_rgba(250,204,21,0.08)] transition-all duration-300 group"
     >
-      <div className="flex items-center gap-2 mb-3">
-        <Sparkles className="w-4 h-4 text-[var(--primary)]" />
-        <h3 className="font-bold text-[var(--text-primary)] text-sm tracking-wide">GRID Copilot Strategy</h3>
+      {/* Hover glow line */}
+      <div className="absolute top-0 left-[20%] right-[20%] h-[1px] bg-gradient-to-r from-transparent via-[var(--accent)] to-transparent opacity-0 group-hover:opacity-100 group-hover:left-[10%] group-hover:right-[10%] transition-all duration-300" />
+
+      <div className="flex items-center gap-3 mb-4">
+        <div className="p-2 bg-[var(--accent)]/10 rounded-lg inline-flex">
+          <Sparkles className="w-4 h-4 text-[var(--accent)]" />
+        </div>
+        <h3 className="font-medium text-[var(--text)] text-sm" style={{ fontFamily: 'Outfit, sans-serif' }}>GRID Co-Pilot Strategy</h3>
         <div className="ml-auto flex items-center gap-1.5 px-2 py-0.5 rounded border border-emerald-500/20 bg-emerald-500/10">
           <span className="relative flex h-1.5 w-1.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
           </span>
-          <span className="text-[9px] font-bold tracking-widest uppercase text-emerald-400">
-            Active
-          </span>
+          <span className="text-[9px] font-mono font-bold tracking-widest uppercase text-emerald-400">Active</span>
         </div>
       </div>
 
       <div className="space-y-3">
-        {/* Directive & Advice */}
-        <div className="flex items-start gap-2.5">
-          <div className="mt-0.5 p-1.5 bg-[var(--primary)]/10 rounded-md">
-            <Navigation size={14} className="text-[var(--primary-dark)]" />
+        <div className="flex items-start gap-3">
+          <div className="p-2 bg-[var(--accent)]/10 rounded-lg inline-flex shrink-0 mt-0.5">
+            <Navigation size={14} className="text-[var(--accent)]" />
           </div>
           <div>
-            <p className="text-sm font-bold text-[var(--text-primary)]">
+            <p className="text-sm font-medium text-[var(--text)]" style={{ fontFamily: 'Outfit, sans-serif' }}>
               {matchedEvent ? `Navigate to ${matchedEvent.zone} for ${surgeTotal}% surge opportunity` : `Hold position in ${zoneName} for steady volume`}
             </p>
-            <p className="text-xs text-[var(--text-secondary)] mt-0.5 leading-relaxed">
+            <p className="text-xs text-[var(--text-muted)] mt-1 leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
               {baseAdvice}
             </p>
           </div>
         </div>
 
-        {/* Intelligence / Events Inline */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 pt-3 border-t border-[rgba(250,204,21,0.1)]">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 pt-3 border-t border-[var(--border)]">
           <div className="flex items-start gap-2 flex-1">
-            <BrainCircuit size={14} className="text-[var(--text-secondary)] mt-0.5 shrink-0" />
-            <p className="text-xs text-[var(--text-secondary)] leading-snug">
-              {mlInsight.replace('ML Insight: ', '')}
+            <div className="p-1.5 bg-[var(--accent)]/10 rounded-lg inline-flex shrink-0 mt-0.5">
+              <BrainCircuit size={12} className="text-[var(--accent)]" />
+            </div>
+            <p className="text-xs text-[var(--text-muted)] leading-snug" style={{ fontFamily: 'Inter, sans-serif' }}>
+              {mlInsight}
             </p>
           </div>
-          
+
           {matchedEvent && (
-            <div className={cn('flex items-center gap-2 text-[11px] py-1 px-2.5 rounded-md border shrink-0', matchedEvent.bg)}>
+            <div className={cn('flex items-center gap-2 text-[11px] py-1.5 px-3 rounded-xl border shrink-0', matchedEvent.bg)}>
               <matchedEvent.icon size={12} className={matchedEvent.color} />
-              <span className="font-bold text-[var(--text-primary)]">{matchedEvent.name}</span>
-              <span className={cn('font-black', matchedEvent.color)}>{matchedEvent.surge}</span>
+              <span className="font-medium text-[var(--text)]" style={{ fontFamily: 'Inter, sans-serif' }}>{matchedEvent.name}</span>
+              <span className={cn('font-mono font-bold', matchedEvent.color)}>{matchedEvent.surge}</span>
             </div>
           )}
         </div>
@@ -128,7 +130,8 @@ export default function DemandPrediction() {
   const [error, setError] = useState<string | null>(null);
   const [prediction, setPrediction] = useState<PredictionResponse | null>(null);
   const [topZones, setTopZones] = useState<HotspotZone[]>([]);
-  const [dateOffset, setDateOffset] = useState(0);
+  const [sliderValue, setSliderValue] = useState(0);
+  const dateOffset = Math.round(sliderValue / 100);
   const [selectedHour, setSelectedHour] = useState('live');
   const [selectedZoneId, setSelectedZoneId] = useState('');
   const hasAutoPredicted = useRef(false);
@@ -180,7 +183,6 @@ export default function DemandPrediction() {
         const topZoneId = activeZones[0]?.zone_id ?? '';
         setSelectedZoneId(topZoneId);
 
-        // Auto-predict for the highest demand zone on load
         if (topZoneId && !hasAutoPredicted.current) {
           hasAutoPredicted.current = true;
           handlePredict(topZoneId);
@@ -205,20 +207,34 @@ export default function DemandPrediction() {
 
   const selectedZone = topZones.find((zone) => zone.zone_id === selectedZoneId);
 
+  const inputCls = 'w-full bg-white/5 border border-[var(--border)] rounded-xl py-3 pl-10 pr-4 text-sm focus:outline-none focus:border-[var(--accent)]/40 focus:ring-1 focus:ring-[var(--accent)]/10 transition-all text-[var(--text)] appearance-none';
+  const labelCls = 'text-[10px] font-mono font-medium text-[var(--text-muted)] uppercase tracking-widest';
+
   return (
     <div className="space-y-6">
+      {/* Page Header */}
       <div>
-        <h1 className="text-3xl font-light tracking-tight text-[#facc15]" style={{fontFamily:'Outfit,sans-serif',letterSpacing:'-0.03em'}}>Where Should I Go Next?</h1>
-        <p className="text-[#94a3b8] mt-1 text-sm">AI tells you where rider demand is highest right now</p>
+        <h1
+          className="text-3xl font-light tracking-tight text-[var(--accent)]"
+          style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-0.03em' }}
+        >
+          Where Should I Go Next?
+        </h1>
+        <p className="text-[var(--text-muted)] mt-1 text-sm" style={{ fontFamily: 'Inter, sans-serif' }}>
+          GRID Co-Pilot tells you where rider demand is highest right now
+        </p>
       </div>
 
       {error && (
-        <div className="glass-card p-4 border border-danger/20 text-danger text-sm">
+        <div className="relative overflow-hidden bg-red-500/10 border border-red-500/20 rounded-2xl p-4 text-red-400 text-sm flex items-center gap-3" style={{ fontFamily: 'Inter, sans-serif' }}>
+          <div className="p-1.5 bg-red-500/10 rounded-lg inline-flex shrink-0">
+            <AlertCircle size={14} className="text-red-400" />
+          </div>
           {error}
         </div>
       )}
 
-      {/* AI Smart Strategy — always at top when prediction is ready */}
+      {/* Co-Pilot Strategy — always at top when prediction is ready */}
       <AnimatePresence>
         {(prediction || isPredicting) && (
           <motion.div
@@ -229,14 +245,18 @@ export default function DemandPrediction() {
             {prediction ? (
               <SmartStrategyCard prediction={prediction} zoneName={prediction.zone_name} />
             ) : (
-              <div className="glass-card p-6 border border-[var(--primary)]/20 flex items-center gap-4">
+              <div className="relative overflow-hidden bg-white/5 border border-[var(--border)] rounded-2xl p-6 flex items-center gap-4">
                 <div className="relative shrink-0">
-                  <div className="w-10 h-10 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
-                  <BrainCircuit className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-primary w-4 h-4" />
+                  <div className="w-10 h-10 border-2 border-[var(--accent)]/20 border-t-[var(--accent)] rounded-full animate-spin" />
+                  <BrainCircuit className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[var(--accent)] w-4 h-4" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-[var(--text-primary)] animate-pulse">AI is thinking... 🤔</p>
-                  <p className="text-xs text-[var(--text-secondary)]">Scoring the highest-demand zone automatically</p>
+                  <p className="text-sm font-medium text-[var(--text)] animate-pulse" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                    Co-Pilot is thinking...
+                  </p>
+                  <p className="text-xs text-[var(--text-muted)]" style={{ fontFamily: 'Inter, sans-serif' }}>
+                    Scoring the highest-demand zone automatically
+                  </p>
                 </div>
               </div>
             )}
@@ -247,45 +267,59 @@ export default function DemandPrediction() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Panel: Forecast Parameters */}
         <div className="lg:col-span-4">
-          <div className="glass-card p-5 sm:p-6 space-y-5">
-            <div className="flex items-center gap-2">
-              <Sparkles className="text-primary w-5 h-5" />
-              <h2 className="text-base font-semibold text-[var(--text-primary)]">Set Your Search</h2>
+          <div className="relative overflow-hidden bg-white/5 border border-[var(--border)] rounded-2xl p-6 hover:-translate-y-1 hover:border-[var(--accent)]/50 hover:bg-white/10 hover:shadow-[0_8px_32px_rgba(250,204,21,0.08)] transition-all duration-300 group space-y-5">
+            {/* Hover glow line */}
+            <div className="absolute top-0 left-[20%] right-[20%] h-[1px] bg-gradient-to-r from-transparent via-[var(--accent)] to-transparent opacity-0 group-hover:opacity-100 group-hover:left-[10%] group-hover:right-[10%] transition-all duration-300" />
+
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-[var(--accent)]/10 rounded-lg inline-flex">
+                <Sparkles className="text-[var(--accent)] w-4 h-4" />
+              </div>
+              <h2 className="text-base font-medium text-[var(--text)]" style={{ fontFamily: 'Outfit, sans-serif' }}>Set Your Search</h2>
             </div>
 
             <div className="space-y-4">
+              {/* Day slider */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">When are you driving?</label>
-                  <span className="text-[11px] font-bold text-[var(--primary)] px-2 py-0.5 rounded-md bg-[var(--primary)]/10">{dayLabels[dateOffset]}</span>
+                  <label className={labelCls}>When are you driving?</label>
+                  <span className="text-[11px] font-mono font-bold text-[var(--accent)] px-2 py-0.5 rounded-md bg-[var(--accent)]/10">
+                    {dayLabels[dateOffset]}
+                  </span>
                 </div>
                 <div className="relative pt-2 pb-1 px-1">
                   <input
                     type="range"
                     min="0"
-                    max="3"
+                    max="300"
                     step="1"
-                    value={dateOffset}
-                    onChange={(event) => setDateOffset(parseInt(event.target.value, 10))}
-                    className="w-full h-2 bg-[var(--border)] rounded-lg appearance-none cursor-pointer accent-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20"
+                    value={sliderValue}
+                    onChange={(event) => setSliderValue(parseInt(event.target.value, 10))}
+                    className="w-full h-2 bg-[var(--border)] rounded-lg appearance-none cursor-pointer accent-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/20"
                   />
-                  <div className="flex justify-between mt-3 px-0.5 text-[10px] uppercase font-black tracking-wider text-[var(--text-muted)]">
-                    <span className={dateOffset === 0 ? 'text-[var(--text-primary)]' : ''}>Today</span>
-                    <span className={dateOffset === 1 ? 'text-[var(--text-primary)]' : ''}>+1d</span>
-                    <span className={dateOffset === 2 ? 'text-[var(--text-primary)]' : ''}>+2d</span>
-                    <span className={dateOffset === 3 ? 'text-[var(--text-primary)]' : ''}>+3d</span>
+                  <div className="flex justify-between mt-3 px-0.5">
+                    {['Today', '+1D', '+2D', '+3D'].map((label, i) => (
+                      <span
+                        key={label}
+                        className={cn('text-[10px] font-mono uppercase tracking-widest transition-colors', dateOffset === i ? 'text-[var(--text)]' : 'text-[var(--text-muted)]')}
+                      >
+                        {label}
+                      </span>
+                    ))}
                   </div>
                 </div>
               </div>
 
+              {/* Time select */}
               <div className="space-y-2">
-                <label className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">What time?</label>
+                <label className={labelCls}>What time?</label>
                 <div className="relative">
-                  <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] w-4 h-4" />
+                  <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] w-4 h-4 pointer-events-none" />
                   <select
                     value={selectedHour}
                     onChange={(event) => setSelectedHour(event.target.value)}
-                    className="w-full bg-white/5 border border-[rgba(250,204,21,0.15)] rounded-lg py-3 pl-10 pr-4 text-sm focus:outline-none focus:border-[rgba(250,204,21,0.4)] transition-colors appearance-none text-[#e8edf3]"
+                    className={inputCls}
+                    style={{ fontFamily: 'Inter, sans-serif' }}
                   >
                     <option value="live">Live Time</option>
                     {Array.from({ length: 24 }, (_, i) => (
@@ -295,15 +329,17 @@ export default function DemandPrediction() {
                 </div>
               </div>
 
+              {/* Zone select */}
               <div className="space-y-2">
-                <label className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">Pick a neighborhood</label>
+                <label className={labelCls}>Pick a neighborhood</label>
                 <div className="relative">
-                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] w-4 h-4" />
+                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] w-4 h-4 pointer-events-none" />
                   <select
                     value={selectedZoneId}
                     onChange={(event) => setSelectedZoneId(event.target.value)}
                     disabled={isLoading}
-                    className="w-full bg-white/5 border border-[rgba(250,204,21,0.15)] rounded-lg py-3 pl-10 pr-4 text-sm focus:outline-none focus:border-[rgba(250,204,21,0.4)] transition-colors appearance-none text-[#e8edf3]"
+                    className={inputCls}
+                    style={{ fontFamily: 'Inter, sans-serif' }}
                   >
                     {topZones.map((zone) => (
                       <option key={zone.zone_id} value={zone.zone_id}>{`${zone.zone_name} (${zone.borough})`}</option>
@@ -313,14 +349,16 @@ export default function DemandPrediction() {
               </div>
             </div>
 
+            {/* Find Best Zone button — hollow/outline style per design.md */}
             <button
               onClick={() => handlePredict()}
               disabled={isPredicting || isLoading || !selectedZoneId}
-              className="w-full bg-primary hover:bg-primary/90 disabled:opacity-50 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2"
+              className="w-full flex items-center justify-center gap-2 px-6 py-3.5 rounded-full font-medium text-[var(--accent)] bg-[rgba(250,204,21,0.05)] border border-[rgba(250,204,21,0.3)] hover:bg-[rgba(250,204,21,0.15)] hover:border-[rgba(250,204,21,0.6)] hover:-translate-y-[2px] hover:shadow-[0_4px_20px_rgba(250,204,21,0.15)] transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+              style={{ fontFamily: 'Inter, sans-serif' }}
             >
               {isPredicting ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <div className="w-4 h-4 border-2 border-[var(--accent)]/30 border-t-[var(--accent)] rounded-full animate-spin" />
                   Calculating...
                 </>
               ) : (
@@ -335,7 +373,10 @@ export default function DemandPrediction() {
 
         {/* Right Panel: Prediction Output */}
         <div className="lg:col-span-8">
-          <div className="glass-card p-5 sm:p-8 h-full flex flex-col items-center justify-center relative overflow-hidden min-h-[320px]">
+          <div className="relative overflow-hidden bg-white/5 border border-[var(--border)] rounded-2xl p-6 sm:p-8 h-full flex flex-col items-center justify-center min-h-[320px] hover:border-[var(--accent)]/50 hover:shadow-[0_8px_32px_rgba(250,204,21,0.08)] transition-all duration-300 group">
+            {/* Hover glow line */}
+            <div className="absolute top-0 left-[20%] right-[20%] h-[1px] bg-gradient-to-r from-transparent via-[var(--accent)] to-transparent opacity-0 group-hover:opacity-100 group-hover:left-[10%] group-hover:right-[10%] transition-all duration-300" />
+
             <AnimatePresence mode="wait">
               {!prediction && !isPredicting && (
                 <motion.div
@@ -345,12 +386,14 @@ export default function DemandPrediction() {
                   exit={{ opacity: 0 }}
                   className="text-center space-y-4"
                 >
-                  <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mx-auto border border-[rgba(250,204,21,0.1)]">
-                    <BrainCircuit className="w-10 h-10 text-[var(--text-secondary)] opacity-30" />
+                  <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mx-auto border border-[var(--border)]">
+                    <BrainCircuit className="w-10 h-10 text-[var(--text-muted)] opacity-30" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-medium text-[var(--text-primary)]">Ready for Prediction</h3>
-                    <p className="text-[var(--text-secondary)] text-sm max-w-xs mx-auto">
+                    <h3 className="text-lg font-light text-[var(--text)]" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                      Ready for Prediction
+                    </h3>
+                    <p className="text-[var(--text-muted)] text-sm max-w-xs mx-auto mt-1" style={{ fontFamily: 'Inter, sans-serif' }}>
                       {selectedZone
                         ? `Generate a live forecast for ${selectedZone.zone_name}.`
                         : 'Wait for the hotspot list to load, then select a zone and generate a forecast.'}
@@ -368,12 +411,16 @@ export default function DemandPrediction() {
                   className="flex flex-col items-center gap-6"
                 >
                   <div className="relative">
-                    <div className="w-24 h-24 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
-                    <BrainCircuit className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-primary w-8 h-8" />
+                    <div className="w-24 h-24 border-4 border-[var(--accent)]/20 border-t-[var(--accent)] rounded-full animate-spin" />
+                    <BrainCircuit className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[var(--accent)] w-8 h-8" />
                   </div>
                   <div className="text-center">
-                    <p className="text-lg font-semibold animate-pulse text-[var(--text-primary)]">AI is thinking... 🤔</p>
-                    <p className="text-[var(--text-secondary)] text-sm">Scoring the selected zone using the preloaded backend model...</p>
+                    <p className="text-lg font-light animate-pulse text-[var(--text)]" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                      Co-Pilot is thinking...
+                    </p>
+                    <p className="text-[var(--text-muted)] text-sm mt-1" style={{ fontFamily: 'Inter, sans-serif' }}>
+                      Scoring the selected zone using the preloaded backend model
+                    </p>
                   </div>
                 </motion.div>
               )}
@@ -381,51 +428,58 @@ export default function DemandPrediction() {
               {prediction && (
                 <motion.div
                   key="result"
-                  initial={{ opacity: 0, scale: 0.95 }}
+                  initial={{ opacity: 0, scale: 0.97 }}
                   animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
                   className="w-full space-y-8"
                 >
+                  {/* Main metric */}
                   <div className="text-center">
-                    <p className="text-sm font-medium text-[var(--text-secondary)] uppercase tracking-widest mb-2">Expected Pickups</p>
-                    <div className="text-5xl sm:text-7xl font-bold text-primary tracking-tighter break-words">
+                    <p className="text-[10px] font-mono text-[var(--text-muted)] uppercase tracking-widest mb-2">
+                      Expected Pickups
+                    </p>
+                    <div className="text-5xl sm:text-7xl font-light text-[var(--accent)] tracking-tight break-words" style={{ fontFamily: 'Outfit, sans-serif' }}>
                       {prediction.predicted_demand.toLocaleString()}
-                      <span className="block sm:inline text-xl sm:text-2xl font-medium text-[var(--text-secondary)] sm:ml-2">Trips</span>
+                      <span className="block sm:inline text-xl sm:text-2xl font-light text-[var(--text-muted)] sm:ml-3">Trips</span>
                     </div>
                   </div>
 
+                  {/* Stat cards */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className="bg-white/5 rounded-2xl p-4 text-center border border-[rgba(250,204,21,0.1)]">
-                      <AlertCircle className="w-5 h-5 text-warning mx-auto mb-2" />
-                      <p className="text-[10px] text-[var(--text-secondary)] uppercase font-bold">Demand Level</p>
-                      <p className="text-sm font-semibold text-[var(--text-primary)]">{prediction.demand_level}</p>
-                    </div>
-                    <div className="bg-white/5 rounded-2xl p-4 text-center border border-[rgba(250,204,21,0.1)]">
-                      <MapPin className="w-5 h-5 text-secondary mx-auto mb-2" />
-                      <p className="text-[10px] text-[var(--text-secondary)] uppercase font-bold">Zone</p>
-                      <p className="text-sm font-semibold text-[var(--text-primary)]">{prediction.zone_name}</p>
-                    </div>
-                    <div className="bg-white/5 rounded-2xl p-4 text-center border border-[rgba(250,204,21,0.1)]">
-                      <Cloud className="w-5 h-5 text-primary mx-auto mb-2" />
-                      <p className="text-[10px] text-[var(--text-secondary)] uppercase font-bold">Window</p>
-                      <p className="text-sm font-semibold text-[var(--text-primary)] capitalize">{prediction.active_period}</p>
-                    </div>
+                    {[
+                      { icon: AlertCircle, iconCls: 'text-amber-400', label: 'Demand Level', value: prediction.demand_level },
+                      { icon: MapPin, iconCls: 'text-[var(--text-muted)]', label: 'Zone', value: prediction.zone_name },
+                      { icon: Cloud, iconCls: 'text-sky-400', label: 'Window', value: prediction.active_period },
+                    ].map(({ icon: Icon, iconCls, label, value }) => (
+                      <div key={label} className="relative overflow-hidden bg-white/5 rounded-2xl p-4 text-center border border-[var(--border)] hover:-translate-y-1 hover:border-[var(--accent)]/40 hover:bg-white/10 transition-all duration-300 group/stat">
+                        <div className="absolute top-0 left-[20%] right-[20%] h-[1px] bg-gradient-to-r from-transparent via-[var(--accent)] to-transparent opacity-0 group-hover/stat:opacity-60 transition-all duration-300" />
+                        <div className="flex justify-center mb-2">
+                          <div className="p-1.5 bg-[var(--accent)]/10 rounded-lg inline-flex">
+                            <Icon className={cn('w-4 h-4', iconCls)} />
+                          </div>
+                        </div>
+                        <p className="text-[10px] font-mono text-[var(--text-muted)] uppercase tracking-widest mb-1">{label}</p>
+                        <p className="text-sm font-medium text-[var(--text)] capitalize" style={{ fontFamily: 'Inter, sans-serif' }}>{value}</p>
+                      </div>
+                    ))}
                   </div>
 
-                  <div className="pt-6 border-t border-[rgba(250,204,21,0.1)] space-y-3">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-[var(--text-secondary)]">AI Confidence</span>
-                      <span className="font-bold text-success">{(prediction.confidence * 100).toFixed(1)}%</span>
+                  {/* Confidence bar */}
+                  <div className="pt-6 border-t border-[var(--border)] space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-mono text-[var(--text-muted)] uppercase tracking-widest">Co-Pilot Confidence</span>
+                      <span className="font-mono font-bold text-emerald-400 text-sm">{(prediction.confidence * 100).toFixed(1)}%</span>
                     </div>
                     <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
                       <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: `${prediction.confidence * 100}%` }}
                         transition={{ duration: 1, delay: 0.2 }}
-                        className="h-full bg-success"
+                        className="h-full bg-emerald-400 rounded-full"
                       />
                     </div>
-                    <p className="text-sm text-[var(--text-secondary)]">
-                      GRID's AI checked <span className="text-[var(--text-primary)] font-semibold">{prediction.borough}</span> for you at {selectedHour === 'live' ? 'Live Time' : `${selectedHour.padStart(2, '0')}:00`}.
+                    <p className="text-xs text-[var(--text-muted)]" style={{ fontFamily: 'Inter, sans-serif' }}>
+                      Scored <span className="text-[var(--text)] font-medium">{prediction.borough}</span> at {selectedHour === 'live' ? 'live time' : `${selectedHour.padStart(2, '0')}:00`}.
                     </p>
                   </div>
                 </motion.div>
@@ -436,30 +490,43 @@ export default function DemandPrediction() {
       </div>
 
       {/* Live Events Feed */}
-      <div className="glass-card p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <Flame className="w-5 h-5 text-[var(--warning)]" />
-          <h2 className="text-lg font-bold text-[var(--text-primary)]">Live City Events</h2>
-          <span className="ml-auto flex items-center gap-1.5 text-xs font-bold text-[var(--success)] bg-[var(--success)]/10 px-2 py-1 rounded-full border border-[var(--success)]/20">
-            <span className="w-1.5 h-1.5 bg-[var(--success)] rounded-full animate-pulse" />
-            LIVE
+      <div className="relative overflow-hidden bg-white/5 border border-[var(--border)] rounded-2xl p-6 hover:-translate-y-1 hover:border-[var(--accent)]/50 hover:bg-white/10 hover:shadow-[0_8px_32px_rgba(250,204,21,0.08)] transition-all duration-300 group">
+        {/* Hover glow line */}
+        <div className="absolute top-0 left-[20%] right-[20%] h-[1px] bg-gradient-to-r from-transparent via-[var(--accent)] to-transparent opacity-0 group-hover:opacity-100 group-hover:left-[10%] group-hover:right-[10%] transition-all duration-300" />
+
+        <div className="flex items-center gap-3 mb-5">
+          <div className="p-2 bg-amber-500/10 rounded-lg inline-flex">
+            <Flame className="w-4 h-4 text-amber-400" />
+          </div>
+          <h2 className="text-base font-medium text-[var(--text)]" style={{ fontFamily: 'Outfit, sans-serif' }}>Live City Events</h2>
+          <span className="ml-auto flex items-center gap-1.5 text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20 uppercase tracking-widest">
+            <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
+            Live
           </span>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {LIVE_EVENTS.map((event) => (
-            <div key={event.id} className={`p-4 rounded-2xl border ${event.bg}`}>
-              <div className="flex items-center gap-2 mb-2">
-                <event.icon size={16} className={event.color} />
-                <span className="text-xs font-black text-[var(--text-primary)] leading-tight">{event.name}</span>
+            <div
+              key={event.id}
+              className={`relative overflow-hidden rounded-2xl border p-4 hover:-translate-y-1 hover:shadow-[0_4px_20px_rgba(0,0,0,0.3)] transition-all duration-300 group/event ${event.bg}`}
+            >
+              <div className="flex items-center gap-2.5 mb-3">
+                <div className={`p-1.5 rounded-lg inline-flex bg-white/5`}>
+                  <event.icon size={14} className={event.color} />
+                </div>
+                <span className="text-xs font-medium text-[var(--text)] leading-tight" style={{ fontFamily: 'Inter, sans-serif' }}>{event.name}</span>
               </div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] text-[var(--text-secondary)] font-medium">{event.zone} · {event.time}</span>
-                <span className={`text-xs font-black ${event.color}`}>{event.surge}</span>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[10px] font-mono text-[var(--text-muted)] uppercase tracking-wider">{event.zone} · {event.time}</span>
+                <span className={`text-xs font-mono font-bold ${event.color}`}>{event.surge}</span>
               </div>
-              <div className="flex items-center gap-1.5 pt-2 border-t border-[rgba(250,204,21,0.08)]">
-                <Users size={10} className="text-[#94a3b8] shrink-0" />
-                <span className="text-[10px] text-[#94a3b8]">{event.attendees}</span>
-                <span className="ml-auto text-[10px] font-bold text-[#94a3b8] bg-white/5 px-1.5 py-0.5 rounded">
+              <div className="flex items-center gap-1.5 pt-2.5 border-t border-white/5">
+                <div className="p-1 bg-white/5 rounded inline-flex">
+                  <Users size={10} className="text-[var(--text-muted)]" />
+                </div>
+                <span className="text-[10px] font-mono text-[var(--text-muted)]">{event.attendees}</span>
+                <span className="ml-auto text-[10px] font-mono font-bold text-[var(--text-muted)] bg-white/5 px-1.5 py-0.5 rounded">
                   {event.scale}
                 </span>
               </div>

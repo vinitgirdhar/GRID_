@@ -1,4 +1,4 @@
-import { startTransition, useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   Activity,
   BarChart3,
@@ -171,18 +171,33 @@ function AppShell() {
     return () => clearInterval(timer);
   }, []);
 
+  useLayoutEffect(() => {
+    if (typeof window === 'undefined') return;
+    const root = document.documentElement;
+    const previousBehavior = root.style.scrollBehavior;
+    root.style.scrollBehavior = 'auto';
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+
+    const restoreId = window.requestAnimationFrame(() => {
+      root.style.scrollBehavior = previousBehavior;
+    });
+
+    return () => {
+      window.cancelAnimationFrame(restoreId);
+      root.style.scrollBehavior = previousBehavior;
+    };
+  }, [screen, userRole, activePage]);
+
   const handleLogin = (role: UserRole, driver?: Driver) => {
     if (driver) {
       postDriverStatus(driver.id, 'online');
       postDriverSession({ is_live: false }).catch(() => {});
     }
-    startTransition(() => {
-      setUserRole(role);
-      setCurrentDriver(role === 'driver' ? driver ?? null : null);
-      setSelectedDriverProfile(null);
-      setIsLive(false);
-      setActivePage('overview');
-    });
+    setUserRole(role);
+    setCurrentDriver(role === 'driver' ? driver ?? null : null);
+    setSelectedDriverProfile(null);
+    setIsLive(false);
+    setActivePage('overview');
   };
 
   const handleLogout = () => {
@@ -343,8 +358,24 @@ function AppShell() {
                 initial={{ opacity: 0, x: -8 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
+                className="flex items-center gap-3"
               >
                 <img src="/grid-logo.png" alt="GRID" className="h-14 w-auto object-contain" />
+                <span
+                  style={{
+                    fontFamily: 'Outfit, sans-serif',
+                    fontSize: '1.5rem',
+                    fontWeight: 500,
+                    letterSpacing: '-0.01em',
+                    textTransform: 'uppercase',
+                    background: 'linear-gradient(170deg, #ffffff 40%, #fbbf24 110%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    filter: 'drop-shadow(0 2px 12px rgba(250,204,21,0.2))',
+                  }}
+                >
+                  GRID
+                </span>
               </motion.div>
               <button
                 onClick={() => setIsSidebarCollapsed(true)}
@@ -539,9 +570,8 @@ function AppShell() {
             >
               <motion.div
                 key={`${userRole}-${activePage}`}
-                initial={{ opacity: 0, y: 6 }}
+                initial={false}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.1, ease: [0.23, 1, 0.32, 1] }}
                 className="min-h-0"
               >
                 {renderPage()}

@@ -141,16 +141,21 @@ export default function Drivers({ onSelectDriver }: DriversProps) {
           <p className="text-[var(--text-secondary)] mt-1">Monitor and manage your active driver network</p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-1 flex">
+          <div className="relative bg-white/5 border border-[var(--border)] rounded-xl p-1 flex">
+            {/* Sliding indicator */}
+            <motion.div
+              className="absolute top-1 bottom-1 rounded-lg bg-[rgba(250,204,21,0.1)] border border-[rgba(250,204,21,0.3)]"
+              style={{ width: 'calc(25% - 2px)' }}
+              animate={{ x: (['all', 'online', 'driving', 'offline'].indexOf(filter)) * (100) + '%' }}
+              transition={{ type: 'spring', stiffness: 400, damping: 35, mass: 0.8 }}
+            />
             {(['all', 'online', 'driving', 'offline'] as const).map((t) => (
               <button
                 key={t}
                 onClick={() => setFilter(t)}
                 className={cn(
-                  "px-4 py-2 text-xs font-bold rounded-lg transition-all uppercase tracking-wider",
-                  filter === t
-                    ? "bg-primary text-white shadow-lg shadow-primary/20"
-                    : "text-[var(--text-secondary)] hover:text-primary hover:bg-primary/5"
+                  'relative z-10 flex-1 px-3 py-2 text-[10px] font-mono font-bold rounded-lg transition-colors duration-150 uppercase tracking-widest',
+                  filter === t ? 'text-[var(--accent)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]',
                 )}
               >
                 {t}
@@ -181,9 +186,11 @@ export default function Drivers({ onSelectDriver }: DriversProps) {
               role={onSelectDriver ? 'button' : undefined}
               tabIndex={onSelectDriver ? 0 : -1}
               className={cn(
-                "relative overflow-hidden rounded-2xl p-6 border transition-all hover:-translate-y-1",
-                onSelectDriver && "cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/30",
-                index === 0 ? "bg-gradient-to-br from-[#facc15]/20 to-[#eab308]/5 border-[#facc15]/30 shadow-[0_8px_30px_rgba(250,204,21,0.15)]" : "glass-card hover:border-primary/20",
+                "relative overflow-hidden rounded-2xl p-6 border transition-all duration-300 hover:-translate-y-1 group",
+                onSelectDriver && "cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30",
+                index === 0
+                  ? "bg-gradient-to-br from-[#facc15]/15 to-[#eab308]/5 border-[#facc15]/30 hover:shadow-[0_8px_32px_rgba(250,204,21,0.15)]"
+                  : "bg-white/5 border-[var(--border)] hover:border-[var(--accent)]/40 hover:bg-white/10 hover:shadow-[0_8px_32px_rgba(250,204,21,0.08)]",
                 index === 1 ? "md:mt-4" : "",
                 index === 2 ? "md:mt-8" : ""
               )}
@@ -216,13 +223,13 @@ export default function Drivers({ onSelectDriver }: DriversProps) {
 
               <div className="grid grid-cols-2 gap-4 relative z-10">
                 <div className="bg-[var(--background)]/50 p-3 rounded-xl border border-[var(--border)]">
-                  <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1">Ratings</p>
+                  <p className="text-[10px] font-mono font-medium text-[var(--text-muted)] uppercase tracking-widest mb-1">Ratings</p>
                   <p className="text-sm font-black text-[var(--text-primary)] flex items-center gap-1">
                     {driver.rating} <Star size={12} className="text-[#facc15] fill-[#facc15]" />
                   </p>
                 </div>
                 <div className="bg-[var(--background)]/50 p-3 rounded-xl border border-[var(--border)]">
-                  <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1">Earnings</p>
+                  <p className="text-[10px] font-mono font-medium text-[var(--text-muted)] uppercase tracking-widest mb-1">Earnings</p>
                   <p className="text-sm font-black text-[#eab308]">${driver.earnings.toLocaleString()}</p>
                 </div>
               </div>
@@ -230,7 +237,8 @@ export default function Drivers({ onSelectDriver }: DriversProps) {
           ))}
       </div>
 
-      <div className="glass-card overflow-hidden flex flex-col">
+      <div className="relative overflow-hidden bg-white/5 border border-[var(--border)] rounded-2xl flex flex-col group hover:border-[var(--accent)]/30 transition-all duration-300">
+        <div className="absolute top-0 left-[20%] right-[20%] h-[1px] bg-gradient-to-r from-transparent via-[var(--accent)] to-transparent opacity-0 group-hover:opacity-100 group-hover:left-[10%] group-hover:right-[10%] transition-all duration-300" />
         <div className="p-4 border-b border-[var(--border)] bg-[var(--card)]/50">
           <div className="relative max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] w-4 h-4" />
@@ -334,7 +342,7 @@ export default function Drivers({ onSelectDriver }: DriversProps) {
 
         {filteredDrivers.length === 0 && (
           <div className="p-12 text-center">
-            <p className="text-[var(--text-secondary)] font-medium">
+            <p className="text-sm text-[var(--text-muted)]" style={{ fontFamily: 'Inter, sans-serif' }}>
               {drivers.length === 0 ? 'Loading drivers...' : 'No drivers found matching your criteria.'}
             </p>
           </div>

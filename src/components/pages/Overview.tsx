@@ -1,34 +1,21 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { Activity, Car, ChevronRight, CloudRain, DollarSign, Target, Users } from 'lucide-react';
 import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
+  Area, AreaChart, Bar, BarChart, CartesianGrid, Cell,
+  Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
 import { InsightTooltip } from '../charts/InsightTooltip';
 import {
-  asNumber,
-  formatBucketLabel,
-  formatHourLabel,
-  formatRideCount,
-  formatTripsPerHour,
-  getDemandWindowInsight,
-  getZoneDemandInsight,
+  asNumber, formatBucketLabel, formatHourLabel, formatRideCount,
+  formatTripsPerHour, getDemandWindowInsight, getZoneDemandInsight,
 } from '../charts/insightTooltipUtils';
-import { getActiveHotspotPeriod, getForecast, getHotspots, getMetrics } from '../../services/apiService';
-import { ForecastResponse, HotspotsResponse, MetricsResponse } from '../../types';
+import { getActiveHotspotPeriod, getForecast, getHotspots, getMetrics, getValidationMetrics } from '../../services/apiService';
+import { ForecastResponse, HotspotsResponse, MetricsResponse, ValidationMetricsResponse } from '../../types';
+import { useLiveStream } from '../../hooks/useLiveStream';
 
 const BAR_COLORS = ['#facc15', '#eab308', '#d4a017', '#b8860b', '#8b6914', '#6b5310'];
+const VALIDATION_REFRESH_INTERVAL_MS = 30000;
 
 const ACTIVE_DRIVERS_PREVIEW = [
   { name: 'Alex Thompson', borough: 'Manhattan', tier: 'gold', avatar: 'https://picsum.photos/seed/alex/100/100' },
@@ -38,108 +25,109 @@ const ACTIVE_DRIVERS_PREVIEW = [
   { name: 'David Wilson', borough: 'Manhattan', tier: 'gold', avatar: 'https://picsum.photos/seed/david/100/100' },
 ];
 
+/* Shared bento card class string */
+const bento = 'relative overflow-hidden bg-white/5 border border-[var(--border)] rounded-2xl hover:-translate-y-1 hover:border-[var(--accent)]/50 hover:bg-white/10 hover:shadow-[0_8px_32px_rgba(250,204,21,0.08)] transition-all duration-300 group';
+const glowLine = 'absolute top-0 left-[20%] right-[20%] h-[1px] bg-gradient-to-r from-transparent via-[var(--accent)] to-transparent opacity-0 group-hover:opacity-100 group-hover:left-[10%] group-hover:right-[10%] transition-all duration-300';
+const eyebrow = 'text-[10px] font-mono font-medium text-[var(--text-muted)] uppercase tracking-widest';
+
 export default function Overview() {
   const [forecast, setForecast] = useState<ForecastResponse | null>(null);
   const [hotspots, setHotspots] = useState<HotspotsResponse | null>(null);
   const [metrics, setMetrics] = useState<MetricsResponse | null>(null);
+  const [validation, setValidation] = useState<ValidationMetricsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const predictionThrottleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const validationRequestIdRef = useRef(0);
+  const isMountedRef = useRef(true);
+  const refreshValidation = useRef(() => {
+    const requestId = validationRequestIdRef.current + 1;
+    validationRequestIdRef.current = requestId;
+
+    getValidationMetrics()
+      .then((nextValidation) => {
+        if (!isMountedRef.current || validationRequestIdRef.current !== requestId) return;
+        setValidation(nextValidation);
+      })
+      .catch(() => null);
+  });
 
   useEffect(() => {
     let cancelled = false;
-
-    Promise.all([getForecast(), getHotspots(), getMetrics()])
-      .then(([forecastResponse, hotspotResponse, metricsResponse]) => {
-        if (cancelled) {
-          return;
-        }
-
+    Promise.all([getForecast(), getHotspots(), getMetrics(), getValidationMetrics()])
+      .then(([forecastResponse, hotspotResponse, metricsResponse, validationResponse]) => {
+        if (cancelled) return;
         setForecast(forecastResponse);
         setHotspots(hotspotResponse);
         setMetrics(metricsResponse);
+        setValidation(validationResponse);
       })
-      .catch(() => {
-        if (!cancelled) {
-          setError('Unable to load the admin dashboard from the backend API. Start FastAPI on port 8000 and refresh.');
-        }
-      });
+      .catch(() => { if (!cancelled) setError('Unable to load the admin dashboard. Start FastAPI on port 8000 and refresh.'); });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      refreshValidation.current();
+    }, VALIDATION_REFRESH_INTERVAL_MS);
 
     return () => {
-      cancelled = true;
+      clearInterval(intervalId);
+      isMountedRef.current = false;
+      if (predictionThrottleRef.current) {
+        clearTimeout(predictionThrottleRef.current);
+        predictionThrottleRef.current = null;
+      }
+      validationRequestIdRef.current += 1;
     };
   }, []);
 
-  const activePeriod = useMemo(
-    () => (hotspots ? getActiveHotspotPeriod(hotspots) : null),
-    [hotspots],
-  );
-  const hourlyDemand = useMemo(
-    () => forecast?.forecast.map((point) => ({
-      name: `${point.hour}:00`,
-      value: Math.round(point.total_predicted_demand),
-    })) ?? [],
-    [forecast],
-  );
-  const demandBuckets = useMemo(
-    () => forecast
-      ? Array.from({ length: 6 }, (_, bucketIndex) => {
-          const slice = forecast.forecast.slice(bucketIndex * 4, (bucketIndex + 1) * 4);
-          return {
-            name: `${slice[0]?.hour ?? bucketIndex * 4}:00`,
-            value: Math.round(slice.reduce((sum, point) => sum + point.total_predicted_demand, 0)),
-          };
-        })
-      : [],
-    [forecast],
-  );
-  const zoneDistribution = useMemo(
-    () => activePeriod?.zones.map((zone) => ({
-      name: zone.zone_name,
-      value: Math.round(zone.predicted_demand),
-    })) ?? [],
-    [activePeriod],
-  );
-  const demandBucketMax = useMemo(() => Math.max(0, ...demandBuckets.map((item) => item.value)), [demandBuckets]);
-  const zoneDemandMax = useMemo(() => Math.max(0, ...zoneDistribution.map((item) => item.value)), [zoneDistribution]);
-  const hourlyDemandMax = useMemo(() => Math.max(0, ...hourlyDemand.map((item) => item.value)), [hourlyDemand]);
+  useLiveStream({
+    onConnected: () => refreshValidation.current(),
+    onRetrain: () => refreshValidation.current(),
+    onPrediction: () => {
+      if (predictionThrottleRef.current) return;
+      predictionThrottleRef.current = setTimeout(() => {
+        predictionThrottleRef.current = null;
+        refreshValidation.current();
+      }, 5000);
+    },
+  });
+
+  const activePeriod = useMemo(() => (hotspots ? getActiveHotspotPeriod(hotspots) : null), [hotspots]);
+  const hourlyDemand = useMemo(() => forecast?.forecast.map((p) => ({ name: `${p.hour}:00`, value: Math.round(p.total_predicted_demand) })) ?? [], [forecast]);
+  const demandBuckets = useMemo(() => forecast
+    ? Array.from({ length: 6 }, (_, i) => {
+        const slice = forecast.forecast.slice(i * 4, (i + 1) * 4);
+        return { name: `${slice[0]?.hour ?? i * 4}:00`, value: Math.round(slice.reduce((s, p) => s + p.total_predicted_demand, 0)) };
+      })
+    : [], [forecast]);
+  const zoneDistribution = useMemo(() => activePeriod?.zones.map((z) => ({ name: z.zone_name, value: Math.round(z.predicted_demand) })) ?? [], [activePeriod]);
+  const demandBucketMax = useMemo(() => Math.max(0, ...demandBuckets.map((d) => d.value)), [demandBuckets]);
+  const zoneDemandMax = useMemo(() => Math.max(0, ...zoneDistribution.map((d) => d.value)), [zoneDistribution]);
+  const hourlyDemandMax = useMemo(() => Math.max(0, ...hourlyDemand.map((d) => d.value)), [hourlyDemand]);
 
   const demandBucketTooltip = {
-    title: 'Predicted Ride Volume',
-    contextLabel: 'Time Window',
-    metricLabel: 'Predicted Rides',
-    description: 'An absolute demand count, so 450 means about 450 rides are forecast in this 4-hour block.',
-    details: [
-      'X-axis: 4-hour forecast bucket across the next 24 hours',
-      'Y-axis: predicted number of rides inside that bucket',
-    ],
+    title: 'Predicted Ride Volume', contextLabel: 'Time Window', metricLabel: 'Predicted Rides',
+    description: 'An absolute demand count — 450 means ~450 rides forecast in this 4-hour block.',
+    details: ['X-axis: 4-hour forecast bucket', 'Y-axis: predicted rides in that bucket'],
     accentColor: '#eab308',
     labelFormatter: (label: string | number | undefined) => formatBucketLabel(label),
     valueFormatter: (value: number | string | undefined) => formatRideCount(value),
     insightFormatter: (item: { value?: number | string }) => getDemandWindowInsight(asNumber(item.value), demandBucketMax),
   };
-
   const zoneTooltip = {
-    title: 'Expected Demand (Trips/hr)',
-    contextLabel: 'Zone',
-    metricLabel: 'Trips / hr',
-    description: 'An absolute ride-demand rate, so 145 means roughly 145 ride requests per hour are expected in this zone.',
-    details: [
-      'X-axis: predicted trips per hour',
-      'Y-axis: active hotspot zone',
-    ],
+    title: 'Expected Demand (Trips/hr)', contextLabel: 'Zone', metricLabel: 'Trips / hr',
+    description: 'Predicted ride-demand rate per hour for this zone.',
+    details: ['X-axis: predicted trips per hour', 'Y-axis: active hotspot zone'],
     accentColor: '#facc15',
     valueFormatter: (value: number | string | undefined) => formatTripsPerHour(value),
     insightFormatter: (item: { value?: number | string }) => getZoneDemandInsight(asNumber(item.value), zoneDemandMax),
   };
-
   const hourlyDemandTooltip = {
-    title: 'Predicted Ride Volume',
-    contextLabel: 'Forecast Hour',
-    metricLabel: 'Predicted Rides',
-    description: 'An absolute demand count, so 450 means about 450 rides are expected during that hour.',
-    details: [
-      'X-axis: hour of day in the live 24-hour forecast',
-      'Y-axis: predicted number of rides in that hour',
-    ],
+    title: 'Predicted Ride Volume', contextLabel: 'Forecast Hour', metricLabel: 'Predicted Rides',
+    description: 'Absolute demand count per hour in the live 24-hour forecast.',
+    details: ['X-axis: hour of day', 'Y-axis: predicted rides'],
     accentColor: '#eab308',
     labelFormatter: (label: string | number | undefined) => formatHourLabel(label),
     valueFormatter: (value: number | string | undefined) => formatRideCount(value),
@@ -147,172 +135,158 @@ export default function Overview() {
   };
 
   const summaryCards = [
-    {
-      label: 'Peak Zone',
-      value: forecast?.summary.peak_zone_name ?? '--',
-      meta: `${forecast?.summary.peak_hour ?? '--'}:00`,
-      icon: Car,
-      color: 'var(--primary)',
-    },
-    {
-      label: 'Forecast Volume',
-      value: forecast ? forecast.summary.total_horizon_demand.toLocaleString() : '--',
-      meta: '24h horizon',
-      icon: Activity,
-      color: 'var(--primary-dark)',
-    },
-    {
-      label: 'Top Zone Demand',
-      value: activePeriod?.zones[0] ? activePeriod.zones[0].predicted_demand.toFixed(1) : '--',
-      meta: 'trips/hr',
-      icon: DollarSign,
-      color: 'var(--success)',
-    },
+    { label: 'Peak Zone', value: forecast?.summary.peak_zone_name ?? '--', meta: `${forecast?.summary.peak_hour ?? '--'}:00`, icon: Car, iconColor: '#facc15' },
+    { label: 'Forecast Volume', value: forecast ? forecast.summary.total_horizon_demand.toLocaleString() : '--', meta: '24h horizon', icon: Activity, iconColor: '#fbbf24' },
+    { label: 'Top Zone Demand', value: activePeriod?.zones[0] ? activePeriod.zones[0].predicted_demand.toFixed(1) : '--', meta: 'trips/hr', icon: DollarSign, iconColor: '#4ade80' },
     {
       label: 'Model Accuracy',
-      value: metrics?.model_variants[2] ? `${(metrics.model_variants[2].test_r2 * 100).toFixed(2)}%` : '--',
-      meta: metrics?.current_model_label ?? 'backend',
+      value: validation?.validated_predictions
+        ? `${(validation.model_state.current_r2 * 100).toFixed(2)}%`
+        : metrics?.model_variants[2]
+          ? `${(metrics.model_variants[2].test_r2 * 100).toFixed(2)}%`
+          : '--',
+      meta: validation?.validated_predictions
+        ? `${validation.prediction_accuracy_pct.toFixed(1)}% live validation`
+        : metrics?.current_model_label ?? 'backend',
       icon: Target,
-      color: 'var(--warning)',
+      iconColor: '#fb923c',
     },
   ];
 
   const liveKpis = [
-    {
-      label: 'Peak Forecast Hour',
-      value: forecast ? `${forecast.summary.peak_hour}:00` : '--',
-      change: activePeriod?.label ?? 'Live',
-      trend: 'up' as const,
-      icon: Users,
-    },
-    {
-      label: 'Recommended Zones',
-      value: String(activePeriod?.recommended_zones.length ?? 0),
-      change: activePeriod?.target_time ?? '--',
-      trend: 'up' as const,
-      icon: Activity,
-    },
-    {
-      label: 'Avoid Zones',
-      value: String(activePeriod?.avoid_zones.length ?? 0),
-      change: 'Low-yield zones',
-      trend: 'down' as const,
-      icon: Target,
-    },
-    {
-      label: 'Weather Signal',
-      value: activePeriod?.zones[0]?.weather_condition ?? '--',
-      change: activePeriod?.zones[0]?.borough ?? '--',
-      trend: 'up' as const,
-      icon: CloudRain,
-    },
+    { label: 'Peak Forecast Hour', value: forecast ? `${forecast.summary.peak_hour}:00` : '--', change: activePeriod?.label ?? 'Live', icon: Users },
+    { label: 'Recommended Zones', value: String(activePeriod?.recommended_zones.length ?? 0), change: activePeriod?.target_time ?? '--', icon: Activity },
+    { label: 'Avoid Zones', value: String(activePeriod?.avoid_zones.length ?? 0), change: 'Low-yield zones', icon: Target },
+    { label: 'Weather Signal', value: activePeriod?.zones[0]?.weather_condition ?? '--', change: activePeriod?.zones[0]?.borough ?? '--', icon: CloudRain },
   ];
 
   return (
     <div className="space-y-8">
-      <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }} className="text-center py-6">
-        <h1 className="text-3xl font-light tracking-tight text-[#facc15] mb-2" style={{fontFamily:'Outfit,sans-serif',letterSpacing:'-0.03em'}}>GRID Cab Dashboard</h1>
-        <p className="text-[var(--text-secondary)] text-base font-medium max-w-2xl mx-auto leading-relaxed">
+      {/* Header */}
+      <div className="text-center py-4">
+        <h1 className="text-3xl font-light tracking-tight text-[var(--accent)]" style={{ fontFamily: 'Outfit, sans-serif', letterSpacing: '-0.03em' }}>
+          GRID Fleet Dashboard
+        </h1>
+        <p className="text-[var(--text-muted)] text-sm mt-1 max-w-2xl mx-auto" style={{ fontFamily: 'Inter, sans-serif' }}>
           Live forecast, hotspot, and model-quality telemetry from the FastAPI ML backend.
         </p>
-      </motion.div>
+      </div>
 
-      {error && <div className="glass-card p-6 border border-danger/20 text-danger">{error}</div>}
+      {error && (
+        <div className="relative overflow-hidden bg-red-500/10 border border-red-500/20 rounded-2xl p-4 text-red-400 text-sm" style={{ fontFamily: 'Inter, sans-serif' }}>
+          {error}
+        </div>
+      )}
 
+      {/* Summary stat cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {summaryCards.map((card, index) => (
           <motion.div
             key={card.label}
-            initial={{ opacity: 0, y: 6 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.22, delay: index * 0.04, ease: [0.23, 1, 0.32, 1] }}
-            className="glass-card p-5 flex items-center gap-4"
+            transition={{ duration: 0.3, delay: index * 0.05, ease: [0.23, 1, 0.32, 1] }}
+            className={`${bento} p-5 flex items-center gap-4`}
           >
-            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${card.color}20` }}>
-              <card.icon size={20} style={{ color: card.color }} />
+            <div className={glowLine} />
+            <div className="p-2.5 rounded-lg inline-flex shrink-0" style={{ backgroundColor: `${card.iconColor}18` }}>
+              <card.icon size={20} style={{ color: card.iconColor }} />
             </div>
-            <div className="flex-1">
-              <p className="text-[10px] uppercase font-bold tracking-widest text-[var(--text-muted)]">{card.label}</p>
-              <p className="text-xl font-bold text-[var(--text-primary)] mt-1">{card.value}</p>
+            <div className="flex-1 min-w-0">
+              <p className={eyebrow}>{card.label}</p>
+              <p className="text-xl font-light text-[var(--text)] mt-1 truncate" style={{ fontFamily: 'Outfit, sans-serif' }}>{card.value}</p>
               <div className="flex items-center gap-1 mt-1">
-                <span className="w-1.5 h-1.5 bg-[var(--success)] rounded-full"></span>
-                <span className="text-[10px] text-[var(--text-secondary)] font-medium">{card.meta}</span>
+                <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />
+                <span className="text-[10px] font-mono text-[var(--text-muted)]">{card.meta}</span>
               </div>
             </div>
           </motion.div>
         ))}
       </div>
 
+      {/* Live KPI cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {liveKpis.map((kpi, idx) => (
           <motion.div
             key={kpi.label}
-            initial={{ opacity: 0, y: 6 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.22, delay: 0.06 + idx * 0.03, ease: [0.23, 1, 0.32, 1] }}
-            className="kpi-card"
+            transition={{ duration: 0.3, delay: 0.1 + idx * 0.04, ease: [0.23, 1, 0.32, 1] }}
+            className={`${bento} p-5`}
           >
+            <div className={glowLine} />
             <div className="flex items-start justify-between mb-3">
-              <div className="flex-1">
-                <div className="kpi-label">{kpi.label}</div>
-                <div className="kpi-value">{kpi.value}</div>
-                <div className={`kpi-trend ${kpi.trend === 'up' ? 'positive' : 'negative'}`}>
-                  {kpi.change} <span className="kpi-trend-text">live backend</span>
-                </div>
+              <div className="flex-1 min-w-0">
+                <p className={eyebrow}>{kpi.label}</p>
+                <p className="text-2xl font-light text-[var(--text)] mt-1" style={{ fontFamily: 'Outfit, sans-serif' }}>{kpi.value}</p>
+                <p className="text-[10px] font-mono text-[var(--text-muted)] mt-1">{kpi.change}</p>
               </div>
-              <div className="kpi-icon-container">
-                <kpi.icon className="kpi-icon" />
+              <div className="p-2 bg-[var(--accent)]/10 rounded-lg inline-flex shrink-0 ml-3">
+                <kpi.icon size={16} className="text-[var(--accent)]" />
               </div>
             </div>
           </motion.div>
         ))}
       </div>
 
-      <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22, delay: 0.1, ease: [0.23, 1, 0.32, 1] }} className="glass-card p-6">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-lg font-bold text-[var(--text-primary)]">Forecast Volume</h2>
-            <p className="text-sm text-[var(--text-muted)] mt-1">4-hour demand buckets across the live 24-hour forecast</p>
-          </div>
+      {/* Forecast Volume chart */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.15, ease: [0.23, 1, 0.32, 1] }}
+        className={`${bento} p-6`}
+      >
+        <div className={glowLine} />
+        <div className="mb-5">
+          <p className={eyebrow}>Demand</p>
+          <h2 className="text-lg font-light text-[var(--text)] mt-1" style={{ fontFamily: 'Outfit, sans-serif' }}>Forecast Volume</h2>
+          <p className="text-xs text-[var(--text-muted)] mt-0.5" style={{ fontFamily: 'Inter, sans-serif' }}>4-hour demand buckets across the live 24-hour forecast</p>
         </div>
-        <div className="h-[350px] w-full">
+        <div className="h-[320px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={demandBuckets} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#facc15" stopOpacity={0.35} />
+                  <stop offset="5%" stopColor="#facc15" stopOpacity={0.3} />
                   <stop offset="95%" stopColor="#facc15" stopOpacity={0.02} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" opacity={0.5} />
-              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#9ca3af', fontSize: 12, fontWeight: 500 }} dy={10} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fill: '#9ca3af', fontSize: 12, fontWeight: 500 }} />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(250,204,21,0.08)" />
+              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#4b5e78', fontSize: 11, fontFamily: 'JetBrains Mono, monospace' }} dy={10} />
+              <YAxis axisLine={false} tickLine={false} tick={{ fill: '#4b5e78', fontSize: 11, fontFamily: 'JetBrains Mono, monospace' }} />
               <Tooltip content={<InsightTooltip config={demandBucketTooltip} />} cursor={{ stroke: '#facc15', strokeWidth: 1, strokeDasharray: '4 4' }} />
-              <Area type="basis" dataKey="value" stroke="#eab308" strokeWidth={3} fillOpacity={1} fill="url(#colorValue)" activeDot={{ r: 6, fill: '#facc15', stroke: '#fff', strokeWidth: 3 }} />
+              <Area type="basis" dataKey="value" stroke="#eab308" strokeWidth={2} fillOpacity={1} fill="url(#colorValue)" activeDot={{ r: 5, fill: '#facc15', stroke: '#050514', strokeWidth: 2 }} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
       </motion.div>
 
+      {/* Top Live Zones + Hourly Patterns */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22, delay: 0.12, ease: [0.23, 1, 0.32, 1] }} className="glass-card p-5">
-          <div className="flex items-center justify-between mb-4">
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.18, ease: [0.23, 1, 0.32, 1] }}
+          className={`${bento} p-5`}
+        >
+          <div className={glowLine} />
+          <div className="flex items-center justify-between mb-5">
             <div>
-              <h2 className="text-base font-bold text-[var(--text-primary)]">Top Live Zones</h2>
-              <p className="text-sm text-[var(--text-muted)] mt-1">Highest-demand zones in the active period</p>
+              <p className={eyebrow}>Hotspots</p>
+              <h2 className="text-base font-light text-[var(--text)] mt-1" style={{ fontFamily: 'Outfit, sans-serif' }}>Top Live Zones</h2>
             </div>
-            <div className="p-2 rounded-lg bg-[var(--primary)]/10 border border-[var(--primary)]/20">
-              <Target size={14} className="text-[var(--primary)]" />
+            <div className="p-2 bg-[var(--accent)]/10 rounded-lg inline-flex">
+              <Target size={14} className="text-[var(--accent)]" />
             </div>
           </div>
-          <div className="h-[280px] w-full mt-4">
+          <div className="h-[260px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={zoneDistribution} layout="vertical" margin={{ top: 0, right: 20, left: 10, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e5e7eb" opacity={0.3} />
-                <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: '#9ca3af', fontSize: 11, fontWeight: 500 }} />
-                <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fill: '#374151', fontSize: 13, fontWeight: 600 }} width={110} />
-                <Tooltip content={<InsightTooltip config={zoneTooltip} />} cursor={{ fill: '#f3f4f6', radius: 8 }} />
-                <Bar dataKey="value" radius={[0, 10, 10, 0]} barSize={28}>
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(250,204,21,0.08)" />
+                <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: '#4b5e78', fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }} />
+                <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11, fontFamily: 'Inter, sans-serif' }} width={110} />
+                <Tooltip content={<InsightTooltip config={zoneTooltip} />} cursor={{ fill: 'rgba(250,204,21,0.04)' }} />
+                <Bar dataKey="value" radius={[0, 8, 8, 0]} barSize={22}>
                   {zoneDistribution.map((entry, index) => (
                     <Cell key={entry.name} fill={BAR_COLORS[index % BAR_COLORS.length]} />
                   ))}
@@ -322,46 +296,56 @@ export default function Overview() {
           </div>
         </motion.div>
 
-        <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22, delay: 0.12, ease: [0.23, 1, 0.32, 1] }} className="glass-card p-5">
-          <div className="flex items-center justify-between mb-4">
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.18, ease: [0.23, 1, 0.32, 1] }}
+          className={`${bento} p-5`}
+        >
+          <div className={glowLine} />
+          <div className="flex items-center justify-between mb-5">
             <div>
-              <h2 className="text-base font-bold text-[var(--text-primary)]">Hourly Patterns</h2>
-              <p className="text-sm text-[var(--text-muted)] mt-1">Live 24-hour demand curve</p>
+              <p className={eyebrow}>Patterns</p>
+              <h2 className="text-base font-light text-[var(--text)] mt-1" style={{ fontFamily: 'Outfit, sans-serif' }}>Hourly Patterns</h2>
             </div>
-            <div className="p-2 rounded-lg bg-[var(--secondary)]/10 border border-[var(--secondary)]/20">
-              <Activity size={14} className="text-[var(--secondary)]" />
+            <div className="p-2 bg-sky-400/10 rounded-lg inline-flex">
+              <Activity size={14} className="text-sky-400" />
             </div>
           </div>
-          <div className="h-[280px] w-full mt-4">
+          <div className="h-[260px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={hourlyDemand} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" opacity={0.5} />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#9ca3af', fontSize: 10, fontWeight: 500 }} interval={3} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#9ca3af', fontSize: 12, fontWeight: 500 }} />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(250,204,21,0.08)" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#4b5e78', fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }} interval={3} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#4b5e78', fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }} />
                 <Tooltip content={<InsightTooltip config={hourlyDemandTooltip} />} cursor={{ stroke: '#facc15', strokeWidth: 1, strokeDasharray: '4 4' }} />
-                <Line type="basis" dataKey="value" stroke="#eab308" strokeWidth={3} dot={false} activeDot={{ r: 6, fill: '#facc15', stroke: '#fff', strokeWidth: 3 }} />
+                <Line type="basis" dataKey="value" stroke="#eab308" strokeWidth={2} dot={false} activeDot={{ r: 5, fill: '#facc15', stroke: '#050514', strokeWidth: 2 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </motion.div>
       </div>
 
-      <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22, delay: 0.14, ease: [0.23, 1, 0.32, 1] }} className="glass-card p-6">
+      {/* Active Drivers */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.2, ease: [0.23, 1, 0.32, 1] }}
+        className={`${bento} p-6`}
+      >
+        <div className={glowLine} />
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-lg bg-[var(--success)]/10 border border-[var(--success)]/20">
-              <Users size={18} className="text-[var(--success)]" />
+            <div className="p-2 bg-emerald-400/10 rounded-lg inline-flex">
+              <Users size={16} className="text-emerald-400" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-[var(--text-primary)] uppercase tracking-tight">Active Drivers</h2>
-              <p className="text-sm text-[var(--text-muted)] mt-1">Team preview alongside the live dispatch model</p>
+              <p className={eyebrow}>Fleet</p>
+              <h2 className="text-base font-light text-[var(--text)] mt-0.5" style={{ fontFamily: 'Outfit, sans-serif' }}>Active Drivers</h2>
             </div>
           </div>
-          <button
-            className="text-sm font-bold text-[var(--primary)] flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-[var(--primary)]/5 border border-transparent hover:border-[var(--primary)]/20 active:scale-[0.97]"
-            style={{ transition: 'background-color 150ms ease-out, border-color 150ms ease-out, transform 100ms ease-out' }}
-          >
-            View All Drivers <ChevronRight size={14} />
+          <button className="flex items-center gap-1.5 text-sm font-medium text-[var(--accent)] px-3 py-1.5 rounded-full bg-[rgba(250,204,21,0.05)] border border-[rgba(250,204,21,0.2)] hover:bg-[rgba(250,204,21,0.12)] hover:border-[rgba(250,204,21,0.4)] transition-all duration-200" style={{ fontFamily: 'Inter, sans-serif' }}>
+            View All <ChevronRight size={14} />
           </button>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
@@ -370,23 +354,23 @@ export default function Overview() {
               key={driver.name}
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.2, delay: 0.16 + idx * 0.025, ease: [0.23, 1, 0.32, 1] }}
-              className="p-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)]/80 hover:bg-[var(--surface)]"
-              style={{ transition: 'background-color 150ms ease-out' }}
+              transition={{ duration: 0.2, delay: 0.22 + idx * 0.03, ease: [0.23, 1, 0.32, 1] }}
+              className="relative overflow-hidden p-4 rounded-2xl border border-[var(--border)] bg-white/[0.03] hover:bg-white/[0.07] hover:-translate-y-0.5 hover:border-[var(--accent)]/30 transition-all duration-200 group/card"
             >
+              <div className="absolute top-0 left-[15%] right-[15%] h-[1px] bg-gradient-to-r from-transparent via-[var(--accent)] to-transparent opacity-0 group-hover/card:opacity-60 transition-all duration-300" />
               <div className="flex items-center gap-3 mb-3">
-                <img src={driver.avatar} alt={driver.name} className="w-10 h-10 rounded-full object-cover" />
+                <img src={driver.avatar} alt={driver.name} className="w-10 h-10 rounded-full object-cover border border-[var(--border)]" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-[var(--text-primary)] truncate">{driver.name}</p>
-                  <p className="text-xs text-[var(--text-muted)] truncate">{driver.borough}</p>
+                  <p className="text-sm font-medium text-[var(--text)] truncate" style={{ fontFamily: 'Inter, sans-serif' }}>{driver.name}</p>
+                  <p className="text-[10px] font-mono text-[var(--text-muted)] truncate">{driver.borough}</p>
                 </div>
               </div>
               <div className="flex items-center justify-between">
-                <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${driver.tier === 'gold' ? 'bg-yellow-500/15 text-yellow-400' : driver.tier === 'silver' ? 'bg-slate-400/15 text-slate-300' : 'bg-amber-500/15 text-amber-400'}`}>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider ${driver.tier === 'gold' ? 'bg-yellow-500/15 text-yellow-400' : driver.tier === 'silver' ? 'bg-slate-400/15 text-slate-300' : 'bg-amber-500/15 text-amber-400'}`}>
                   {driver.tier}
                 </span>
-                <div className="flex items-center gap-1 text-[var(--success)] text-xs font-medium">
-                  <span className="w-1.5 h-1.5 bg-[var(--success)] rounded-full"></span>
+                <div className="flex items-center gap-1 text-emerald-400 text-[10px] font-mono">
+                  <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />
                   Online
                 </div>
               </div>

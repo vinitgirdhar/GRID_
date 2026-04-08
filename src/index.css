@@ -58,7 +58,7 @@
 @layer base {
   html {
     /* Smooth scroll but let the browser manage compositing */
-    scroll-behavior: auto;
+    scroll-behavior: smooth;
     /* Prevent overscroll bounce which causes jitter on macOS/iOS */
     overscroll-behavior: none;
     /* Let the browser choose the best text rendering strategy for perf */
