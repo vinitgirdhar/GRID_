@@ -92,7 +92,7 @@ export default function MissedOpportunities() {
           <TrendingDown size={22} className="text-danger" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">Missed Opportunities</h1>
+          <h1 className="text-3xl font-light tracking-tight text-[#facc15]" style={{fontFamily:'Outfit,sans-serif',letterSpacing:'-0.03em'}}>Missed Opportunities</h1>
           <p className="text-sm font-medium text-[var(--text-secondary)] mt-1.5 leading-relaxed bg-[var(--primary)]/5 p-3 rounded-lg border border-[var(--primary)]/10">
             {opportunities.length > 0 
               ? `Shift Insight: You've skipped ${opportunities.length} rides (roughly $${totalLost.toFixed(0)} in lost earnings) but made ${goodCalls} smart passes. ${hotZones[0] ? `Right now, ${hotZones[0].zone_name} is your best-performing zone.` : ''}`
@@ -145,7 +145,7 @@ export default function MissedOpportunities() {
         {loadingHotspots ? (
           <div className="space-y-2">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-14 rounded-xl bg-[var(--background)] animate-pulse" />
+              <div key={i} className="h-14 rounded-xl bg-white/5 animate-pulse" />
             ))}
           </div>
         ) : hotZones.length > 0 ? (
@@ -159,7 +159,7 @@ export default function MissedOpportunities() {
                   initial={{ opacity: 0, x: -8 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.18, delay: 0.1 + idx * 0.03, ease: [0.23, 1, 0.32, 1] }}
-                  className="flex items-center gap-3 px-4 py-3 rounded-xl bg-[var(--background)] border border-[var(--border)]"
+                  className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5 border border-[rgba(250,204,21,0.1)]"
                 >
                   {/* Demand bar accent */}
                   <div
@@ -177,7 +177,7 @@ export default function MissedOpportunities() {
                       </span>
                     </div>
                     <div className="flex items-center gap-2 mt-1.5">
-                      <div className="flex-1 h-1 rounded-full bg-[var(--border)] overflow-hidden">
+                      <div className="flex-1 h-1 rounded-full bg-white/10 overflow-hidden">
                         <div
                           className={cn('h-full rounded-full', isHigh ? 'bg-danger' : 'bg-warning')}
                           style={{ width: `${pct}%` }}

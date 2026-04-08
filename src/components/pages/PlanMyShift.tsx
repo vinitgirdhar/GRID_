@@ -24,7 +24,7 @@ function ZoneRow({ zone, index }: { zone: GoalRouteZone; index: number }) {
       initial={{ opacity: 0, x: -12 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: index * 0.08, duration: 0.3 }}
-      className="flex items-center gap-4 p-4 rounded-2xl bg-[var(--background)] border border-[var(--border)]"
+      className="flex items-center gap-4 p-4 rounded-2xl bg-white/5 border border-[rgba(250,204,21,0.1)]"
     >
       <div className="w-9 h-9 rounded-full bg-[var(--primary)] flex items-center justify-center shrink-0 text-white font-black text-sm">
         {zone.rank}
@@ -32,7 +32,7 @@ function ZoneRow({ zone, index }: { zone: GoalRouteZone; index: number }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
           <p className="font-bold text-[var(--text-primary)] truncate">{zone.zone_name}</p>
-          <span className="text-[10px] text-[var(--text-secondary)] bg-[var(--surface)] px-1.5 py-0.5 rounded font-medium shrink-0">
+          <span className="text-[10px] text-[#94a3b8] bg-white/10 px-1.5 py-0.5 rounded font-medium shrink-0">
             {zone.borough}
           </span>
         </div>
@@ -88,7 +88,7 @@ export default function PlanMyShift() {
   return (
     <div className="space-y-6 max-w-2xl">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-[var(--text-primary)]">⏱ Plan My Shift</h1>
+        <h1 className="text-3xl font-light tracking-tight text-[#facc15]" style={{fontFamily:'Outfit,sans-serif',letterSpacing:'-0.03em'}}>Plan My Shift</h1>
         <p className="text-[var(--text-secondary)] mt-1">Tell us your time &amp; money goal — we'll find the best zones for you</p>
       </div>
 
@@ -124,7 +124,7 @@ export default function PlanMyShift() {
               value={customTime}
               onChange={(e) => setCustomTime(e.target.value)}
               className={cn(
-                'w-28 px-3 py-2 rounded-xl border text-sm transition-all duration-150 bg-[var(--background)] text-[var(--text-primary)] focus:outline-none',
+                'w-28 px-3 py-2 rounded-xl border text-sm transition-all duration-150 bg-white/5 text-[#e8edf3] focus:outline-none',
                 customTime
                   ? 'border-[var(--primary)] bg-[var(--primary)]/5'
                   : 'border-[var(--border)] focus:border-[var(--primary)]/50',
@@ -164,7 +164,7 @@ export default function PlanMyShift() {
                 value={customEarnings}
                 onChange={(e) => setCustomEarnings(e.target.value)}
                 className={cn(
-                  'w-28 pl-6 pr-3 py-2 rounded-xl border text-sm transition-all duration-150 bg-[var(--background)] text-[var(--text-primary)] focus:outline-none',
+                  'w-28 pl-6 pr-3 py-2 rounded-xl border text-sm transition-all duration-150 bg-white/5 text-[#e8edf3] focus:outline-none',
                   customEarnings
                     ? 'border-[var(--success)] bg-[var(--success)]/5'
                     : 'border-[var(--border)] focus:border-[var(--success)]/50',
@@ -234,7 +234,7 @@ export default function PlanMyShift() {
                 <span>Target: ${result.earnings_target.toFixed(0)}</span>
                 <span>{progressPct.toFixed(0)}% of goal</span>
               </div>
-              <div className="w-full h-2.5 bg-[var(--background)] rounded-full overflow-hidden border border-[var(--border)]">
+              <div className="w-full h-2.5 bg-white/10 rounded-full overflow-hidden border border-[rgba(250,204,21,0.1)]">
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: `${progressPct}%` }}

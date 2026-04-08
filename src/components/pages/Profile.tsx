@@ -31,7 +31,7 @@ interface ProfileProps {
   onSave?: (updates: Pick<Driver, 'bio' | 'phone'>) => void;
 }
 
-const PANEL = 'rounded-[28px] border border-white/70 bg-white/72 p-6 shadow-[0_20px_70px_rgba(15,23,42,0.09)] backdrop-blur-xl';
+const PANEL = 'rounded-[28px] border border-[rgba(250,204,21,0.12)] bg-white/5 p-6 shadow-[0_4px_16px_rgba(0,0,0,0.4)]';
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const WEIGHTS = [0.78, 0.86, 0.93, 0.98, 1.1, 1.18, 0.9];
 const TABS: Array<{ id: ProfileTab; label: string; icon: ElementType }> = [
@@ -70,13 +70,13 @@ function buildSeries(driver: Driver) {
 function ChartTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-2xl border border-white/80 bg-white/95 px-4 py-3 shadow-xl">
+    <div className="rounded-2xl border border-[rgba(250,204,21,0.15)] bg-[#0d0d20] px-4 py-3 shadow-xl">
       <p className="text-xs font-bold uppercase tracking-[0.24em] text-[var(--text-muted)]">{label}</p>
       <p className="mt-2 text-sm font-semibold text-[var(--text-primary)]">
         Earnings <span className="font-black text-[var(--primary-dark)]">{money(payload[0].value)}</span>
       </p>
       <p className="mt-1 text-sm font-semibold text-[var(--text-primary)]">
-        Online <span className="font-black text-sky-600">{payload[1]?.value ?? 0} hrs</span>
+        Online <span className="font-black text-sky-400">{payload[1]?.value ?? 0} hrs</span>
       </p>
     </div>
   );
@@ -84,7 +84,7 @@ function ChartTooltip({ active, payload, label }: any) {
 
 function InfoCard({ label, value, icon: Icon }: { label: string; value: string; icon: ElementType }) {
   return (
-    <div className="rounded-[24px] border border-[var(--border)]/80 bg-white/78 p-4 shadow-sm">
+    <div className="rounded-[24px] border border-[rgba(250,204,21,0.1)] bg-white/5 p-4 shadow-sm">
       <div className="flex items-center gap-2 text-[var(--text-muted)]">
         <Icon size={15} />
         <span className="text-[11px] font-black uppercase tracking-[0.24em]">{label}</span>
@@ -134,16 +134,16 @@ export default function Profile({ driver, viewerRole, onBack, onSave }: ProfileP
 
   const statusTone =
     driver.status === 'online'
-      ? 'bg-emerald-400/20 text-emerald-700 border-emerald-500/30'
+      ? 'bg-emerald-400/15 text-emerald-400 border-emerald-500/25'
       : driver.status === 'driving'
-        ? 'bg-sky-400/20 text-sky-700 border-sky-500/30'
-        : 'bg-[var(--secondary)] text-[var(--text-secondary)] border-[var(--border)]';
+        ? 'bg-sky-400/15 text-sky-400 border-sky-500/25'
+        : 'bg-white/5 text-[var(--text-secondary)] border-[rgba(250,204,21,0.1)]';
   const tierTone =
     driver.tier === 'gold'
-      ? 'bg-[#facc15]/20 text-[#ca8a04] border-[#facc15]/40'
+      ? 'bg-[#facc15]/15 text-[#facc15] border-[#facc15]/30'
       : driver.tier === 'silver'
-        ? 'bg-slate-200/60 text-slate-700 border-slate-300'
-        : 'bg-orange-400/20 text-orange-700 border-orange-500/30';
+        ? 'bg-slate-400/15 text-slate-300 border-slate-500/30'
+        : 'bg-orange-400/15 text-orange-400 border-orange-500/25';
 
   const summary = [
     { label: 'Monthly Earnings', value: money(driver.earnings), detail: `Best day ${bestDay.day}`, icon: DollarSign, glow: 'bg-[#facc15]/18' },
@@ -170,16 +170,16 @@ export default function Profile({ driver, viewerRole, onBack, onSave }: ProfileP
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">
               {viewerRole === 'admin' && onBack ? (
-                <button onClick={onBack} className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-white px-4 py-2 text-sm font-bold text-[var(--text-primary)] transition-colors hover:bg-[var(--secondary)]">
+                <button onClick={onBack} className="inline-flex items-center gap-2 rounded-full border border-[rgba(250,204,21,0.15)] bg-white/5 px-4 py-2 text-sm font-bold text-[var(--text-primary)] transition-colors hover:bg-white/10">
                   <ArrowLeft size={15} />
                   Fleet Management
                 </button>
               ) : null}
-              <span className="rounded-full border border-[var(--border)] bg-white px-4 py-2 text-[11px] font-black uppercase tracking-[0.24em] text-[var(--text-secondary)]">
+              <span className="rounded-full border border-[rgba(250,204,21,0.1)] bg-white/5 px-4 py-2 text-[11px] font-black uppercase tracking-[0.24em] text-[var(--text-secondary)]">
                 {viewerRole === 'admin' ? 'Admin View' : 'Driver Profile'}
               </span>
             </div>
-            <span className="rounded-full border border-[var(--border)] bg-white px-4 py-2 text-[11px] font-black uppercase tracking-[0.24em] text-[var(--text-secondary)]">
+            <span className="rounded-full border border-[rgba(250,204,21,0.1)] bg-white/5 px-4 py-2 text-[11px] font-black uppercase tracking-[0.24em] text-[var(--text-secondary)]">
               {viewerRole === 'admin' ? 'Read only for now' : 'Editable bio and phone'}
             </span>
           </div>
@@ -207,12 +207,12 @@ export default function Profile({ driver, viewerRole, onBack, onSave }: ProfileP
 
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 {summary.map((card, index) => (
-                  <motion.div key={card.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22, delay: index * 0.04, ease: [0.23, 1, 0.32, 1] }} className="group relative overflow-hidden rounded-[24px] border border-[var(--border)] bg-[var(--surface)]/80 p-4 shadow-sm backdrop-blur-xl transition-[border-color,box-shadow] hover:border-[var(--border-hover)] hover:shadow-md">
+                  <motion.div key={card.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22, delay: index * 0.04, ease: [0.23, 1, 0.32, 1] }} className="group relative overflow-hidden rounded-[24px] border border-[var(--border)] bg-[var(--surface)]/80 p-4 shadow-sm transition-[border-color] hover:border-[var(--border-hover)]">
                     <div className={cn('absolute right-0 top-0 h-28 w-28 rounded-full blur-3xl', card.glow)} />
                     <div className="relative flex h-full flex-col">
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] font-black uppercase tracking-[0.24em] text-[var(--text-muted)]">{card.label}</span>
-                        <div className="rounded-2xl border border-[var(--border)] bg-white/80 p-2 text-[var(--text-secondary)]"><card.icon size={16} /></div>
+                        <div className="rounded-2xl border border-[rgba(250,204,21,0.1)] bg-white/5 p-2 text-[var(--text-secondary)]"><card.icon size={16} /></div>
                       </div>
                       <p className="mt-5 text-2xl font-black tracking-[-0.04em] text-[var(--text-primary)]">{card.value}</p>
                       <p className="mt-4 text-xs leading-6 text-[var(--text-secondary)] transition-opacity duration-200 ease-out md:opacity-0 md:group-hover:opacity-100">{card.detail}</p>
@@ -222,13 +222,13 @@ export default function Profile({ driver, viewerRole, onBack, onSave }: ProfileP
               </div>
             </div>
 
-            <div className="rounded-[30px] border border-[var(--border)] bg-[var(--surface)]/80 p-5 shadow-sm backdrop-blur-xl">
+            <div className="rounded-[30px] border border-[var(--border)] bg-[var(--surface)]/80 p-5 shadow-sm">
               <div className="flex items-center justify-between border-b border-[var(--border)] pb-4">
                 <div>
                   <p className="text-[11px] font-black uppercase tracking-[0.24em] text-[var(--text-muted)]">At a glance</p>
                   <h2 className="mt-2 text-xl font-black tracking-[-0.03em] text-[var(--text-primary)]">Profile signal</h2>
                 </div>
-                <div className="rounded-2xl border border-emerald-300/30 bg-emerald-400/10 px-3 py-2 text-[11px] font-black uppercase tracking-[0.2em] text-emerald-600">Verified</div>
+                <div className="rounded-2xl border border-emerald-300/30 bg-emerald-400/10 px-3 py-2 text-[11px] font-black uppercase tracking-[0.2em] text-emerald-400">Verified</div>
               </div>
               <div className="mt-5 space-y-4 text-sm">
                 <div className="rounded-[22px] border border-[var(--border)] bg-[var(--secondary)]/60 p-4">
@@ -316,7 +316,7 @@ export default function Profile({ driver, viewerRole, onBack, onSave }: ProfileP
                           inputMode="numeric"
                           value={draftPhone}
                           onChange={(event) => setDraftPhone(event.target.value.replace(/\D/g, '').slice(0, 10))}
-                          className="mt-2 w-full rounded-[20px] border border-[var(--border)] bg-white px-4 py-3 text-sm font-semibold text-[var(--text-primary)] outline-none focus:border-[var(--primary)]/60"
+                          className="mt-2 w-full rounded-[20px] border border-[rgba(250,204,21,0.15)] bg-white/5 px-4 py-3 text-sm font-semibold text-[#e8edf3] outline-none focus:border-[rgba(250,204,21,0.4)]"
                         />
                       </div>
                       <div>
@@ -345,7 +345,7 @@ export default function Profile({ driver, viewerRole, onBack, onSave }: ProfileP
                             setDraftBio(driver.bio ?? '');
                             setEditing(false);
                           }}
-                          className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-white px-5 py-2.5 text-sm font-bold text-[var(--text-secondary)]"
+                          className="inline-flex items-center gap-2 rounded-full border border-[rgba(250,204,21,0.15)] bg-white/5 px-5 py-2.5 text-sm font-bold text-[var(--text-secondary)]"
                         >
                           <X size={14} />
                           Cancel
@@ -361,11 +361,11 @@ export default function Profile({ driver, viewerRole, onBack, onSave }: ProfileP
                 <div className={PANEL}>
                   <p className="text-[11px] font-black uppercase tracking-[0.24em] text-[var(--text-muted)]">Performance snapshot</p>
                   <div className="mt-5 grid grid-cols-2 gap-3">
-                    <div className="rounded-[22px] border border-[var(--border)] bg-white/80 p-4">
+                    <div className="rounded-[22px] border border-[rgba(250,204,21,0.1)] bg-white/5 p-4">
                       <p className="text-[11px] font-black uppercase tracking-[0.24em] text-[var(--text-muted)]">Daily avg</p>
                       <p className="mt-3 text-2xl font-black tracking-[-0.03em] text-[var(--text-primary)]">{money(averageEarnings)}</p>
                     </div>
-                    <div className="rounded-[22px] border border-[var(--border)] bg-white/80 p-4">
+                    <div className="rounded-[22px] border border-[rgba(250,204,21,0.1)] bg-white/5 p-4">
                       <p className="text-[11px] font-black uppercase tracking-[0.24em] text-[var(--text-muted)]">Best day</p>
                       <p className="mt-3 text-2xl font-black tracking-[-0.03em] text-[var(--text-primary)]">{bestDay.day}</p>
                     </div>
@@ -424,12 +424,12 @@ export default function Profile({ driver, viewerRole, onBack, onSave }: ProfileP
                         Highest projected earning day this week at {money(bestDay.earnings)} across {bestDay.hours} online hours.
                       </p>
                     </div>
-                    <div className="rounded-[24px] border border-[var(--border)] bg-white/80 p-5">
+                    <div className="rounded-[24px] border border-[rgba(250,204,21,0.1)] bg-white/5 p-5">
                       <p className="text-[11px] font-black uppercase tracking-[0.24em] text-[var(--text-muted)]">Completion rate</p>
                       <p className="mt-3 text-xl font-black tracking-[-0.03em] text-[var(--text-primary)]">{(100 - driver.cancellationRate).toFixed(1)}%</p>
                       <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">This profile stays inside healthy cancellation bounds for marketplace quality.</p>
                     </div>
-                    <div className="rounded-[24px] border border-[var(--border)] bg-white/80 p-5">
+                    <div className="rounded-[24px] border border-[rgba(250,204,21,0.1)] bg-white/5 p-5">
                       <p className="text-[11px] font-black uppercase tracking-[0.24em] text-[var(--text-muted)]">7-day cadence</p>
                       <p className="mt-3 text-xl font-black tracking-[-0.03em] text-[var(--text-primary)]">{averageHours} hrs/day</p>
                       <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">Rolling weekly availability aligned with {driver.tier} tier service expectations.</p>
@@ -448,12 +448,12 @@ export default function Profile({ driver, viewerRole, onBack, onSave }: ProfileP
                     <div className="absolute right-0 top-0 h-28 w-28 rounded-full bg-[var(--primary)]/12 blur-3xl" />
                     <div className="relative">
                       <div className="flex items-start justify-between gap-3">
-                        <div className="rounded-[22px] border border-emerald-500/20 bg-emerald-500/10 p-3 text-emerald-600"><ShieldCheck size={18} /></div>
-                        <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.22em] text-emerald-600">Verified</span>
+                        <div className="rounded-[22px] border border-emerald-500/20 bg-emerald-500/10 p-3 text-emerald-400"><ShieldCheck size={18} /></div>
+                        <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.22em] text-emerald-400">Verified</span>
                       </div>
                       <h2 className="mt-6 text-xl font-black tracking-[-0.03em] text-[var(--text-primary)]">{document.title}</h2>
                       <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">{document.subtitle}</p>
-                      <div className="mt-6 rounded-[20px] border border-[var(--border)] bg-white/80 px-4 py-3">
+                      <div className="mt-6 rounded-[20px] border border-[rgba(250,204,21,0.1)] bg-white/5 px-4 py-3">
                         <p className="text-[11px] font-black uppercase tracking-[0.24em] text-[var(--text-muted)]">Reference</p>
                         <p className="mt-2 text-sm font-bold text-[var(--text-primary)]">{document.meta}</p>
                       </div>

@@ -35,8 +35,8 @@ function severityClasses(severity: DrowsinessSeverity) {
     return {
       panel: 'bg-sky-500/10 border-sky-500/20',
       badge: 'bg-sky-500 text-white',
-      icon: 'bg-sky-500/15 text-sky-600',
-      text: 'text-sky-700',
+      icon: 'bg-sky-500/15 text-sky-400',
+      text: 'text-sky-400',
     };
   }
 
@@ -153,13 +153,13 @@ export default function DrowsinessMonitor({
       </div>
 
       <div className="grid grid-cols-2 gap-1.5 mt-2">
-        <div className="rounded-lg bg-white/60 border border-white/50 px-2 py-1.5">
+        <div className="rounded-lg bg-white/5 border border-[rgba(250,204,21,0.1)] px-2 py-1.5">
           <p className="text-[8px] font-bold uppercase tracking-[0.16em] text-[var(--text-muted)]">EAR</p>
           <p className="text-[13px] font-bold text-[var(--text-primary)] leading-tight">
             {typeof activeStatus.ear === 'number' ? activeStatus.ear.toFixed(3) : '--'}
           </p>
         </div>
-        <div className="rounded-lg bg-white/60 border border-white/50 px-2 py-1.5">
+        <div className="rounded-lg bg-white/5 border border-[rgba(250,204,21,0.1)] px-2 py-1.5">
           <p className="text-[8px] font-bold uppercase tracking-[0.16em] text-[var(--text-muted)]">Closed</p>
           <p className="text-[13px] font-bold text-[var(--text-primary)] leading-tight">{activeStatus.eyes_closed_seconds.toFixed(1)}s</p>
         </div>

@@ -187,7 +187,7 @@ export default function ModelPerformance() {
       {/* ── Header ── */}
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
         <div className="flex items-center gap-2">
-          <h1 className="text-3xl font-bold tracking-tight text-[var(--text-primary)]">Model Performance</h1>
+          <h1 className="text-3xl font-light tracking-tight text-[#facc15]" style={{fontFamily:'Outfit,sans-serif',letterSpacing:'-0.03em'}}>Model Performance</h1>
           {live
             ? <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-[#10B981] bg-[#10B981]/10 border border-[#10B981]/20 px-2 py-0.5 rounded-full"><Wifi size={10} /> Live</span>
             : <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] bg-[var(--surface)] border border-[var(--border)] px-2 py-0.5 rounded-full"><WifiOff size={10} /> Polling</span>

@@ -140,7 +140,7 @@ export default function DataInsights() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-[var(--text-primary)]">Data Insights</h1>
+        <h1 className="text-3xl font-light tracking-tight text-[#facc15]" style={{fontFamily:'Outfit,sans-serif',letterSpacing:'-0.03em'}}>Data Insights</h1>
         <p className="text-[var(--text-secondary)] mt-1">24-hour forecast and hotspot positioning streamed from the backend API</p>
       </div>
 

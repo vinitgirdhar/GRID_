@@ -209,13 +209,13 @@ export default function DriverOverview({
     <div className="space-y-6">
       <div className="flex flex-wrap gap-2 items-end justify-between">
         <div className="min-w-0">
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-[var(--accent)]">Intelligence</h1>
-          <p className="text-[var(--text-secondary)] mt-1 font-medium text-sm">Urban demand & awareness &middot; <span className="text-[var(--primary-dark)] font-bold">{timeLabel}</span></p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#facc15]" style={{fontFamily:'Outfit,sans-serif',fontWeight:300,letterSpacing:'-0.03em'}}>Intelligence</h1>
+          <p className="text-[#94a3b8] mt-1 text-sm">Urban demand & awareness &middot; <span className="text-[#fbbf24] font-semibold">{timeLabel}</span></p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={() => setEcoMode((prev) => !prev)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-bold transition-all duration-200 ${ecoMode ? 'bg-green-500/15 border-green-500/30 text-green-600' : 'bg-[var(--surface)] border-[var(--border)] text-[var(--text-secondary)]'}`}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-bold transition-all duration-200 ${ecoMode ? 'bg-green-500/15 border-green-500/30 text-green-400' : 'bg-white/5 border-[rgba(250,204,21,0.15)] text-[#94a3b8] hover:text-[#e8edf3]'}`}
             title="Toggle Eco-Mode"
           >
             <Leaf size={13} />
@@ -223,7 +223,7 @@ export default function DriverOverview({
           </button>
           <button
             onClick={() => setShowAdvanced((prev: boolean) => !prev)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-bold transition-all duration-200 ${showAdvanced ? 'bg-[var(--primary)]/15 border-[var(--primary)]/30 text-[var(--primary-dark)]' : 'bg-[var(--surface)] border-[var(--border)] text-[var(--text-secondary)]'}`}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-bold transition-all duration-200 ${showAdvanced ? 'bg-[rgba(250,204,21,0.12)] border-[rgba(250,204,21,0.3)] text-[#facc15]' : 'bg-white/5 border-[rgba(250,204,21,0.15)] text-[#94a3b8] hover:text-[#e8edf3]'}`}
             title="Toggle advanced data"
           >
             🔬 Deep Data {showAdvanced ? '▴' : '▾'}
@@ -241,8 +241,8 @@ export default function DriverOverview({
             className={cn(
               "flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-full border transition-all duration-300 shadow-sm",
               isLive
-                ? "text-[var(--success)] bg-[var(--success)]/10 border-[var(--success)]/20"
-                : "text-[var(--text-muted)] bg-[var(--surface)] border-[var(--border)] hover:bg-[var(--secondary)]"
+                ? "text-[#34d399] bg-[#34d399]/10 border-[#34d399]/25"
+                : "text-[#4b5e78] bg-white/5 border-[rgba(250,204,21,0.15)] hover:text-[#94a3b8]"
             )}
           >
             <span className={cn(
@@ -259,8 +259,8 @@ export default function DriverOverview({
         <div className="p-4 rounded-2xl bg-green-500/10 border border-green-500/20 flex items-center gap-3">
           <Leaf size={18} className="text-green-500 shrink-0" />
           <div>
-            <p className="text-sm font-bold text-green-700 dark:text-green-400">Eco-Mode Active</p>
-            <p className="text-xs text-[var(--text-secondary)] mt-0.5">GRID is routing you through fuel-efficient, low-idle paths. Estimated CO₂ saved today: <span className="font-bold text-green-600">1.2 kg</span>.</p>
+            <p className="text-sm font-bold text-green-400">Eco-Mode Active</p>
+            <p className="text-xs text-[#94a3b8] mt-0.5">GRID is routing you through fuel-efficient, low-idle paths. Estimated CO₂ saved today: <span className="font-bold text-green-400">1.2 kg</span>.</p>
           </div>
         </div>
       )}
@@ -323,20 +323,20 @@ export default function DriverOverview({
             <div className="p-2 bg-sky-500/10 rounded-lg">
               <MapPin className="text-sky-500 w-5 h-5" />
             </div>
-            <h3 className="font-bold text-[var(--text-primary)]">Hotspot Map</h3>
+            <h3 className="font-semibold text-[#e8edf3]">Hotspot Map</h3>
           </div>
           <div className="flex gap-3 flex-wrap">
             <div className="flex items-center gap-1.5">
               <div className="w-2 h-2 rounded-full bg-danger shrink-0"></div>
-              <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">High</span>
+              <span className="text-[10px] font-bold text-[#94a3b8] uppercase">High</span>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="w-2 h-2 rounded-full bg-warning shrink-0"></div>
-              <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">Moderate</span>
+              <span className="text-[10px] font-bold text-[#94a3b8] uppercase">Moderate</span>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="w-2 h-2 rounded-full bg-primary shrink-0"></div>
-              <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">Low</span>
+              <span className="text-[10px] font-bold text-[#94a3b8] uppercase">Low</span>
             </div>
           </div>
         </div>
@@ -355,13 +355,13 @@ export default function DriverOverview({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
         <div
           onClick={() => setExpandedCard('demand')}
-          className="glass-card p-4 sm:p-6 flex flex-col hover:translate-y-[-4px] hover:shadow-lg transition-all duration-300 h-full cursor-pointer border-transparent hover:border-[var(--primary)]/50 group"
+          className="glass-card p-4 sm:p-6 flex flex-col h-full cursor-pointer group"
         >
           <div className="flex items-center gap-2 mb-6">
             <div className="p-2 bg-primary/10 rounded-lg">
               <TrendingUp className="text-primary w-5 h-5" />
             </div>
-            <h3 className="font-bold text-[var(--text-primary)]">Where Money Is</h3>
+            <h3 className="font-semibold text-[#e8edf3]">Where Money Is</h3>
           </div>
 
           <div className="flex-1 space-y-6">
@@ -410,7 +410,7 @@ export default function DriverOverview({
                     <XAxis dataKey="name" hide />
                     <YAxis hide domain={['dataMin - 500', 'dataMax + 500']} />
                     <Tooltip
-                      contentStyle={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', fontSize: '11px', boxShadow: 'var(--shadow-md)' }}
+                      contentStyle={{ backgroundColor: '#0d0d20', border: '1px solid rgba(250,204,21,0.15)', borderRadius: '12px', fontSize: '11px' }}
                       itemStyle={{ color: 'var(--text-primary)', fontWeight: 'bold' }}
                       cursor={{ stroke: 'var(--border)', strokeWidth: 1, strokeDasharray: '3 3' }}
                     />
@@ -432,20 +432,20 @@ export default function DriverOverview({
 
         <div
           onClick={() => setExpandedCard('weather')}
-          className="glass-card p-4 sm:p-6 flex flex-col hover:translate-y-[-4px] hover:shadow-lg transition-all duration-300 h-full cursor-pointer border-transparent hover:border-sky-500/50 group"
+          className="glass-card p-4 sm:p-6 flex flex-col h-full cursor-pointer group"
         >
           <div className="flex items-center gap-2 mb-6">
             <div className="p-2 bg-sky-500/10 rounded-lg">
               <CloudRain className="text-sky-500 w-5 h-5" />
             </div>
-            <h3 className="font-bold text-[var(--text-primary)]">Weather Effect</h3>
+            <h3 className="font-semibold text-[#e8edf3]">Weather Effect</h3>
           </div>
 
           <div className="flex-1 space-y-6">
             <div className="space-y-4">
               <div className="flex items-start justify-between">
                 <p className="text-lg font-black text-[var(--accent)] leading-tight">Weather-Adjusted Demand</p>
-                <span className="px-2 py-1 bg-sky-100 text-sky-700 text-[10px] font-black rounded uppercase border border-sky-200">
+                <span className="px-2 py-1 bg-sky-500/10 text-sky-400 text-[10px] font-black rounded uppercase border border-sky-500/20">
                   {weather?.condition ?? primaryZone?.weather_condition ?? 'Checking...'}
                 </span>
               </div>
@@ -470,11 +470,11 @@ export default function DriverOverview({
               </div>
             </div>
 
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-              <p className="text-xs font-bold text-[var(--text-primary)] mb-1">Impact Analysis</p>
-              <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
-                Current weather is <span className="text-slate-700 font-bold">{weather?.condition ?? primaryZone?.weather_condition ?? 'Unknown'}</span>
-                {' '}with demand impact rated <span className="text-slate-700 font-bold">{weather?.demand_impact ?? 'Unknown'}</span>.
+            <div className="p-4 rounded-xl bg-sky-500/5 border border-sky-500/15">
+              <p className="text-xs font-bold text-[#e8edf3] mb-1">Impact Analysis</p>
+              <p className="text-[11px] text-[#94a3b8] leading-relaxed">
+                Current weather is <span className="text-sky-400 font-bold">{weather?.condition ?? primaryZone?.weather_condition ?? 'Unknown'}</span>
+                {' '}with demand impact rated <span className="text-sky-400 font-bold">{weather?.demand_impact ?? 'Unknown'}</span>.
               </p>
             </div>
           </div>
@@ -491,13 +491,13 @@ export default function DriverOverview({
 
         <div
           onClick={() => setExpandedCard('event')}
-          className="glass-card p-4 sm:p-6 flex flex-col hover:translate-y-[-4px] hover:shadow-lg transition-all duration-300 h-full cursor-pointer border-transparent hover:border-[var(--warning)]/50 group"
+          className="glass-card p-4 sm:p-6 flex flex-col h-full cursor-pointer group"
         >
           <div className="flex items-center gap-2 mb-6">
             <div className="p-2 bg-warning/10 rounded-lg">
               <Calendar className="text-warning w-5 h-5" />
             </div>
-            <h3 className="font-bold text-[var(--text-primary)]">Nearby Events</h3>
+            <h3 className="font-semibold text-[#e8edf3]">Nearby Events</h3>
           </div>
 
           <div className="flex-1 space-y-6">
@@ -551,7 +551,7 @@ export default function DriverOverview({
           </div>
           <div className="flex items-center justify-between mb-5">
             <div>
-              <h3 className="font-bold text-[var(--text-primary)]">Demand Breakdown</h3>
+              <h3 className="font-semibold text-[#e8edf3]">Demand Breakdown</h3>
               <p className="text-sm text-[var(--text-secondary)] mt-1">
                 How GRID calculates demand: base + weather + events + time-of-day boost.
               </p>
@@ -569,7 +569,7 @@ export default function DriverOverview({
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
                 <Tooltip
-                  contentStyle={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '8px' }}
+                  contentStyle={{ backgroundColor: '#0d0d20', border: '1px solid rgba(250,204,21,0.15)', borderRadius: '8px' }}
                   formatter={(value: number) => [value.toFixed(2), 'Contribution']}
                 />
                 <Bar dataKey="value" fill="var(--primary)" radius={[6, 6, 0, 0]} />
@@ -581,22 +581,22 @@ export default function DriverOverview({
 
       {/* Missed Opportunity Feed */}
       <div>
-        <h3 className="font-bold text-[var(--text-primary)] mb-3">Trips You Missed Nearby</h3>
+        <h3 className="font-semibold text-[#e8edf3] mb-3">Trips You Missed Nearby</h3>
         <MissedOpportunityFeed onCountChange={() => {}} />
       </div>
 
       {/* Dynamic Details Modal */}
       {expandedCard && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-[var(--accent)]/40 backdrop-blur-md animate-in fade-in duration-200"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/70 backdrop-blur-md animate-in fade-in duration-200"
           onClick={() => setExpandedCard(null)}
         >
           <div 
-            className="w-full max-w-4xl max-h-[90vh] bg-[var(--surface)] rounded-[24px] shadow-2xl flex flex-col overflow-hidden border border-[var(--border)] animate-in zoom-in-95 duration-200"
+            className="w-full max-w-4xl max-h-[90vh] bg-[#0a0a1e] rounded-[24px] shadow-2xl flex flex-col overflow-hidden border border-[rgba(250,204,21,0.15)] animate-in zoom-in-95 duration-200"
             onClick={e => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="flex items-center justify-between p-6 border-b border-[var(--border)]">
+            <div className="flex items-center justify-between p-6 border-b border-[rgba(250,204,21,0.1)]">
               <div className="flex items-center gap-3">
                 {expandedCard === 'demand' && (
                   <>
@@ -634,7 +634,7 @@ export default function DriverOverview({
               </div>
               <button 
                 onClick={() => setExpandedCard(null)}
-                className="p-2 bg-[var(--secondary)] hover:bg-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded-full transition-colors"
+                className="p-2 bg-white/5 hover:bg-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded-full transition-colors"
               >
                 <X size={24} />
               </button>
@@ -660,7 +660,7 @@ export default function DriverOverview({
                   </div>
                   
                   <div className="space-y-4">
-                    <h3 className="text-lg font-bold text-[var(--text-primary)] border-b border-[var(--border)] pb-2">Extended 4-Hour Trend Detail</h3>
+                    <h3 className="text-lg font-bold text-[var(--text-primary)] border-b border-[rgba(250,204,21,0.1)] pb-2">Extended 4-Hour Trend Detail</h3>
                     <div className="h-[250px] w-full">
                       <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={trendData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
@@ -683,7 +683,7 @@ export default function DriverOverview({
                           <XAxis dataKey="name" tick={{ fill: 'var(--text-secondary)', fontSize: 13, fontWeight: 500 }} axisLine={false} tickLine={false} />
                           <YAxis domain={['dataMin - 100', 'dataMax + 100']} tick={{ fill: 'var(--text-secondary)', fontSize: 13, fontWeight: 500 }} axisLine={false} tickLine={false} />
                           <Tooltip
-                            contentStyle={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', fontSize: '14px', boxShadow: 'var(--shadow-md)', fontWeight: 'bold' }}
+                            contentStyle={{ backgroundColor: '#0d0d20', border: '1px solid rgba(250,204,21,0.15)', borderRadius: '12px', fontSize: '14px', fontWeight: 'bold' }}
                             itemStyle={{ color: 'var(--primary-dark)', fontWeight: 'black' }}
                             formatter={(value: number) => [value, 'Predicted Demand']}
                           />
@@ -697,31 +697,31 @@ export default function DriverOverview({
               {expandedCard === 'weather' && (
                 <>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border)] shadow-sm text-center">
+                    <div className="p-4 rounded-2xl bg-white/5 border border-[rgba(250,204,21,0.1)] text-center">
                       <Thermometer className="mx-auto text-orange-500 mb-2 w-8 h-8" />
                       <p className="text-xs font-bold text-[var(--text-secondary)] uppercase">Temperature</p>
                       <p className="text-xl font-bold text-[var(--text-primary)] mt-1">{weather ? `${weather.temp_f.toFixed(1)}°F` : '--'}</p>
                     </div>
-                    <div className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border)] shadow-sm text-center">
+                    <div className="p-4 rounded-2xl bg-white/5 border border-[rgba(250,204,21,0.1)] text-center">
                       <Wind className="mx-auto text-sky-500 mb-2 w-8 h-8" />
                       <p className="text-xs font-bold text-[var(--text-secondary)] uppercase">Wind Speed</p>
                       <p className="text-xl font-bold text-[var(--text-primary)] mt-1">{weather ? `${weather.wind_kph.toFixed(1)} kph` : '--'}</p>
                     </div>
-                    <div className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border)] shadow-sm text-center">
+                    <div className="p-4 rounded-2xl bg-white/5 border border-[rgba(250,204,21,0.1)] text-center">
                       <CloudRain className="mx-auto text-indigo-500 mb-2 w-8 h-8" />
                       <p className="text-xs font-bold text-[var(--text-secondary)] uppercase">Precipitation</p>
                       <p className="text-xl font-bold text-[var(--text-primary)] mt-1">{weather ? `${weather.precip_mm.toFixed(1)} mm` : '0 mm'}</p>
                     </div>
-                    <div className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border)] shadow-sm text-center">
+                    <div className="p-4 rounded-2xl bg-white/5 border border-[rgba(250,204,21,0.1)] text-center">
                       <Zap className="mx-auto text-yellow-500 mb-2 w-8 h-8" />
                       <p className="text-xs font-bold text-[var(--text-secondary)] uppercase">Lift Multiplier</p>
                       <p className="text-xl font-bold text-[var(--text-primary)] mt-1">{weatherFactor.toFixed(2)}x</p>
                     </div>
                   </div>
                   
-                  <div className="p-6 rounded-2xl bg-sky-50 border border-sky-200/60">
-                    <h3 className="text-lg font-bold text-sky-900 mb-2">Weather Strategy Guidance</h3>
-                    <p className="text-sky-800 leading-relaxed font-semibold">
+                  <div className="p-6 rounded-2xl bg-sky-500/5 border border-sky-500/15">
+                    <h3 className="text-lg font-bold text-sky-400 mb-2">Weather Strategy Guidance</h3>
+                    <p className="text-[#94a3b8] leading-relaxed font-normal">
                       Current conditions ({weather?.condition ?? primaryZone?.weather_condition ?? 'Unknown'}) are providing a 
                       {(weatherLift > 0 ? ' positive ' : ' neutral ')} influence on baseline demand calculations. As weather intensity 
                       grows, fewer competitive vehicles typically remain on network—generating supply choke points near transit hubs. Keep 
@@ -776,7 +776,7 @@ export default function DriverOverview({
                           idx === 0 ? 'bg-yellow-400 text-yellow-900' :
                           idx === 1 ? 'bg-slate-300 text-slate-700' :
                           idx === 2 ? 'bg-amber-500/80 text-amber-900' :
-                          'bg-[var(--secondary)] text-[var(--text-muted)]';
+                          'bg-white/5 text-[var(--text-muted)]';
                         return (
                           <div key={zone.zone_id} className="flex items-center gap-3 px-4 py-3 rounded-xl bg-[var(--surface)] border border-[var(--border)]">
                             <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${rankBadge}`}>
@@ -801,7 +801,7 @@ export default function DriverOverview({
             </div>
             
             {/* Modal footer */}
-            <div className="p-4 bg-[var(--secondary)]/50 border-t border-[var(--border)] flex justify-end">
+            <div className="p-4 bg-white/5/50 border-t border-[var(--border)] flex justify-end">
               <button 
                 className="px-6 py-2 bg-[var(--text-primary)] hover:bg-[var(--text-secondary)] text-[var(--surface)] font-bold rounded-full transition-all duration-300 shadow-md"
                 onClick={() => setExpandedCard(null)}

@@ -74,7 +74,7 @@ function SmartStrategyCard({ prediction, zoneName }: { prediction: PredictionRes
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
           </span>
-          <span className="text-[9px] font-bold tracking-widest uppercase text-emerald-600 dark:text-emerald-400">
+          <span className="text-[9px] font-bold tracking-widest uppercase text-emerald-400">
             Active
           </span>
         </div>
@@ -97,7 +97,7 @@ function SmartStrategyCard({ prediction, zoneName }: { prediction: PredictionRes
         </div>
 
         {/* Intelligence / Events Inline */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 pt-3 border-t border-[var(--border)]">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 pt-3 border-t border-[rgba(250,204,21,0.1)]">
           <div className="flex items-start gap-2 flex-1">
             <BrainCircuit size={14} className="text-[var(--text-secondary)] mt-0.5 shrink-0" />
             <p className="text-xs text-[var(--text-secondary)] leading-snug">
@@ -208,8 +208,8 @@ export default function DemandPrediction() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-[var(--text-primary)]">Where Should I Go Next?</h1>
-        <p className="text-[var(--text-secondary)] mt-1">AI tells you where rider demand is highest right now</p>
+        <h1 className="text-3xl font-light tracking-tight text-[#facc15]" style={{fontFamily:'Outfit,sans-serif',letterSpacing:'-0.03em'}}>Where Should I Go Next?</h1>
+        <p className="text-[#94a3b8] mt-1 text-sm">AI tells you where rider demand is highest right now</p>
       </div>
 
       {error && (
@@ -285,7 +285,7 @@ export default function DemandPrediction() {
                   <select
                     value={selectedHour}
                     onChange={(event) => setSelectedHour(event.target.value)}
-                    className="w-full bg-[var(--background)] border border-[var(--border)] rounded-lg py-3 pl-10 pr-4 text-sm focus:outline-none focus:border-primary/50 transition-colors appearance-none text-[var(--text-primary)]"
+                    className="w-full bg-white/5 border border-[rgba(250,204,21,0.15)] rounded-lg py-3 pl-10 pr-4 text-sm focus:outline-none focus:border-[rgba(250,204,21,0.4)] transition-colors appearance-none text-[#e8edf3]"
                   >
                     <option value="live">Live Time</option>
                     {Array.from({ length: 24 }, (_, i) => (
@@ -303,7 +303,7 @@ export default function DemandPrediction() {
                     value={selectedZoneId}
                     onChange={(event) => setSelectedZoneId(event.target.value)}
                     disabled={isLoading}
-                    className="w-full bg-[var(--background)] border border-[var(--border)] rounded-lg py-3 pl-10 pr-4 text-sm focus:outline-none focus:border-primary/50 transition-colors appearance-none text-[var(--text-primary)]"
+                    className="w-full bg-white/5 border border-[rgba(250,204,21,0.15)] rounded-lg py-3 pl-10 pr-4 text-sm focus:outline-none focus:border-[rgba(250,204,21,0.4)] transition-colors appearance-none text-[#e8edf3]"
                   >
                     {topZones.map((zone) => (
                       <option key={zone.zone_id} value={zone.zone_id}>{`${zone.zone_name} (${zone.borough})`}</option>
@@ -345,7 +345,7 @@ export default function DemandPrediction() {
                   exit={{ opacity: 0 }}
                   className="text-center space-y-4"
                 >
-                  <div className="w-20 h-20 bg-[var(--background)] rounded-full flex items-center justify-center mx-auto">
+                  <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mx-auto border border-[rgba(250,204,21,0.1)]">
                     <BrainCircuit className="w-10 h-10 text-[var(--text-secondary)] opacity-30" />
                   </div>
                   <div>
@@ -394,29 +394,29 @@ export default function DemandPrediction() {
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className="bg-[var(--background)] rounded-2xl p-4 text-center border border-[var(--border)]">
+                    <div className="bg-white/5 rounded-2xl p-4 text-center border border-[rgba(250,204,21,0.1)]">
                       <AlertCircle className="w-5 h-5 text-warning mx-auto mb-2" />
                       <p className="text-[10px] text-[var(--text-secondary)] uppercase font-bold">Demand Level</p>
                       <p className="text-sm font-semibold text-[var(--text-primary)]">{prediction.demand_level}</p>
                     </div>
-                    <div className="bg-[var(--background)] rounded-2xl p-4 text-center border border-[var(--border)]">
+                    <div className="bg-white/5 rounded-2xl p-4 text-center border border-[rgba(250,204,21,0.1)]">
                       <MapPin className="w-5 h-5 text-secondary mx-auto mb-2" />
                       <p className="text-[10px] text-[var(--text-secondary)] uppercase font-bold">Zone</p>
                       <p className="text-sm font-semibold text-[var(--text-primary)]">{prediction.zone_name}</p>
                     </div>
-                    <div className="bg-[var(--background)] rounded-2xl p-4 text-center border border-[var(--border)]">
+                    <div className="bg-white/5 rounded-2xl p-4 text-center border border-[rgba(250,204,21,0.1)]">
                       <Cloud className="w-5 h-5 text-primary mx-auto mb-2" />
                       <p className="text-[10px] text-[var(--text-secondary)] uppercase font-bold">Window</p>
                       <p className="text-sm font-semibold text-[var(--text-primary)] capitalize">{prediction.active_period}</p>
                     </div>
                   </div>
 
-                  <div className="pt-6 border-t border-[var(--border)] space-y-3">
+                  <div className="pt-6 border-t border-[rgba(250,204,21,0.1)] space-y-3">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-[var(--text-secondary)]">AI Confidence</span>
                       <span className="font-bold text-success">{(prediction.confidence * 100).toFixed(1)}%</span>
                     </div>
-                    <div className="w-full h-1.5 bg-[var(--background)] rounded-full overflow-hidden">
+                    <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
                       <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: `${prediction.confidence * 100}%` }}
@@ -456,10 +456,10 @@ export default function DemandPrediction() {
                 <span className="text-[10px] text-[var(--text-secondary)] font-medium">{event.zone} · {event.time}</span>
                 <span className={`text-xs font-black ${event.color}`}>{event.surge}</span>
               </div>
-              <div className="flex items-center gap-1.5 pt-2 border-t border-[var(--border)]/30">
-                <Users size={10} className="text-[var(--text-secondary)] shrink-0" />
-                <span className="text-[10px] text-[var(--text-secondary)]">{event.attendees}</span>
-                <span className="ml-auto text-[10px] font-bold text-[var(--text-secondary)] bg-[var(--background)]/50 px-1.5 py-0.5 rounded">
+              <div className="flex items-center gap-1.5 pt-2 border-t border-[rgba(250,204,21,0.08)]">
+                <Users size={10} className="text-[#94a3b8] shrink-0" />
+                <span className="text-[10px] text-[#94a3b8]">{event.attendees}</span>
+                <span className="ml-auto text-[10px] font-bold text-[#94a3b8] bg-white/5 px-1.5 py-0.5 rounded">
                   {event.scale}
                 </span>
               </div>

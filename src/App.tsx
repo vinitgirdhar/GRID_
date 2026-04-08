@@ -25,6 +25,8 @@ import OfflineBanner from './components/OfflineBanner';
 import DrowsinessMonitor from './components/DrowsinessMonitor';
 import LiveDrowsinessCamera from './components/LiveDrowsinessCamera';
 import Login from './components/Login';
+import LandingPage from './components/LandingPage';
+import DriverLogin from './components/DriverLogin';
 import SafetyZen from './components/SafetyZen';
 import VoicePilot from './components/VoicePilot';
 import DataInsights from './components/pages/DataInsights';
@@ -94,8 +96,11 @@ function MobileClock() {
   return <span className="text-sm font-bold">{time}</span>;
 }
 
+type AppScreen = 'landing' | 'driver-login' | 'admin-login' | 'app';
+
 function AppShell() {
   const { isOnline, isSyncing, pendingCount } = useOffline();
+  const [screen, setScreen] = useState<AppScreen>('landing');
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [currentDriver, setCurrentDriver] = useState<Driver | null>(null);
   const [selectedDriverProfile, setSelectedDriverProfile] = useState<Driver | null>(null);
@@ -191,6 +196,7 @@ function AppShell() {
     setUserRole(null);
     setCurrentDriver(null);
     setSelectedDriverProfile(null);
+    setScreen('landing');
   };
 
   const connectivityLabel = isSyncing ? 'Syncing...' : isOnline ? 'Online' : 'Offline';
@@ -206,10 +212,27 @@ function AppShell() {
       : 'text-[var(--warning)]';
 
   if (!userRole) {
+    if (screen === 'landing') {
+      return (
+        <LandingPage
+          onBeginAsDriver={() => setScreen('driver-login')}
+          onAdminAccess={() => setScreen('admin-login')}
+        />
+      );
+    }
+    if (screen === 'driver-login') {
+      return (
+        <DriverLogin
+          onSuccess={(driver) => { handleLogin('driver', driver); setScreen('app'); }}
+          onBack={() => setScreen('landing')}
+        />
+      );
+    }
+    // admin-login
     return (
       <>
         <OfflineBanner isOnline={isOnline} isSyncing={isSyncing} pendingCount={pendingCount} />
-        <Login onLogin={handleLogin} />
+        <Login onLogin={(role, driver) => { handleLogin(role, driver); setScreen('app'); }} />
       </>
     );
   }
@@ -287,15 +310,17 @@ function AppShell() {
         topClassName={userRole === 'driver' ? 'top-20 lg:top-4' : 'top-4'}
       />
 
-      <div className="flex min-h-screen bg-[var(--background)] text-[var(--text-primary)] font-sans overflow-hidden relative">
-        <div className="fixed inset-0 opacity-20 pointer-events-none">
+      <div className="flex min-h-screen bg-[#050514] text-[#e8edf3] font-sans overflow-hidden relative">
+        <div className="fixed inset-0 pointer-events-none">
           <div
-            className="absolute inset-0"
+            className="absolute inset-0 opacity-[0.04]"
             style={{
-              backgroundImage: `radial-gradient(circle at 25% 25%, var(--primary-lighter) 0%, transparent 50%),
-                           radial-gradient(circle at 75% 75%, var(--secondary) 0%, transparent 50%)`,
+              backgroundImage: `radial-gradient(rgba(250,204,21,0.8) 1px, transparent 1px)`,
+              backgroundSize: '28px 28px',
+              maskImage: 'radial-gradient(ellipse 80% 80% at 50% 50%, black, transparent)',
+              WebkitMaskImage: 'radial-gradient(ellipse 80% 80% at 50% 50%, black, transparent)',
             }}
-          ></div>
+          />
         </div>
 
         <motion.aside
@@ -303,7 +328,7 @@ function AppShell() {
           animate={{ width: isSidebarCollapsed ? 80 : 260 }}
           transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
           className={cn(
-            'fixed left-0 top-0 h-full bg-[var(--surface)] border-r border-[var(--border)] z-50 flex-col shadow-sm',
+            'fixed left-0 top-0 h-full bg-[#0a0a1e] border-r border-[rgba(250,204,21,0.1)] z-50 flex-col',
             userRole === 'driver' ? 'hidden lg:flex' : 'flex',
           )}
         >
@@ -341,7 +366,7 @@ function AppShell() {
           <nav className="flex-1 min-h-0 overflow-y-auto px-4 space-y-2 py-6 relative">
             {/* Sliding background indicator */}
             <motion.div
-              className="absolute left-4 right-4 h-[46px] top-6 rounded-[16px] bg-[var(--primary)] pointer-events-none"
+              className="absolute left-4 right-4 h-[46px] top-6 rounded-[16px] bg-[rgba(250,204,21,0.12)] border border-[rgba(250,204,21,0.2)] pointer-events-none"
               animate={{
                 y: sidebarItems.findIndex((item) => isSidebarItemActive(item.id)) * 52,
               }}
@@ -361,8 +386,8 @@ function AppShell() {
                     'w-full relative z-10 flex items-center gap-4 px-4 py-3 rounded-[16px] group',
                     'transition-colors duration-150 ease-out',
                     isActive
-                      ? 'text-[var(--text-primary)] shadow-sm font-semibold'
-                      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
+                      ? 'text-[#facc15] font-semibold'
+                      : 'text-[#4b5e78] hover:text-[#94a3b8]',
                   )}
                 >
                   <div className="relative shrink-0">
@@ -370,7 +395,7 @@ function AppShell() {
                       size={20}
                       className={cn(
                         'transition-colors duration-300',
-                        isActive ? 'text-[var(--text-primary)]' : 'group-hover:text-[var(--text-primary)]',
+                        isActive ? 'text-[#facc15]' : 'group-hover:text-[#94a3b8]',
                       )}
                     />
                     {isSidebarCollapsed && userRole === 'driver' && item.id === 'overview' && missedCount > 0 && (
@@ -392,9 +417,9 @@ function AppShell() {
             })}
           </nav>
 
-          <div className="p-4 border-t border-[var(--border)] flex flex-col gap-3">
+          <div className="p-4 border-t border-[rgba(250,204,21,0.1)] flex flex-col gap-3">
             {userRole === 'driver' && !isSidebarCollapsed && (
-              <div className="flex items-center justify-between px-2 py-2 bg-[var(--primary)]/10 rounded-xl border border-[var(--primary)]/20">
+              <div className="flex items-center justify-between px-2 py-2 bg-[rgba(250,204,21,0.06)] rounded-xl border border-[rgba(250,204,21,0.12)]">
                 <div className="flex items-center gap-2">
                   <Clock size={14} className="text-[var(--primary-dark)]" />
                   <MobileClock />
@@ -414,8 +439,8 @@ function AppShell() {
               </div>
             )}
             {userRole === 'driver' && isSidebarCollapsed && (
-              <div className="w-10 h-10 mx-auto rounded-full bg-[var(--primary)]/10 border border-[var(--primary)]/20 flex items-center justify-center">
-                <Clock size={14} className="text-[var(--primary-dark)]" />
+              <div className="w-10 h-10 mx-auto rounded-full bg-[rgba(250,204,21,0.08)] border border-[rgba(250,204,21,0.15)] flex items-center justify-center">
+                <Clock size={14} className="text-[#fbbf24]" />
               </div>
             )}
             {userRole === 'driver' && isLive && (
@@ -423,12 +448,12 @@ function AppShell() {
             )}
             {!isSidebarCollapsed && (
               <div className="flex items-center justify-between px-2">
-                <span className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">System</span>
+                <span className="text-[10px] font-bold text-[#4b5e78] uppercase tracking-widest font-mono">System</span>
                 <motion.button
-                  className="w-8 h-8 flex items-center justify-center bg-[var(--surface)] shadow-sm hover:shadow-md border border-[var(--border)] rounded-full relative text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all duration-300"
+                  className="w-8 h-8 flex items-center justify-center bg-[rgba(255,255,255,0.04)] border border-[rgba(250,204,21,0.1)] rounded-full relative text-[#4b5e78] hover:text-[#facc15] hover:border-[rgba(250,204,21,0.3)] transition-all duration-200"
                 >
                   <Bell size={14} />
-                  <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-[var(--danger)] rounded-full border border-[var(--surface)]"></span>
+                  <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-[var(--danger)] rounded-full border border-[#0a0a1e]"></span>
                 </motion.button>
               </div>
             )}
@@ -436,7 +461,7 @@ function AppShell() {
             {isSidebarCollapsed ? (
               <div
                 onClick={() => setActivePage('profile')}
-                className="w-10 h-10 mx-auto rounded-full bg-[var(--primary)]/20 flex items-center justify-center border border-[var(--primary)]/30 cursor-pointer hover:border-[var(--primary)]/60"
+                className="w-10 h-10 mx-auto rounded-full bg-[rgba(250,204,21,0.1)] flex items-center justify-center border border-[rgba(250,204,21,0.2)] cursor-pointer hover:border-[rgba(250,204,21,0.5)]"
                 style={{ transition: 'border-color 150ms ease-out' }}
               >
                 <User size={18} className="text-[var(--primary-dark)]" />
@@ -444,23 +469,23 @@ function AppShell() {
             ) : (
               <div
                 onClick={() => setActivePage('profile')}
-                className="flex items-center gap-3 p-3 rounded-[16px] bg-[var(--surface)] border border-[var(--border)] shadow-sm hover:shadow-md hover:border-[var(--primary)]/30 cursor-pointer group relative"
-                style={{ transition: 'border-color 150ms ease-out, box-shadow 150ms ease-out' }}
+                className="flex items-center gap-3 p-3 rounded-[16px] bg-[rgba(255,255,255,0.03)] border border-[rgba(250,204,21,0.1)] hover:border-[rgba(250,204,21,0.25)] cursor-pointer group relative"
+                style={{ transition: 'border-color 150ms ease-out' }}
               >
-                <div className="w-10 h-10 rounded-full bg-[var(--primary)]/20 flex items-center justify-center shrink-0 border border-[var(--primary)]/30">
-                  <User size={18} className="text-[var(--primary-dark)]" />
+                <div className="w-10 h-10 rounded-full bg-[rgba(250,204,21,0.1)] flex items-center justify-center shrink-0 border border-[rgba(250,204,21,0.2)]">
+                  <User size={18} className="text-[#fbbf24]" />
                 </div>
                 <div className="flex flex-col flex-1 overflow-hidden">
-                  <span className="text-sm font-bold truncate text-[var(--text-primary)] capitalize">{currentDriver?.name ?? userRole}</span>
-                  <span className={cn('text-xs font-semibold flex items-center gap-1.5 mt-0.5', connectivityTextClass)}>
+                  <span className="text-sm font-semibold truncate text-[#e8edf3] capitalize">{currentDriver?.name ?? userRole}</span>
+                  <span className={cn('text-xs font-medium flex items-center gap-1.5 mt-0.5', connectivityTextClass)}>
                     <span className={cn('w-1.5 h-1.5 rounded-full', connectivityDotClass)}></span>
                     {connectivityLabel}
                   </span>
                 </div>
                 <button
                   onClick={(e) => { e.stopPropagation(); handleLogout(); }}
-                  className="p-2 text-[var(--text-muted)] hover:text-white hover:bg-[var(--danger)] rounded-full ml-auto"
-                  style={{ transition: 'background-color 150ms ease-out, color 150ms ease-out, transform 100ms ease-out' }}
+                  className="p-2 text-[#4b5e78] hover:text-white hover:bg-[var(--danger)] rounded-full ml-auto"
+                  style={{ transition: 'background-color 150ms ease-out, color 150ms ease-out' }}
                 >
                   <LogOut size={16} />
                 </button>
@@ -484,20 +509,20 @@ function AppShell() {
         >
           {userRole === 'driver' && (
             <div className="lg:hidden fixed top-0 left-0 right-0 p-4 sm:p-6 flex justify-between items-center z-40 pointer-events-none gap-3">
-              <div className="flex items-center gap-2 pointer-events-auto shadow-md bg-white rounded-full p-1 pl-4 pr-1">
+              <div className="flex items-center gap-2 pointer-events-auto bg-[rgba(10,10,30,0.92)] backdrop-blur-md border border-[rgba(250,204,21,0.12)] rounded-full p-1 pl-4 pr-1">
                 <MobileClock />
-                <div className="w-8 h-8 rounded-full bg-[var(--primary)] flex items-center justify-center">
-                  <Search size={16} className="text-[var(--accent)]" />
+                <div className="w-8 h-8 rounded-full bg-[rgba(250,204,21,0.12)] flex items-center justify-center">
+                  <Search size={16} className="text-[#facc15]" />
                 </div>
               </div>
-              <div className="flex items-center gap-3 bg-white p-2 px-4 rounded-full shadow-md pointer-events-auto">
+              <div className="flex items-center gap-3 bg-[rgba(10,10,30,0.92)] backdrop-blur-md border border-[rgba(250,204,21,0.12)] p-2 px-4 rounded-full pointer-events-auto">
                 <div className="flex items-center gap-1">
-                  <div className="w-4 h-4 rounded-full bg-[var(--primary)] flex items-center justify-center">
-                    <Navigation size={10} className="text-white" />
+                  <div className="w-4 h-4 rounded-full bg-[rgba(250,204,21,0.15)] flex items-center justify-center">
+                    <Navigation size={10} className="text-[#facc15]" />
                   </div>
-                  <span className="text-xs font-bold text-[var(--text-primary)]">120</span>
+                  <span className="text-xs font-bold text-[#e8edf3]">120</span>
                 </div>
-                <div className="w-px h-4 bg-[var(--border)]"></div>
+                <div className="w-px h-4 bg-[rgba(250,204,21,0.15)]"></div>
                 <div className="flex items-center gap-1">
                   <div
                     className={cn(
@@ -507,7 +532,7 @@ function AppShell() {
                   >
                     <Activity size={10} className="text-white" />
                   </div>
-                  <span className="text-xs font-bold text-[var(--text-primary)]">{isOnline ? 'Online' : 'Offline'}</span>
+                  <span className="text-xs font-bold text-[#e8edf3]">{isOnline ? 'Online' : 'Offline'}</span>
                 </div>
               </div>
             </div>
@@ -515,7 +540,7 @@ function AppShell() {
 
           <main
             className={cn(
-              'flex-1 w-full max-w-7xl mx-auto px-4 md:px-8 overflow-y-auto',
+              'flex-1 w-full max-w-7xl mx-auto px-4 md:px-8 overflow-y-auto overscroll-none',
               userRole === 'driver' ? 'pt-24 pb-32 lg:pb-8 lg:pt-12' : 'pt-12 pb-8',
             )}
           >

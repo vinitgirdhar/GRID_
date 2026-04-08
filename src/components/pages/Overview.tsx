@@ -211,7 +211,7 @@ export default function Overview() {
   return (
     <div className="space-y-8">
       <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }} className="text-center py-6">
-        <h1 className="text-3xl font-bold tracking-tight text-gradient mb-2">GRID Cab Dashboard</h1>
+        <h1 className="text-3xl font-light tracking-tight text-[#facc15] mb-2" style={{fontFamily:'Outfit,sans-serif',letterSpacing:'-0.03em'}}>GRID Cab Dashboard</h1>
         <p className="text-[var(--text-secondary)] text-base font-medium max-w-2xl mx-auto leading-relaxed">
           Live forecast, hotspot, and model-quality telemetry from the FastAPI ML backend.
         </p>
@@ -382,7 +382,7 @@ export default function Overview() {
                 </div>
               </div>
               <div className="flex items-center justify-between">
-                <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${driver.tier === 'gold' ? 'bg-yellow-100 text-yellow-700' : driver.tier === 'silver' ? 'bg-slate-100 text-slate-600' : 'bg-amber-100 text-amber-700'}`}>
+                <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${driver.tier === 'gold' ? 'bg-yellow-500/15 text-yellow-400' : driver.tier === 'silver' ? 'bg-slate-400/15 text-slate-300' : 'bg-amber-500/15 text-amber-400'}`}>
                   {driver.tier}
                 </span>
                 <div className="flex items-center gap-1 text-[var(--success)] text-xs font-medium">

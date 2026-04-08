@@ -301,12 +301,12 @@ export default function MapComponent({
       {offlineMode && (
         <div className="pointer-events-none absolute inset-0 z-[500]">
           <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(15,23,42,0.12),rgba(15,23,42,0.18))]" />
-          <div className="absolute top-4 left-4 rounded-full border border-amber-300/60 bg-amber-50/95 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.18em] text-amber-900 shadow-lg">
+          <div className="absolute top-4 left-4 rounded-full border border-amber-400/30 bg-amber-400/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.18em] text-amber-400 shadow-lg">
             Offline Navigation
           </div>
-          <div className="absolute bottom-4 left-4 right-4 rounded-2xl border border-slate-300/70 bg-white/92 px-4 py-3 shadow-xl backdrop-blur">
-            <p className="text-sm font-bold text-slate-900">Limited detail mode</p>
-            <p className="mt-1 text-xs font-medium text-slate-600">
+          <div className="absolute bottom-4 left-4 right-4 rounded-2xl border border-[rgba(250,204,21,0.15)] bg-[#0a0a1e] px-4 py-3 shadow-xl">
+            <p className="text-sm font-bold text-[#e8edf3]">Limited detail mode</p>
+            <p className="mt-1 text-xs font-medium text-[#94a3b8]">
               Cached ride markers and route guidance remain visible. Base street tiles are unavailable offline.
             </p>
           </div>

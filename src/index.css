@@ -1,48 +1,54 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@200;300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "leaflet/dist/leaflet.css";
 @import "tailwindcss";
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
 
   --color-primary: #facc15;
-  /* Saturated yellow */
-  --color-secondary: #f1f5f9;
-  --color-accent: #0f172a;
-  --color-success: #10B981;
-  --color-warning: #F59E0B;
-  --color-danger: #EF4444;
+  --color-secondary: #0a0a1e;
+  --color-accent: #facc15;
+  --color-success: #34d399;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
 
-  --radius-card: 20px;
+  --radius-card: 16px;
   --radius-button: 9999px;
   --radius-pill: 9999px;
 }
 
 :root {
-  --background: #F8FAFC;
-  --surface: #FFFFFF;
-  --card: #FFFFFF;
-  --card-hover: #F8F9FA;
-  --text-primary: #020617;
-  --text-secondary: #475569;
-  --text-muted: #64748B;
-  --border: #E2E8F0;
-  --border-hover: #CBD5E1;
+  /* Dark GRID theme */
+  --background: #050514;
+  --background-alt: #0a0a1e;
+  --surface: #0d0d20;
+  --surface-raised: #111128;
+  --card: rgba(255,255,255,0.03);
+  --card-hover: rgba(255,255,255,0.055);
+
+  --text-primary: #e8edf3;
+  --text-secondary: #94a3b8;
+  --text-muted: #4b5e78;
+
+  --border: rgba(250,204,21,0.12);
+  --border-hover: rgba(250,204,21,0.28);
 
   --primary: #facc15;
-  --primary-light: #fef08a;
-  --primary-dark: #ca8a04;
-  --secondary: #F1F5F9;
-  --accent: #0f172a;
-  --success: #10B981;
-  --warning: #F59E0B;
-  --danger: #EF4444;
+  --primary-light: #fde047;
+  --primary-dark: #fbbf24;
+  --secondary: #0a0a1e;
+  --accent: #facc15;
+  --success: #34d399;
+  --warning: #f59e0b;
+  --danger: #ef4444;
 
-  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.07), 0 1px 2px -1px rgb(0 0 0 / 0.04);
-  --shadow-md: 0 4px 12px -1px rgb(0 0 0 / 0.09), 0 2px 6px -2px rgb(0 0 0 / 0.04);
-  --shadow-lg: 0 10px 24px -3px rgb(0 0 0 / 0.09), 0 4px 8px -4px rgb(0 0 0 / 0.04);
-  --shadow-premium: 0 20px 40px -8px rgb(0 0 0 / 0.1), 0 8px 16px -6px rgb(0 0 0 / 0.05);
-  --shadow-pill: 0 8px 24px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.4);
+  --shadow-md: 0 4px 16px -1px rgb(0 0 0 / 0.5), 0 0 0 1px rgba(250,204,21,0.06);
+  --shadow-lg: 0 10px 32px -3px rgb(0 0 0 / 0.6), 0 0 0 1px rgba(250,204,21,0.08);
+  --shadow-premium: 0 20px 48px -8px rgb(0 0 0 / 0.7), 0 0 0 1px rgba(250,204,21,0.1);
+  --shadow-pill: 0 8px 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06);
 
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
@@ -50,123 +56,171 @@
 }
 
 @layer base {
-  body {
+  html {
+    /* Smooth scroll but let the browser manage compositing */
+    scroll-behavior: auto;
+    /* Prevent overscroll bounce which causes jitter on macOS/iOS */
+    overscroll-behavior: none;
+    /* Let the browser choose the best text rendering strategy for perf */
+    text-rendering: optimizeSpeed;
+    /* GPU text rendering */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  html, body, #root {
     background-color: var(--background);
     color: var(--text-primary);
+  }
+
+  body {
     @apply font-sans antialiased;
+    background-color: var(--background);
+    color: var(--text-primary);
+    overscroll-behavior: none;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    z-index: 9998;
+    pointer-events: none;
+    opacity: 0.018;
+    mix-blend-mode: overlay;
+    /* GPU layer — stays composited, never triggers layout */
+    will-change: transform;
+    transform: translateZ(0);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
 }
 
-/* Light, clean cards */
+/* ── BENTO CARD (core UI block) ── */
 .glass-card {
-  background: var(--card);
+  background: rgba(255,255,255,0.03);
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
-  box-shadow: var(--shadow-sm);
+  /* No box-shadow on base — avoids repaint on every scroll frame */
   overflow: hidden;
-  transition: box-shadow 200ms var(--ease-out), border-color 150ms ease-out;
+  /* Only animate transform + border-color (GPU-composited, no repaint) */
+  transition: transform 0.25s ease, border-color 0.25s ease;
+  position: relative;
+  /* Promote to own compositor layer */
+  will-change: transform;
+  /* Contain layout/style changes to this subtree */
+  contain: layout style;
+}
+
+.glass-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 20%; right: 20%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(250,204,21,0.5), transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
 }
 
 .glass-card:hover {
-  box-shadow: var(--shadow-md);
-  border-color: var(--border-hover);
+  transform: translateY(-2px);
+  border-color: rgba(250,204,21,0.22);
 }
 
-/* Redesigned KPI cards for light theme */
+.glass-card:hover::before {
+  opacity: 1;
+}
+
+/* ── KPI CARD ── */
 .kpi-card {
-  background: var(--surface);
+  background: rgba(255,255,255,0.03);
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
-  box-shadow: var(--shadow-sm);
-  transition: box-shadow 200ms var(--ease-out), border-color 150ms ease-out;
+  transition: transform 0.25s ease, border-color 0.25s ease;
+  will-change: transform;
   @apply p-5 flex flex-col justify-between relative overflow-hidden;
 }
 
 .kpi-card::after {
   content: '';
   position: absolute;
-  top: 0;
-  right: 0;
-  width: 150px;
-  height: 150px;
-  background: radial-gradient(circle, var(--primary) 0%, transparent 70%);
-  opacity: 0.05;
+  top: 0; right: 0;
+  width: 120px; height: 120px;
+  background: radial-gradient(circle, rgba(250,204,21,0.12) 0%, transparent 70%);
   transform: translate(30%, -30%);
   border-radius: 50%;
   pointer-events: none;
 }
 
 .kpi-card:hover {
-  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+  border-color: rgba(250,204,21,0.22);
 }
 
 .kpi-label {
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--text-muted);
   margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-family: var(--font-mono, monospace);
 }
 
 .kpi-value {
-  font-size: 32px;
-  font-weight: 800;
+  font-size: 28px;
+  font-weight: 300;
   color: var(--text-primary);
   line-height: 1.1;
   margin-bottom: 8px;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
+  font-family: var(--font-heading, sans-serif);
 }
 
 .kpi-trend {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   display: flex;
   align-items: center;
   gap: 4px;
 }
 
-.kpi-trend.positive {
-  color: var(--success);
-}
-
-.kpi-trend.negative {
-  color: var(--danger);
-}
+.kpi-trend.positive { color: var(--success); }
+.kpi-trend.negative { color: var(--danger); }
 
 .kpi-trend-text {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
 }
 
 .kpi-icon-container {
-  width: 48px;
-  height: 48px;
-  background: var(--primary);
-  border-radius: 16px;
+  width: 36px; height: 36px;
+  background: rgba(250,204,21,0.1);
+  border-radius: 10px;
+  border: 1px solid rgba(250,204,21,0.15);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px rgba(255, 209, 59, 0.3);
 }
 
 .kpi-icon {
   color: var(--accent);
-  width: 24px;
-  height: 24px;
+  width: 18px; height: 18px;
 }
 
-/* Floating Navigation Pill */
+/* ── MOBILE NAV PILL (dark) ── */
 .nav-pill {
-  background: rgba(255, 255, 255, 0.25);
-  backdrop-filter: blur(30px) saturate(200%);
-  -webkit-backdrop-filter: blur(30px) saturate(200%);
+  background: rgba(10, 10, 30, 0.85);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
   border-radius: var(--radius-pill);
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 1), inset 0 0 20px rgba(255, 255, 255, 0.5);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(250,204,21,0.1);
   padding: 6px 10px;
   display: flex;
   align-items: center;
   gap: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid rgba(250,204,21,0.12);
   width: fit-content;
   max-width: calc(100vw - 24px);
   overflow-x: auto;
@@ -174,72 +228,53 @@
   scrollbar-width: none;
 }
 
-.nav-pill::-webkit-scrollbar {
-  display: none;
-}
+.nav-pill::-webkit-scrollbar { display: none; }
 
 .nav-pill-item {
-  width: 40px;
-  height: 40px;
+  width: 40px; height: 40px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-secondary);
-  transition: background-color 150ms ease-out, color 150ms ease-out, box-shadow 150ms ease-out, transform 100ms ease-out;
+  color: var(--text-muted);
+  transition: background-color 150ms ease-out, color 150ms ease-out, transform 100ms ease-out;
   cursor: pointer;
   flex: 0 0 auto;
 }
 
-.nav-pill-item:active {
-  transform: scale(0.88);
-}
+.nav-pill-item:active { transform: scale(0.88); }
 
 .nav-pill-item.active {
   background: var(--primary);
-  color: var(--accent);
-  box-shadow: 0 4px 12px rgba(255, 209, 59, 0.4);
+  color: #0f172a;
+  box-shadow: 0 4px 12px rgba(250,204,21,0.3);
 }
 
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(250,204,21,0.2); border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(250,204,21,0.4); }
 
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #CBD5E1;
-  border-radius: 6px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #94A3B8;
-}
-
+/* ── INPUT ── */
 .input-clean {
-  background: #F8F9FA;
-  border: 1px solid transparent;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
   border-radius: var(--radius-pill);
   padding: 12px 20px;
   font-size: 14px;
   font-weight: 500;
   color: var(--text-primary);
-  transition: border-color 150ms ease-out, box-shadow 150ms ease-out, background-color 150ms ease-out;
+  transition: border-color 150ms ease-out, box-shadow 150ms ease-out;
 }
 
 .input-clean:focus {
   outline: none;
-  background: var(--surface);
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(255, 209, 59, 0.2);
+  border-color: rgba(250,204,21,0.4);
+  box-shadow: 0 0 0 3px rgba(250,204,21,0.08);
 }
 
-.input-clean::placeholder {
-  color: var(--text-muted);
-}
+.input-clean::placeholder { color: var(--text-muted); }
 
 /* Animations */
 @keyframes float {
@@ -295,5 +330,35 @@
 
 /* Prevent layout shifts on chart container divs */
 .glass-card [class*="h-["] {
+  contain: layout style;
+}
+
+/* ── GLOBAL PERFORMANCE ── */
+
+/* Main scroll container — tell the browser it's the scroll root */
+#root {
+  isolation: isolate;
+}
+
+/* Animated elements that use transform — promote to compositor layer */
+.nav-pill {
+  will-change: transform;
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  .glass-card, .kpi-card, .nav-pill-item {
+    transition: none !important;
+    transform: none !important;
+    will-change: auto !important;
+  }
+  .glass-card::before { display: none; }
+  .animate-float, .animate-pulse-soft { animation: none !important; }
+}
+
+/* Prevent backdrop-filter from being applied to every scroll frame
+   on elements that don't strictly need it */
+.nav-pill {
+  /* The blur only needs 1 repaint at mount — hint the browser */
   contain: layout style;
 }

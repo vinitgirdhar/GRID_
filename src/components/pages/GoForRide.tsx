@@ -216,7 +216,7 @@ export default function GoForRide({ copilotZoneId }: { copilotZoneId?: string | 
       {/* Page header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text-primary)]">Go For Ride</h1>
+          <h1 className="text-3xl font-light tracking-tight text-[#facc15]" style={{fontFamily:'Outfit,sans-serif',letterSpacing:'-0.03em'}}>Go For Ride</h1>
           <p className="text-sm text-[var(--text-secondary)] mt-0.5">
             {destinationActive
               ? 'Showing rides along your route. Browse freely — no penalties for skipping.'
@@ -285,7 +285,7 @@ export default function GoForRide({ copilotZoneId }: { copilotZoneId?: string | 
                 onChange={(e) => setDestination((e.target as HTMLInputElement).value)}
                 disabled={destinationActive}
                 onKeyDown={(e) => { if ((e as KeyboardEvent).key === 'Enter' && destination.trim()) handleActivate(); }}
-                className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-2.5 pl-9 pr-4 text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--primary)]/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-white/5 border border-[rgba(250,204,21,0.1)] rounded-xl py-2.5 pl-9 pr-4 text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--primary)]/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               />
             </div>
 
@@ -419,19 +419,19 @@ export default function GoForRide({ copilotZoneId }: { copilotZoneId?: string | 
 
                   {/* Badges row */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3">
-                    <div className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl bg-[var(--background)] border border-[var(--border)]">
+                    <div className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl bg-white/5 border border-[rgba(250,204,21,0.1)]">
                       <Navigation size={12} className="text-[var(--primary)] shrink-0" />
                       <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase truncate">{ride.traffic} Traffic</span>
                     </div>
-                    <div className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl bg-[var(--background)] border border-[var(--border)]">
+                    <div className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl bg-white/5 border border-[rgba(250,204,21,0.1)]">
                       <CloudRain size={12} className="text-[var(--text-secondary)] shrink-0" />
                       <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase truncate">{ride.weather}</span>
                     </div>
-                    <div className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl bg-[var(--background)] border border-[var(--border)]">
+                    <div className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl bg-white/5 border border-[rgba(250,204,21,0.1)]">
                       <Zap size={12} className="text-amber-500 shrink-0" />
                       <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase truncate">Impact {ride.eventScore}</span>
                     </div>
-                    <div className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl bg-[var(--background)] border border-[var(--border)]">
+                    <div className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl bg-white/5 border border-[rgba(250,204,21,0.1)]">
                       <Compass size={12} className="text-[var(--success)] shrink-0" />
                       <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase truncate">{ride.direction}</span>
                     </div>

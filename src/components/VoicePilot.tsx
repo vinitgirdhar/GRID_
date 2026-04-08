@@ -350,7 +350,7 @@ export default function VoicePilot() {
                   className={cn(
                     'w-2 h-2 rounded-full',
                     voiceState === 'idle'
-                      ? 'bg-slate-400'
+                      ? 'bg-[#4b5e78]'
                       : voiceState === 'error'
                         ? 'bg-[var(--danger)]'
                         : 'bg-[var(--primary)] animate-pulse',

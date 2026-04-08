@@ -66,7 +66,7 @@ export default function Drivers({ onSelectDriver }: DriversProps) {
         </span>
       );
       case 'bronze': return (
-        <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-700/10 text-orange-700 text-[10px] font-bold uppercase tracking-wider border border-orange-700/20">
+        <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-400/10 text-orange-400 text-[10px] font-bold uppercase tracking-wider border border-orange-400/20">
           <ShieldAlert size={10} /> Bronze
         </span>
       );
@@ -111,7 +111,7 @@ export default function Drivers({ onSelectDriver }: DriversProps) {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-[var(--text-primary)]">Fleet Management</h1>
+          <h1 className="text-3xl font-light tracking-tight text-[#facc15]" style={{fontFamily:'Outfit,sans-serif',letterSpacing:'-0.03em'}}>Fleet Management</h1>
           <p className="text-[var(--text-secondary)] mt-1">Monitor and manage your active driver network</p>
         </div>
         <div className="glass-card p-12 flex flex-col items-center justify-center gap-4 text-center">
@@ -132,7 +132,7 @@ export default function Drivers({ onSelectDriver }: DriversProps) {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-3xl font-bold tracking-tight text-[var(--text-primary)]">Fleet Management</h1>
+            <h1 className="text-3xl font-light tracking-tight text-[#facc15]" style={{fontFamily:'Outfit,sans-serif',letterSpacing:'-0.03em'}}>Fleet Management</h1>
             {live
               ? <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-[#10B981] bg-[#10B981]/10 border border-[#10B981]/20 px-2 py-0.5 rounded-full"><Wifi size={10} /> Live</span>
               : <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] bg-[var(--surface)] border border-[var(--border)] px-2 py-0.5 rounded-full"><WifiOff size={10} /> Polling</span>
@@ -196,8 +196,8 @@ export default function Drivers({ onSelectDriver }: DriversProps) {
                 <div className={cn(
                   "w-10 h-10 rounded-xl flex items-center justify-center font-black text-lg",
                   index === 0 ? "bg-[#facc15] text-white shadow-lg shadow-[#facc15]/40" :
-                    index === 1 ? "bg-slate-300 text-slate-700 shadow-md shadow-slate-300/40" :
-                      "bg-orange-300 text-orange-900 shadow-md shadow-orange-300/40"
+                    index === 1 ? "bg-slate-500/30 text-slate-300 shadow-md shadow-slate-500/20" :
+                      "bg-orange-400/20 text-orange-400 shadow-md shadow-orange-400/20"
                 )}>
                   {index === 0 ? <Trophy size={20} /> : `#${index + 1}`}
                 </div>
@@ -239,7 +239,7 @@ export default function Drivers({ onSelectDriver }: DriversProps) {
               placeholder="Search by name or borough..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-[var(--background)] border border-[var(--border)] rounded-lg py-2 pl-10 pr-4 text-sm focus:outline-none focus:border-primary/50 transition-colors text-[var(--text-primary)]"
+              className="w-full bg-white/5 border border-[rgba(250,204,21,0.15)] rounded-lg py-2 pl-10 pr-4 text-sm focus:outline-none focus:border-[rgba(250,204,21,0.4)] transition-colors text-[#e8edf3]"
             />
           </div>
         </div>
