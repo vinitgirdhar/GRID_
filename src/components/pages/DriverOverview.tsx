@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   TrendingUp,
   DollarSign,
@@ -23,7 +23,7 @@ import MapComponent from '../MapComponent';
 import MissedOpportunityFeed from '../MissedOpportunityFeed';
 import { cn } from '../../lib/utils';
 
-const REFRESH_INTERVAL_MS = 20000;
+const REFRESH_INTERVAL_MS = 60000;
 
 function getWeatherFactor(condition?: string) {
   const normalized = (condition ?? '').toLowerCase();
@@ -66,6 +66,10 @@ export default function DriverOverview({
     let intervalId: ReturnType<typeof setInterval> | null = null;
 
     const loadDriverData = async () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+        return;
+      }
+
       try {
         const [forecastResponse, hotspotResponse] = await Promise.all([getForecast(), getHotspots()]);
         
@@ -93,8 +97,15 @@ export default function DriverOverview({
       }
     };
 
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void loadDriverData();
+      }
+    };
+
     loadDriverData();
     intervalId = setInterval(loadDriverData, REFRESH_INTERVAL_MS);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     const isDark = document.documentElement.classList.contains('dark');
     setTheme(isDark ? 'dark' : 'light');
@@ -111,6 +122,7 @@ export default function DriverOverview({
     observer.observe(document.documentElement, { attributes: true });
     return () => {
       cancelled = true;
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       observer.disconnect();
       if (intervalId) {
         clearInterval(intervalId);
@@ -178,16 +190,18 @@ export default function DriverOverview({
     },
   ];
 
-  const mapZones: ZoneDemand[] = activePeriod?.zones.map((zone) => ({
-    id: zone.zone_id,
-    name: zone.zone_name,
-    lat: zone.lat,
-    lng: zone.lng,
-    demand: zone.predicted_demand,
-    demandLevel: zone.demand_level,
-    eventIntensity: zone.event_intensity,
-    weatherCondition: zone.weather_condition,
-  })) ?? [];
+  const mapZones: ZoneDemand[] = useMemo(() => (
+    activePeriod?.zones.map((zone) => ({
+      id: zone.zone_id,
+      name: zone.zone_name,
+      lat: zone.lat,
+      lng: zone.lng,
+      demand: zone.predicted_demand,
+      demandLevel: zone.demand_level,
+      eventIntensity: zone.event_intensity,
+      weatherCondition: zone.weather_condition,
+    })) ?? []
+  ), [activePeriod]);
 
   const baseDemand = currentForecastPoint?.total_predicted_demand ?? primaryZone?.predicted_demand ?? 0;
   const hourlyForecast = trendData[1]?.value ?? trendData[0]?.value ?? 0;

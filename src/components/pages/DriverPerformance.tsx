@@ -659,17 +659,17 @@ export default function DriverPerformance() {
                     <p className="text-sm text-[var(--text-secondary)] mt-2 max-w-2xl">{statusVisual.copy}</p>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 gap-3">
                     {performanceKpis.map((kpi) => (
-                      <div key={kpi.label} className={cn('rounded-[22px] border p-3 sm:p-4', kpi.panel)}>
-                        <div className="flex items-center justify-between gap-3">
-                          <p className="grid-data-label">{kpi.label}</p>
-                          <div className="grid-icon-badge">
-                            <kpi.icon size={16} />
+                      <div key={kpi.label} className={cn('rounded-[22px] border p-4 flex flex-col gap-3', kpi.panel)}>
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="grid-data-label leading-tight">{kpi.label}</p>
+                          <div className="shrink-0 w-8 h-8 rounded-xl border border-[rgba(250,204,21,0.16)] bg-[rgba(250,204,21,0.08)] flex items-center justify-center">
+                            <kpi.icon size={14} className="text-[var(--accent)]" />
                           </div>
                         </div>
-                        <p className={cn('driver-performance-number text-xl sm:text-2xl mt-5 break-words', kpi.tone)}>{kpi.value}</p>
-                        <p className="text-[11px] leading-6 text-[var(--text-secondary)] mt-2">{kpi.meta}</p>
+                        <p className={cn('driver-performance-number text-2xl leading-none', kpi.tone)}>{kpi.value}</p>
+                        <p className="text-[11px] text-[var(--text-secondary)] leading-tight">{kpi.meta}</p>
                       </div>
                     ))}
                   </div>

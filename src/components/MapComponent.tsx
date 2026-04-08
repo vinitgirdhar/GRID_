@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { memo, useEffect } from 'react';
 import L from 'leaflet';
 import { CircleMarker, MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
 
@@ -102,7 +102,7 @@ const YOU_ARE_HERE_ICON = L.divIcon({
   popupAnchor: [0, -40],
 });
 
-export default function MapComponent({
+function MapComponent({
   zones = [],
   theme,
   height = '400px',
@@ -315,3 +315,23 @@ export default function MapComponent({
     </div>
   );
 }
+
+function areMapPropsEqual(prev: MapComponentProps, next: MapComponentProps) {
+  return (
+    prev.theme === next.theme &&
+    prev.height === next.height &&
+    prev.simplified === next.simplified &&
+    prev.offlineMode === next.offlineMode &&
+    prev.noBorderRadius === next.noBorderRadius &&
+    prev.zoom === next.zoom &&
+    prev.showYouAreHere === next.showYouAreHere &&
+    prev.autoFit === next.autoFit &&
+    prev.route === next.route &&
+    prev.ridePins === next.ridePins &&
+    prev.hotspots === next.hotspots &&
+    prev.zones === next.zones &&
+    prev.youAreHerePosition === next.youAreHerePosition
+  );
+}
+
+export default memo(MapComponent, areMapPropsEqual);

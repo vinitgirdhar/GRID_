@@ -94,7 +94,6 @@ export default function MissedOpportunityFeed({ onCountChange }: Props) {
             return (
               <motion.div
                 key={opp.id}
-                layout
                 initial={{ opacity: 0, y: -8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, x: 40, transition: { duration: 0.2 } }}
@@ -153,7 +152,6 @@ export default function MissedOpportunityFeed({ onCountChange }: Props) {
           {pending.map((opp) => (
             <motion.div
               key={opp.id}
-              layout
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}

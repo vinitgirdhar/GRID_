@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   MapPin,
@@ -152,8 +152,8 @@ export default function GoForRide({ copilotZoneId }: { copilotZoneId?: string | 
     };
   }, [isOnline]);
 
-  const activeZones = hotspots ? getActiveHotspotPeriod(hotspots).zones : [];
-  const rideRequests = buildRideRequests(activeZones);
+  const activeZones = useMemo(() => (hotspots ? getActiveHotspotPeriod(hotspots).zones : []), [hotspots]);
+  const rideRequests = useMemo(() => buildRideRequests(activeZones), [activeZones]);
 
   useEffect(() => {
      if (copilotZoneId && hotspots && !destination) {
@@ -165,41 +165,54 @@ export default function GoForRide({ copilotZoneId }: { copilotZoneId?: string | 
      }
   }, [copilotZoneId, hotspots, activeZones, destination]);
 
-  const filteredRides = destinationActive && destination.trim()
-    ? rideRequests.filter(ride => {
-        const search = resolveSearch(destination);
-        return (
-          ride.drop.toLowerCase().includes(search) ||
-          ride.borough.toLowerCase().includes(search)
-        );
-      })
-    : [];
+  const searchTerm = useMemo(() => resolveSearch(destination), [destination]);
 
-  const zoneById = Object.fromEntries(activeZones.map((zone) => [zone.zone_id, zone]));
-  const mapHotspots = buildHotspots(activeZones);
+  const filteredRides = useMemo(() => {
+    if (!destinationActive || !destination.trim()) {
+      return [];
+    }
+    return rideRequests.filter((ride) => (
+      ride.drop.toLowerCase().includes(searchTerm) ||
+      ride.borough.toLowerCase().includes(searchTerm)
+    ));
+  }, [destinationActive, destination, rideRequests, searchTerm]);
 
-  let mapRoute: MapRoute | undefined;
-  let ridePins: MapRidePin[] = [];
+  const zoneById = useMemo(
+    () => Object.fromEntries(activeZones.map((zone) => [zone.zone_id, zone])),
+    [activeZones],
+  );
+  const mapHotspots = useMemo(() => buildHotspots(activeZones), [activeZones]);
 
-  if (destinationActive && destination.trim()) {
-    const search = resolveSearch(destination);
-    const destCoords = BOROUGH_COORDS[search] || BOROUGH_COORDS['brooklyn'];
-
-    mapRoute = {
+  const mapRoute: MapRoute | undefined = useMemo(() => {
+    if (!destinationActive || !destination.trim()) {
+      return undefined;
+    }
+    const destCoords = BOROUGH_COORDS[searchTerm] || BOROUGH_COORDS['brooklyn'];
+    return {
       start: DRIVER_START,
       end: destCoords,
     };
+  }, [destinationActive, destination, searchTerm]);
 
-    ridePins = filteredRides.map((ride) => {
-      const zone = zoneById[ride.id];
-      return {
-        id: ride.id,
-        position: [zone.lat, zone.lng],
-        label: ride.pickup,
-        fare: ride.fare
-      };
-    });
-  }
+  const ridePins: MapRidePin[] = useMemo(() => {
+    if (!mapRoute) {
+      return [];
+    }
+    return filteredRides
+      .map((ride) => {
+        const zone = zoneById[ride.id];
+        if (!zone) {
+          return null;
+        }
+        return {
+          id: ride.id,
+          position: [zone.lat, zone.lng] as [number, number],
+          label: ride.pickup,
+          fare: ride.fare,
+        };
+      })
+      .filter((pin): pin is MapRidePin => pin !== null);
+  }, [filteredRides, mapRoute, zoneById]);
 
   function handleActivate() {
     if (destinationActive) {

@@ -268,7 +268,6 @@ export default function Drivers({ onSelectDriver }: DriversProps) {
               <AnimatePresence>
                 {filteredDrivers.map((driver) => (
                   <motion.tr
-                    layout
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}

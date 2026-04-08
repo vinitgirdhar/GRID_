@@ -147,80 +147,7 @@ export default function ModelPerformance() {
         </div>
       )}
 
-      {/* ── SECTION 1 — MODEL HEALTH ── */}
-      <section className="space-y-6">
-        <p className={`${eyebrow} border-b border-[var(--border)] pb-2`}>Model Health</p>
-
-        {/* RMSE cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {rmseData.map((item, index) => {
-            const Icon = rmseIcons[index];
-            return (
-              <div key={item.label} className={`${bento} p-6`}>
-                <div className={glowLine} />
-                <div className="flex items-center justify-between mb-4">
-                  <div className="p-2 rounded-lg inline-flex" style={{ backgroundColor: `${item.color}18` }}>
-                    <Icon size={18} style={{ color: item.color }} />
-                  </div>
-                  <p className={eyebrow}>Test RMSE</p>
-                </div>
-                <p className="text-xs text-[var(--text-muted)] font-mono">{item.label}</p>
-                <p className="text-3xl font-light mt-1" style={{ color: item.color, fontFamily: 'Outfit, sans-serif' }}>{item.value}</p>
-                <div className="absolute bottom-0 left-0 h-[2px] w-full" style={{ backgroundColor: item.color, opacity: 0.25 }} />
-              </div>
-            );
-          })}
-        </div>
-
-        {/* R² + Feature Importance */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className={`${bento} p-6`}>
-            <div className={glowLine} />
-            <div className="mb-5">
-              <p className={eyebrow}>Accuracy</p>
-              <h3 className="text-base font-light text-[var(--text)] mt-0.5" style={{ fontFamily: 'Outfit, sans-serif' }}>R² Progression</h3>
-            </div>
-            <div className="h-[260px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={r2Data}>
-                  <defs>
-                    <linearGradient id="colorR2" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#facc15" stopOpacity={0.25} />
-                      <stop offset="95%" stopColor="#facc15" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(250,204,21,0.08)" />
-                  <XAxis dataKey="label" axisLine={false} tickLine={false} tick={tickStyle} />
-                  <YAxis axisLine={false} tickLine={false} tick={tickStyle} domain={[0.9, 1]} />
-                  <Tooltip content={<InsightTooltip config={r2Tooltip} />} />
-                  <Area type="monotone" dataKey="value" stroke="#facc15" strokeWidth={2} fillOpacity={1} fill="url(#colorR2)" activeDot={{ r: 4, fill: '#facc15', stroke: '#050514', strokeWidth: 2 }} />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          <div className={`${bento} p-6`}>
-            <div className={glowLine} />
-            <div className="mb-5">
-              <p className={eyebrow}>Signals</p>
-              <h3 className="text-base font-light text-[var(--text)] mt-0.5" style={{ fontFamily: 'Outfit, sans-serif' }}>Feature Importance</h3>
-            </div>
-            <div className="h-[260px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={featureImportance} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(250,204,21,0.08)" />
-                  <XAxis type="number" hide />
-                  <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 10, fontFamily: 'Inter, sans-serif' }} width={150} />
-                  <Tooltip content={<InsightTooltip config={featureTooltip} />} />
-                  <Bar dataKey="value" fill="#facc15" radius={[0, 6, 6, 0]} barSize={18} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── SECTION 2 — LIVE VALIDATION ── */}
+      {/* ── SECTION 1 — LIVE VALIDATION ── */}
       <section className="space-y-6">
         <p className={`${eyebrow} border-b border-[var(--border)] pb-2`}>Live Validation</p>
 
@@ -307,6 +234,79 @@ export default function ModelPerformance() {
                   <Line type="monotone" dataKey="success_rate" stroke="#facc15" strokeWidth={2} dot={validation?.driver_impact?.length ? { r: 3, fill: '#facc15' } : false} activeDot={{ r: 4 }} name="success_rate" />
                   <Line type="monotone" dataKey="avg_pickup_min" stroke="#a78bfa" strokeWidth={2} dot={validation?.driver_impact?.length ? { r: 3, fill: '#a78bfa' } : false} activeDot={{ r: 4 }} name="avg_pickup_min" />
                 </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── SECTION 2 — MODEL HEALTH ── */}
+      <section className="space-y-6">
+        <p className={`${eyebrow} border-b border-[var(--border)] pb-2`}>Model Health</p>
+
+        {/* RMSE cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {rmseData.map((item, index) => {
+            const Icon = rmseIcons[index];
+            return (
+              <div key={item.label} className={`${bento} p-6`}>
+                <div className={glowLine} />
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-2 rounded-lg inline-flex" style={{ backgroundColor: `${item.color}18` }}>
+                    <Icon size={18} style={{ color: item.color }} />
+                  </div>
+                  <p className={eyebrow}>Test RMSE</p>
+                </div>
+                <p className="text-xs text-[var(--text-muted)] font-mono">{item.label}</p>
+                <p className="text-3xl font-light mt-1" style={{ color: item.color, fontFamily: 'Outfit, sans-serif' }}>{item.value}</p>
+                <div className="absolute bottom-0 left-0 h-[2px] w-full" style={{ backgroundColor: item.color, opacity: 0.25 }} />
+              </div>
+            );
+          })}
+        </div>
+
+        {/* R² + Feature Importance */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className={`${bento} p-6`}>
+            <div className={glowLine} />
+            <div className="mb-5">
+              <p className={eyebrow}>Accuracy</p>
+              <h3 className="text-base font-light text-[var(--text)] mt-0.5" style={{ fontFamily: 'Outfit, sans-serif' }}>R² Progression</h3>
+            </div>
+            <div className="h-[260px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={r2Data}>
+                  <defs>
+                    <linearGradient id="colorR2" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#facc15" stopOpacity={0.25} />
+                      <stop offset="95%" stopColor="#facc15" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(250,204,21,0.08)" />
+                  <XAxis dataKey="label" axisLine={false} tickLine={false} tick={tickStyle} />
+                  <YAxis axisLine={false} tickLine={false} tick={tickStyle} domain={[0.9, 1]} />
+                  <Tooltip content={<InsightTooltip config={r2Tooltip} />} />
+                  <Area type="monotone" dataKey="value" stroke="#facc15" strokeWidth={2} fillOpacity={1} fill="url(#colorR2)" activeDot={{ r: 4, fill: '#facc15', stroke: '#050514', strokeWidth: 2 }} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className={`${bento} p-6`}>
+            <div className={glowLine} />
+            <div className="mb-5">
+              <p className={eyebrow}>Signals</p>
+              <h3 className="text-base font-light text-[var(--text)] mt-0.5" style={{ fontFamily: 'Outfit, sans-serif' }}>Feature Importance</h3>
+            </div>
+            <div className="h-[260px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={featureImportance} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(250,204,21,0.08)" />
+                  <XAxis type="number" hide />
+                  <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 10, fontFamily: 'Inter, sans-serif' }} width={150} />
+                  <Tooltip content={<InsightTooltip config={featureTooltip} />} />
+                  <Bar dataKey="value" fill="#facc15" radius={[0, 6, 6, 0]} barSize={18} />
+                </BarChart>
               </ResponsiveContainer>
             </div>
           </div>

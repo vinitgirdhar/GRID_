@@ -65,7 +65,14 @@ function Field({ label, icon: Icon, error, children }: {
 }
 
 /* ─── Login Form ─── */
-function LoginForm({ onSuccess, onGoRegister }: { onSuccess: (d: Driver) => void; onGoRegister: () => void }) {
+function LoginForm({
+    onSuccess,
+    onGoRegister,
+}: {
+    key?: React.Key;
+    onSuccess: (d: Driver) => void;
+    onGoRegister: () => void;
+}) {
     const [phone, setPhone] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
@@ -177,7 +184,14 @@ function LoginForm({ onSuccess, onGoRegister }: { onSuccess: (d: Driver) => void
 }
 
 /* ─── Register Form ─── */
-function RegisterForm({ onSuccess, onGoLogin }: { onSuccess: (d: Driver) => void; onGoLogin: () => void }) {
+function RegisterForm({
+    onSuccess,
+    onGoLogin,
+}: {
+    key?: React.Key;
+    onSuccess: (d: Driver) => void;
+    onGoLogin: () => void;
+}) {
     const [name, setName] = useState('');
     const [phone, setPhone] = useState('');
     const [password, setPassword] = useState('');

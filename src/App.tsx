@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   Activity,
   BarChart3,
@@ -23,22 +23,8 @@ import { motion } from 'motion/react';
 
 import OfflineBanner from './components/OfflineBanner';
 import DrowsinessMonitor from './components/DrowsinessMonitor';
-import LiveDrowsinessCamera from './components/LiveDrowsinessCamera';
 import LandingPage from './components/LandingPage';
 import DriverLogin from './components/DriverLogin';
-import SafetyZen from './components/SafetyZen';
-import VoicePilot from './components/VoicePilot';
-import DataInsights from './components/pages/DataInsights';
-import DemandPrediction from './components/pages/DemandPrediction';
-import DriverOverview from './components/pages/DriverOverview';
-import DriverPerformance from './components/pages/DriverPerformance';
-import Drivers from './components/pages/Drivers';
-import GoForRide from './components/pages/GoForRide';
-import MissedOpportunities from './components/pages/MissedOpportunities';
-import ModelPerformance from './components/pages/ModelPerformance';
-import Overview from './components/pages/Overview';
-import Profile from './components/pages/Profile';
-import WeatherInsights from './components/pages/WeatherInsights';
 import { OfflineProvider, useOffline } from './OfflineContext';
 import { cn } from './lib/utils';
 import { Driver, Page, UserRole } from './types';
@@ -52,6 +38,21 @@ import {
   postDriverSession as syncDriverSession,
   updateDriverStatus,
 } from './services/apiService';
+
+const LiveDrowsinessCamera = lazy(() => import('./components/LiveDrowsinessCamera'));
+const SafetyZen = lazy(() => import('./components/SafetyZen'));
+const VoicePilot = lazy(() => import('./components/VoicePilot'));
+const DataInsights = lazy(() => import('./components/pages/DataInsights'));
+const DemandPrediction = lazy(() => import('./components/pages/DemandPrediction'));
+const DriverOverview = lazy(() => import('./components/pages/DriverOverview'));
+const DriverPerformance = lazy(() => import('./components/pages/DriverPerformance'));
+const Drivers = lazy(() => import('./components/pages/Drivers'));
+const GoForRide = lazy(() => import('./components/pages/GoForRide'));
+const MissedOpportunities = lazy(() => import('./components/pages/MissedOpportunities'));
+const ModelPerformance = lazy(() => import('./components/pages/ModelPerformance'));
+const Overview = lazy(() => import('./components/pages/Overview'));
+const Profile = lazy(() => import('./components/pages/Profile'));
+const WeatherInsights = lazy(() => import('./components/pages/WeatherInsights'));
 
 function postDriverStatus(driverId: string, status: 'online' | 'offline') {
   updateDriverStatus(driverId, status).catch(() => {});
@@ -93,6 +94,14 @@ function MobileClock() {
   }, []);
 
   return <span className="text-sm font-bold">{time}</span>;
+}
+
+function PageLoadingFallback() {
+  return (
+    <div className="w-full rounded-2xl border border-[rgba(250,204,21,0.15)] bg-[rgba(10,10,30,0.7)] px-4 py-6 text-sm text-[#9ca3af]">
+      Loading dashboard module...
+    </div>
+  );
 }
 
 type AppScreen = 'landing' | 'driver-login';
@@ -318,19 +327,7 @@ function AppShell() {
         topClassName={userRole === 'driver' ? 'top-20 lg:top-4' : 'top-4'}
       />
 
-      <div className="flex min-h-screen bg-[#050514] text-[#e8edf3] font-sans overflow-x-hidden relative">
-        <div className="fixed inset-0 pointer-events-none">
-          <div
-            className="absolute inset-0 opacity-[0.04]"
-            style={{
-              backgroundImage: `radial-gradient(rgba(250,204,21,0.8) 1px, transparent 1px)`,
-              backgroundSize: '28px 28px',
-              maskImage: 'radial-gradient(ellipse 80% 80% at 50% 50%, black, transparent)',
-              WebkitMaskImage: 'radial-gradient(ellipse 80% 80% at 50% 50%, black, transparent)',
-            }}
-          />
-        </div>
-
+      <div className="flex min-h-screen bg-[#050514] text-[#e8edf3] font-sans relative" style={{overflowX: 'clip'}}>
         <motion.aside
           initial={false}
           animate={{ width: isSidebarCollapsed ? 80 : 260 }}
@@ -564,18 +561,15 @@ function AppShell() {
 
             <main
               className={cn(
-                'flex-1 w-full max-w-7xl mx-auto px-4 md:px-8 overflow-x-hidden',
+                'flex-1 w-full max-w-7xl mx-auto px-4 md:px-8',
                 userRole === 'driver' ? 'pt-24 pb-32 lg:pb-8 lg:pt-12' : 'pt-12 pb-8',
               )}
             >
-              <motion.div
-                key={`${userRole}-${activePage}`}
-                initial={false}
-                animate={{ opacity: 1, y: 0 }}
-                className="min-h-0"
-              >
-                {renderPage()}
-              </motion.div>
+              <div className="min-h-0">
+                <Suspense fallback={<PageLoadingFallback />}>
+                  {renderPage()}
+                </Suspense>
+              </div>
             </main>
 
           {userRole === 'driver' && (
@@ -619,8 +613,16 @@ function AppShell() {
           )}
         </div>
 
-        {userRole === 'driver' && <VoicePilot />}
-        {userRole === 'driver' && <SafetyZen isLive={isLive} />}
+        {userRole === 'driver' && (
+          <Suspense fallback={null}>
+            <VoicePilot />
+          </Suspense>
+        )}
+        {userRole === 'driver' && (
+          <Suspense fallback={null}>
+            <SafetyZen isLive={isLive} />
+          </Suspense>
+        )}
       </div>
     </>
   );

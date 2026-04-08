@@ -57,10 +57,8 @@
 
 @layer base {
   html {
-    /* Smooth scroll but let the browser manage compositing */
-    scroll-behavior: smooth;
-    /* Prevent overscroll bounce which causes jitter on macOS/iOS */
-    overscroll-behavior: none;
+    /* Let mouse wheel / trackpad scroll instantly — smooth causes lag */
+    scroll-behavior: auto;
     /* Let the browser choose the best text rendering strategy for perf */
     text-rendering: optimizeSpeed;
     /* GPU text rendering */
@@ -70,6 +68,11 @@
 
   html, body, #root {
     background-color: var(--background);
+    background-image:
+      radial-gradient(circle at top left, rgba(250, 204, 21, 0.06), transparent 0 28%),
+      radial-gradient(circle at top right, rgba(56, 189, 248, 0.04), transparent 0 22%);
+    background-repeat: no-repeat;
+    background-attachment: scroll;
     color: var(--text-primary);
   }
 
@@ -77,22 +80,8 @@
     @apply font-sans antialiased;
     background-color: var(--background);
     color: var(--text-primary);
-    overscroll-behavior: none;
   }
 
-  body::before {
-    content: '';
-    position: fixed;
-    top: 0; left: 0; width: 100%; height: 100%;
-    z-index: 9998;
-    pointer-events: none;
-    opacity: 0.018;
-    mix-blend-mode: overlay;
-    /* GPU layer — stays composited, never triggers layout */
-    will-change: transform;
-    transform: translateZ(0);
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  }
 }
 
 /* ── BENTO CARD (core UI block) ── */
@@ -109,8 +98,6 @@
     background-color 0.3s var(--ease-out),
     box-shadow 0.3s var(--ease-out);
   position: relative;
-  /* Promote to own compositor layer */
-  will-change: transform;
   /* Contain layout/style changes to this subtree */
   contain: layout style;
 }
@@ -130,6 +117,7 @@
 }
 
 .glass-card:hover {
+  will-change: transform;
   transform: translateY(-3px);
   border-color: rgba(250,204,21,0.24);
   background: rgba(255,255,255,0.045);
@@ -314,7 +302,6 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
   transition: transform 0.25s ease, border-color 0.25s ease;
-  will-change: transform;
   @apply p-5 flex flex-col justify-between relative overflow-hidden;
 }
 
@@ -330,6 +317,7 @@
 }
 
 .kpi-card:hover {
+  will-change: transform;
   transform: translateY(-2px);
   border-color: rgba(250,204,21,0.22);
 }
@@ -512,9 +500,11 @@
 
 /* ── GLOBAL PERFORMANCE ── */
 
-/* Main scroll container — tell the browser it's the scroll root */
+/* Stacking context for z-index layering without breaking scroll compositing */
 #root {
   isolation: isolate;
+  /* Ensure the browser can use GPU-accelerated scroll on the root */
+  contain: none;
 }
 
 /* Animated elements that use transform — promote to compositor layer */

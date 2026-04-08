@@ -48,7 +48,15 @@ export default function SafetyZen({ isLive }: { isLive?: boolean }) {
 
   // Sync with Backend Wellness Simulation
   useEffect(() => {
+    if (!isLive && !isOpen && !showBreakModal) {
+      return;
+    }
+
     const fetchWellness = async () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+        return;
+      }
+
       try {
         const data = await getWellnessStatus();
 
@@ -61,10 +69,20 @@ export default function SafetyZen({ isLive }: { isLive?: boolean }) {
       }
     };
 
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void fetchWellness();
+      }
+    };
+
     const poll = setInterval(fetchWellness, 15000); // Poll every 15s
     fetchWellness();
-    return () => clearInterval(poll);
-  }, [hasDismissedBreakModal]);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      clearInterval(poll);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [hasDismissedBreakModal, isLive, isOpen, showBreakModal]);
 
   // Reset one-time break prompt per live session and close it when the driver goes offline.
   useEffect(() => {

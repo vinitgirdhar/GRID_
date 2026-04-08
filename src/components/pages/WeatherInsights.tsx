@@ -7,7 +7,7 @@ import { Thermometer, CloudRain, Wind, Info } from 'lucide-react';
 import { getForecast, getWeather } from '../../services/apiService';
 import { ForecastResponse, WeatherResponse } from '../../types';
 
-const REFRESH_INTERVAL_MS = 20000;
+const REFRESH_INTERVAL_MS = 30000;
 
 const bento = 'relative overflow-hidden bg-white/5 border border-[var(--border)] rounded-2xl hover:-translate-y-1 hover:border-[var(--accent)]/50 hover:bg-white/10 hover:shadow-[0_8px_32px_rgba(250,204,21,0.08)] transition-all duration-300 group';
 const glowLine = 'absolute top-0 left-[20%] right-[20%] h-[1px] bg-gradient-to-r from-transparent via-[var(--accent)] to-transparent opacity-0 group-hover:opacity-100 group-hover:left-[10%] group-hover:right-[10%] transition-all duration-300';
@@ -47,6 +47,9 @@ export default function WeatherInsights() {
     let intervalId: ReturnType<typeof setInterval> | null = null;
 
     const loadData = async () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+        return;
+      }
       try {
         const [f, w] = await Promise.all([getForecast(), getWeather({ zoneId: peakZoneRef.current })]);
         if (!cancelled) {
@@ -58,9 +61,20 @@ export default function WeatherInsights() {
       }
     };
 
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void loadData();
+      }
+    };
+
     loadData();
     intervalId = setInterval(loadData, REFRESH_INTERVAL_MS);
-    return () => { cancelled = true; if (intervalId) clearInterval(intervalId); };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      cancelled = true;
+      if (intervalId) clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   const baselineDemand = forecast?.summary.peak_zone_demand ?? 8000;
