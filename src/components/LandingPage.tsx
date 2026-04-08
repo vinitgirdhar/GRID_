@@ -401,7 +401,10 @@ export default function LandingPage({ onBeginAsDriver, onAdminAccess }: LandingP
                         <div className="lp-footer-col">
                             <h4>Product</h4>
                             <a href="#">Driver App</a>
-                            <a href="#">Fleet Admin</a>
+                            <button type="button" className="lp-footer-admin-access" onClick={onAdminAccess}>
+                                <Shield size={14} />
+                                Access Admin Panel
+                            </button>
                             <a href="#">GRID Copilot</a>
                         </div>
                         <div className="lp-footer-col">
@@ -423,7 +426,7 @@ export default function LandingPage({ onBeginAsDriver, onAdminAccess }: LandingP
                         <div className="lp-footer-bottom-links">
                             <a href="#">Privacy</a>
                             <a href="#">Terms</a>
-                            <button className="lp-admin-link" onClick={onAdminAccess}>
+                            <button type="button" className="lp-admin-link" onClick={onAdminAccess}>
                                 <Shield size={12} />
                                 Admin Panel
                             </button>
@@ -535,8 +538,29 @@ const LandingCSS = () => (
     .lp-hero-bottom { display:flex; flex-direction:column; align-items:center; gap:20px; margin-top:24px; }
     .lp-hero-desc { font-size:1.05rem; color:var(--lp-text-muted); max-width:500px; font-weight:300; line-height:1.7; }
     .lp-hero-actions { display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin-top:10px; }
-    .lp-btn-primary { position:relative; padding:14px 36px; border-radius:100px; font-size:0.95rem; font-weight:500; color:var(--lp-accent); background:rgba(250,204,21,0.05); border:1px solid rgba(250,204,21,0.3); z-index:1; transition:all 0.3s ease; }
-    .lp-btn-primary:hover { background:rgba(250,204,21,0.15); border-color:rgba(250,204,21,0.6); transform:translateY(-2px); box-shadow:0 4px 20px rgba(250,204,21,0.15); }
+        .lp-btn-primary {
+            position:relative;
+            padding:14px 36px;
+            border-radius:100px;
+            font-size:0.95rem;
+            font-weight:600;
+            letter-spacing:0.01em;
+            color:#0b1220;
+            background:linear-gradient(135deg,var(--lp-accent) 0%,var(--lp-accent2) 55%,var(--lp-gold) 100%);
+            border:1px solid rgba(250,204,21,0.85);
+            box-shadow:0 10px 28px rgba(250,204,21,0.28), inset 0 1px 0 rgba(255,255,255,0.35);
+            z-index:1;
+            transition:transform 0.25s ease, box-shadow 0.25s ease, filter 0.25s ease;
+        }
+        .lp-btn-primary:hover {
+            transform:translateY(-2px);
+            box-shadow:0 14px 34px rgba(250,204,21,0.34), inset 0 1px 0 rgba(255,255,255,0.45);
+            filter:saturate(1.05);
+        }
+        .lp-btn-primary:focus-visible {
+            outline:2px solid rgba(250,204,21,0.95);
+            outline-offset:3px;
+        }
 
     /* LOGO BAR */
     .lp-logo-bar { padding:32px 0; border-top:1px solid var(--lp-border); border-bottom:1px solid var(--lp-border); }
@@ -685,11 +709,15 @@ const LandingCSS = () => (
     .lp-footer-col h4 { font-size:0.76rem; font-weight:600; margin-bottom:16px; letter-spacing:0.03em; text-transform:uppercase; color:var(--lp-text); }
     .lp-footer-col a { display:block; font-size:0.78rem; color:var(--lp-text-muted); font-weight:300; padding:4px 0; transition:color 0.2s; }
     .lp-footer-col a:hover { color:var(--lp-text); }
+    .lp-footer-admin-access { display:inline-flex; align-items:center; gap:8px; font-size:0.78rem; color:var(--lp-accent2); font-weight:500; margin:6px 0; padding:6px 10px; border-radius:8px; border:1px solid rgba(250,204,21,0.25); background:rgba(250,204,21,0.08); transition:all 0.2s; }
+    .lp-footer-admin-access:hover { color:var(--lp-text); border-color:rgba(250,204,21,0.45); background:rgba(250,204,21,0.16); }
+    .lp-footer-admin-access:focus-visible { outline:2px solid rgba(250,204,21,0.75); outline-offset:2px; }
     .lp-footer-bottom { display:flex; justify-content:space-between; align-items:center; padding-top:24px; border-top:1px solid var(--lp-border); font-size:0.72rem; color:var(--lp-text-dim); font-weight:300; }
     .lp-footer-bottom-links { display:flex; align-items:center; gap:24px; }
     .lp-footer-bottom-links a:hover { color:var(--lp-text-muted); }
     .lp-admin-link { display:inline-flex; align-items:center; gap:6px; font-size:0.72rem; color:var(--lp-text-dim); font-weight:400; background:none; border:1px solid rgba(250,204,21,0.1); border-radius:6px; padding:4px 10px; transition:all 0.2s; cursor:pointer; }
     .lp-admin-link:hover { color:var(--lp-accent2); border-color:rgba(250,204,21,0.3); background:rgba(250,204,21,0.05); }
+    .lp-admin-link:focus-visible { outline:2px solid rgba(250,204,21,0.75); outline-offset:2px; }
 
     /* RESPONSIVE */
     @media (max-width:1024px) {

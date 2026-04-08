@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { startTransition, useEffect, useRef, useState } from 'react';
 import {
   Activity,
   BarChart3,
@@ -24,7 +24,6 @@ import { motion } from 'motion/react';
 import OfflineBanner from './components/OfflineBanner';
 import DrowsinessMonitor from './components/DrowsinessMonitor';
 import LiveDrowsinessCamera from './components/LiveDrowsinessCamera';
-import Login from './components/Login';
 import LandingPage from './components/LandingPage';
 import DriverLogin from './components/DriverLogin';
 import SafetyZen from './components/SafetyZen';
@@ -96,7 +95,7 @@ function MobileClock() {
   return <span className="text-sm font-bold">{time}</span>;
 }
 
-type AppScreen = 'landing' | 'driver-login' | 'admin-login' | 'app';
+type AppScreen = 'landing' | 'driver-login';
 
 function AppShell() {
   const { isOnline, isSyncing, pendingCount } = useOffline();
@@ -173,16 +172,17 @@ function AppShell() {
   }, []);
 
   const handleLogin = (role: UserRole, driver?: Driver) => {
-    setUserRole(role);
-    setCurrentDriver(role === 'driver' ? driver ?? null : null);
-    setSelectedDriverProfile(null);
     if (driver) {
       postDriverStatus(driver.id, 'online');
-      // Reset the wellness heart timer so this driver starts from zero
       postDriverSession({ is_live: false }).catch(() => {});
     }
-    setIsLive(false);
-    setActivePage('overview');
+    startTransition(() => {
+      setUserRole(role);
+      setCurrentDriver(role === 'driver' ? driver ?? null : null);
+      setSelectedDriverProfile(null);
+      setIsLive(false);
+      setActivePage('overview');
+    });
   };
 
   const handleLogout = () => {
@@ -212,28 +212,21 @@ function AppShell() {
       : 'text-[var(--warning)]';
 
   if (!userRole) {
-    if (screen === 'landing') {
-      return (
-        <LandingPage
-          onBeginAsDriver={() => setScreen('driver-login')}
-          onAdminAccess={() => setScreen('admin-login')}
-        />
-      );
-    }
     if (screen === 'driver-login') {
       return (
         <DriverLogin
-          onSuccess={(driver) => { handleLogin('driver', driver); setScreen('app'); }}
+          onSuccess={(driver) => { handleLogin('driver', driver); }}
           onBack={() => setScreen('landing')}
         />
       );
     }
-    // admin-login
     return (
-      <>
-        <OfflineBanner isOnline={isOnline} isSyncing={isSyncing} pendingCount={pendingCount} />
-        <Login onLogin={(role, driver) => { handleLogin(role, driver); setScreen('app'); }} />
-      </>
+      <LandingPage
+        onBeginAsDriver={() => setScreen('driver-login')}
+        onAdminAccess={() => {
+          handleLogin('admin');
+        }}
+      />
     );
   }
 

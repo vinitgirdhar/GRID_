@@ -39,16 +39,20 @@ const HeroAnimation = () => {
 };
 
 /* ─── Shared input style ─── */
-const inputCls = 'w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm focus:outline-none focus:border-[#facc15]/50 focus:ring-1 focus:ring-[#facc15]/20 transition-all text-white placeholder:text-white/30 disabled:opacity-50';
+const inputCls = 'w-full bg-white/5 border border-[var(--border)] rounded-xl py-3 pl-10 pr-4 text-sm focus:outline-none focus:border-[var(--accent)]/60 focus:ring-1 focus:ring-[var(--accent)]/20 transition-all text-[var(--text)] placeholder:text-[var(--text-muted)] disabled:opacity-50';
+
+const headingFontStyle = { fontFamily: 'var(--font-heading, Outfit, sans-serif)' } as const;
+const bodyFontStyle = { fontFamily: 'var(--font-body, Inter, sans-serif)' } as const;
+const monoFontStyle = { fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)' } as const;
 
 function Field({ label, icon: Icon, error, children }: {
     label: string; icon: React.ElementType; error?: string | null; children: React.ReactNode;
 }) {
     return (
         <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-white/40 uppercase tracking-widest">{label}</label>
+            <label className="text-[10px] font-medium text-[var(--text-secondary)] uppercase tracking-widest" style={monoFontStyle}>{label}</label>
             <div className="relative">
-                <Icon size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/25 pointer-events-none z-10" />
+                <Icon size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] pointer-events-none z-10" />
                 {children}
             </div>
             {error && (
@@ -85,15 +89,15 @@ function LoginForm({ onSuccess, onGoRegister }: { onSuccess: (d: Driver) => void
     return (
         <motion.div
             key="login"
-            initial={{ opacity: 0, x: 24 }}
+            initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -24 }}
-            transition={{ duration: 0.28 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ type: 'spring', stiffness: 350, damping: 32, mass: 0.9 }}
             className="w-full space-y-6"
         >
             <div className="space-y-1">
-                <h2 className="text-2xl font-bold text-white tracking-tight">Sign in</h2>
-                <p className="text-sm text-white/40">Welcome back. Enter your details to continue.</p>
+                <h2 className="text-2xl font-medium text-[var(--text)] tracking-tight" style={headingFontStyle}>Sign in</h2>
+                <p className="text-sm text-[var(--text-secondary)]" style={bodyFontStyle}>Welcome back. Enter your details to continue.</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
@@ -126,7 +130,9 @@ function LoginForm({ onSuccess, onGoRegister }: { onSuccess: (d: Driver) => void
                     <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-white/25 hover:text-white/60 transition-colors"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                        aria-pressed={showPassword}
                     >
                         {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                     </button>
@@ -148,7 +154,8 @@ function LoginForm({ onSuccess, onGoRegister }: { onSuccess: (d: Driver) => void
                     disabled={loading}
                     whileHover={{ y: -1 }}
                     whileTap={{ scale: 0.99 }}
-                    className="w-full flex items-center justify-center gap-2 py-3.5 px-6 rounded-xl bg-[#facc15] text-[#0f172a] font-bold text-sm hover:bg-[#fde047] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#facc15]/10 mt-2"
+                    className="w-full flex items-center justify-center gap-2 py-3 px-6 rounded-full bg-[rgba(250,204,21,0.05)] text-[var(--accent)] border border-[rgba(250,204,21,0.3)] hover:bg-[rgba(250,204,21,0.15)] hover:border-[rgba(250,204,21,0.6)] hover:shadow-[0_4px_20px_rgba(250,204,21,0.15)] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+                    style={bodyFontStyle}
                 >
                     {loading
                         ? <><Loader2 size={16} className="animate-spin" /> Signing in…</>
@@ -156,11 +163,11 @@ function LoginForm({ onSuccess, onGoRegister }: { onSuccess: (d: Driver) => void
                 </motion.button>
             </form>
 
-            <p className="text-center text-sm text-white/30">
+            <p className="text-center text-sm text-[var(--text-secondary)]" style={bodyFontStyle}>
                 New to GRID?{' '}
                 <button
                     onClick={onGoRegister}
-                    className="text-[#facc15]/80 hover:text-[#facc15] font-semibold transition-colors"
+                    className="text-[var(--accent)] hover:text-[var(--accent2)] font-medium transition-colors"
                 >
                     Create an account
                 </button>
@@ -213,15 +220,15 @@ function RegisterForm({ onSuccess, onGoLogin }: { onSuccess: (d: Driver) => void
     return (
         <motion.div
             key="register"
-            initial={{ opacity: 0, x: 24 }}
+            initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -24 }}
-            transition={{ duration: 0.28 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ type: 'spring', stiffness: 350, damping: 32, mass: 0.9 }}
             className="w-full space-y-5"
         >
             <div className="space-y-1">
-                <h2 className="text-2xl font-bold text-white tracking-tight">Create account</h2>
-                <p className="text-sm text-white/40">Join thousands of drivers earning on GRID.</p>
+                <h2 className="text-2xl font-medium text-[var(--text)] tracking-tight" style={headingFontStyle}>Create account</h2>
+                <p className="text-sm text-[var(--text-secondary)]" style={bodyFontStyle}>Join thousands of drivers earning on GRID.</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-3" autoComplete="off">
@@ -318,7 +325,8 @@ function RegisterForm({ onSuccess, onGoLogin }: { onSuccess: (d: Driver) => void
                     disabled={loading}
                     whileHover={{ y: -1 }}
                     whileTap={{ scale: 0.99 }}
-                    className="w-full flex items-center justify-center gap-2 py-3.5 px-6 rounded-xl bg-[#facc15] text-[#0f172a] font-bold text-sm hover:bg-[#fde047] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#facc15]/10 mt-1"
+                    className="w-full flex items-center justify-center gap-2 py-3 px-6 rounded-full bg-[rgba(250,204,21,0.05)] text-[var(--accent)] border border-[rgba(250,204,21,0.3)] hover:bg-[rgba(250,204,21,0.15)] hover:border-[rgba(250,204,21,0.6)] hover:shadow-[0_4px_20px_rgba(250,204,21,0.15)] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed mt-1"
+                    style={bodyFontStyle}
                 >
                     {loading
                         ? <><Loader2 size={16} className="animate-spin" /> Creating account…</>
@@ -326,11 +334,11 @@ function RegisterForm({ onSuccess, onGoLogin }: { onSuccess: (d: Driver) => void
                 </motion.button>
             </form>
 
-            <p className="text-center text-sm text-white/30">
+            <p className="text-center text-sm text-[var(--text-secondary)]" style={bodyFontStyle}>
                 Already have an account?{' '}
                 <button
                     onClick={onGoLogin}
-                    className="text-[#facc15]/80 hover:text-[#facc15] font-semibold transition-colors"
+                    className="text-[var(--accent)] hover:text-[var(--accent2)] font-medium transition-colors"
                 >
                     Sign in
                 </button>
@@ -346,15 +354,13 @@ export default function DriverLogin({ onSuccess, onBack }: DriverLoginProps) {
     }, []);
 
     return (
-        <div
-            className="min-h-screen flex items-center justify-center relative overflow-hidden bg-[#050514]"
-        >
+        <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-[var(--bg)]" style={bodyFontStyle}>
             <HeroAnimation />
 
             {/* Back to landing */}
             <button
                 onClick={onBack}
-                className="absolute top-6 left-6 flex items-center gap-2 text-sm text-white/30 hover:text-white/70 transition-colors z-10 group"
+                className="absolute top-6 left-6 flex items-center gap-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text)] transition-colors z-10 group"
             >
                 <ArrowLeft size={16} className="group-hover:-translate-x-0.5 transition-transform" />
                 Back
@@ -377,11 +383,11 @@ export default function DriverLogin({ onSuccess, onBack }: DriverLoginProps) {
                     <div className="inline-flex items-center gap-3 mb-3">
                         <img src="/grid-logo.png" alt="GRID" className="h-12 w-auto object-contain drop-shadow-[0_0_20px_rgba(250,204,21,0.2)]" />
                         <span
-                            className="text-2xl font-black tracking-widest"
+                            className="text-2xl tracking-widest"
                             style={{
-                                fontFamily: 'Outfit, sans-serif',
+                                fontFamily: 'var(--font-heading, Outfit, sans-serif)',
                                 fontSize: 'clamp(2rem, 6vw, 3rem)',
-                                fontWeight: 600,
+                                fontWeight: 500,
                                 lineHeight: 1,
                                 letterSpacing: '-0.01em',
                                 textTransform: 'uppercase',
@@ -398,7 +404,8 @@ export default function DriverLogin({ onSuccess, onBack }: DriverLoginProps) {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ duration: 0.5, delay: 0.35 }}
-                        className="text-xs text-white/25 uppercase tracking-[0.2em] font-medium"
+                        className="text-[10px] text-[var(--text-secondary)] uppercase tracking-[0.2em] font-medium"
+                        style={monoFontStyle}
                     >
                         Driver Portal
                     </motion.p>
@@ -409,24 +416,42 @@ export default function DriverLogin({ onSuccess, onBack }: DriverLoginProps) {
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1], delay: 0.25 }}
-                    className="flex rounded-xl p-1 mb-6" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                    className="relative flex rounded-xl p-1 mb-6 bg-white/5 border border-[var(--border)]"
+                    role="tablist"
+                    aria-label="Driver authentication"
+                >
+                    {/* Sliding indicator */}
+                    <motion.div
+                        className="absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-lg bg-[rgba(250,204,21,0.1)] border border-[rgba(250,204,21,0.35)]"
+                        animate={{ x: view === 'login' ? 0 : 'calc(100% + 8px)' }}
+                        transition={{ type: 'spring', stiffness: 400, damping: 35, mass: 0.8 }}
+                        style={{ left: 4 }}
+                    />
                     <button
+                        type="button"
                         onClick={() => setView('login')}
-                        className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
-                            view === 'login'
-                                ? 'bg-[#facc15] text-[#0f172a] shadow-sm'
-                                : 'text-white/40 hover:text-white/70'
+                        role="tab"
+                        id="driver-auth-tab-login"
+                        aria-selected={view === 'login'}
+                        aria-controls="driver-auth-panel"
+                        className={`relative flex-1 py-2 rounded-lg text-sm transition-colors duration-200 z-10 ${
+                            view === 'login' ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)] hover:text-[var(--text)]'
                         }`}
+                        style={bodyFontStyle}
                     >
                         Sign In
                     </button>
                     <button
+                        type="button"
                         onClick={() => setView('register')}
-                        className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
-                            view === 'register'
-                                ? 'bg-[#facc15] text-[#0f172a] shadow-sm'
-                                : 'text-white/40 hover:text-white/70'
+                        role="tab"
+                        id="driver-auth-tab-register"
+                        aria-selected={view === 'register'}
+                        aria-controls="driver-auth-panel"
+                        className={`relative flex-1 py-2 rounded-lg text-sm transition-colors duration-200 z-10 ${
+                            view === 'register' ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)] hover:text-[var(--text)]'
                         }`}
+                        style={bodyFontStyle}
                     >
                         Sign Up
                     </button>
@@ -437,33 +462,26 @@ export default function DriverLogin({ onSuccess, onBack }: DriverLoginProps) {
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1], delay: 0.35 }}
-                    className="rounded-2xl p-7"
+                    className="relative overflow-hidden bg-white/5 border border-[var(--border)] rounded-2xl p-7"
+                    role="tabpanel"
+                    id="driver-auth-panel"
+                    aria-labelledby={view === 'login' ? 'driver-auth-tab-login' : 'driver-auth-tab-register'}
                     style={{
-                        background: 'rgba(255,255,255,0.03)',
-                        border: '1px solid rgba(250,204,21,0.1)',
                         backdropFilter: 'blur(12px)',
+                        willChange: 'transform',
+                        transform: 'translateZ(0)',
                     }}
                 >
-                    <AnimatePresence mode="wait">
-                        {view === 'login' ? (
-                            <React.Fragment key="login">
-                                <LoginForm
-                                    onSuccess={onSuccess}
-                                    onGoRegister={() => setView('register')}
-                                />
-                            </React.Fragment>
-                        ) : (
-                            <React.Fragment key="register">
-                                <RegisterForm
-                                    onSuccess={onSuccess}
-                                    onGoLogin={() => setView('login')}
-                                />
-                            </React.Fragment>
-                        )}
+                    <div className="absolute top-0 left-[20%] right-[20%] h-[1px] bg-gradient-to-r from-transparent via-[var(--accent)] to-transparent opacity-70" />
+                    <AnimatePresence mode="wait" initial={false}>
+                        {view === 'login'
+                            ? <LoginForm key="login" onSuccess={onSuccess} onGoRegister={() => setView('register')} />
+                            : <RegisterForm key="register" onSuccess={onSuccess} onGoLogin={() => setView('login')} />
+                        }
                     </AnimatePresence>
                 </motion.div>
 
-                <p className="text-center text-xs text-white/15 mt-6">
+                <p className="text-center text-xs text-[var(--text-muted)] mt-6" style={bodyFontStyle}>
                     © {new Date().getFullYear()} GRID Mobility. All rights reserved.
                 </p>
             </motion.div>

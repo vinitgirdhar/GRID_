@@ -841,7 +841,7 @@ export default function DriverPerformance() {
           <div className="mt-6 rounded-2xl border border-emerald-500/18 bg-emerald-500/6 p-4 flex items-start gap-3">
             <Sparkles className="text-success w-5 h-5 shrink-0 mt-0.5" />
             <p className="text-sm text-[var(--text-secondary)] italic">
-              <span className="font-bold text-[var(--text-primary)] not-italic">AI Tip:</span> {leadZone.zone_name} is the strongest live opportunity right now, with an estimated {leadZone.expected_trips_per_hour.toFixed(0)} trips per hour.
+              <span className="font-bold text-[var(--text-primary)] not-italic">GRID Co-Pilot:</span> {leadZone.zone_name} is the strongest live opportunity right now, with an estimated {leadZone.expected_trips_per_hour.toFixed(0)} trips per hour.
             </p>
           </div>
         </div>

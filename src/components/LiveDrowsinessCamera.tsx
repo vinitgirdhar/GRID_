@@ -103,10 +103,10 @@ function severityClasses(severity: DrowsinessSeverity) {
 
   if (severity === 'warning') {
     return {
-      badge: 'bg-sky-500 text-white',
-      border: 'border-sky-500/30',
-      accent: 'text-sky-600',
-      glow: 'shadow-[0_0_0_1px_rgba(14,165,233,0.2)]',
+      badge: 'bg-amber-500 text-white',
+      border: 'border-amber-500/30',
+      accent: 'text-amber-500',
+      glow: 'shadow-[0_0_0_1px_rgba(245,158,11,0.22)]',
     };
   }
 
@@ -906,18 +906,22 @@ export default function LiveDrowsinessCamera({ isLive, onGoLive }: { isLive: boo
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       className={cn(
-        'glass-card p-4 sm:p-5 border overflow-hidden bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.96))]',
+        'bento-card relative overflow-hidden bg-white/5 border border-[var(--border)] rounded-2xl p-4 sm:p-6 hover:-translate-y-1 hover:border-[var(--accent)]/50 hover:bg-white/10 hover:shadow-[0_8px_32px_rgba(250,204,21,0.08)] transition-all duration-300 group',
         visual.border,
         visual.glow,
       )}
     >
+      <div className="absolute top-0 left-[20%] right-[20%] h-[1px] bg-gradient-to-r from-transparent via-[var(--accent)] to-transparent opacity-0 group-hover:opacity-100 group-hover:left-[10%] group-hover:right-[10%] transition-all duration-400" />
+
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-start gap-2.5 min-w-0">
-          <ShieldAlert className={cn('w-5 h-5 mt-0.5 shrink-0', visual.accent)} />
+          <div className="p-2 bg-[var(--accent)]/10 rounded-lg inline-flex mt-0.5">
+            <ShieldAlert className={cn('w-4 h-4 shrink-0', visual.accent)} />
+          </div>
           <div className="min-w-0">
-            <h3 className="font-bold text-[var(--text-primary)] leading-tight">Live Drowsiness Camera</h3>
-            <p className="text-xs text-[var(--text-secondary)] mt-0.5 leading-snug">
+            <h3 className="font-heading font-medium text-[var(--text-primary)] leading-tight">Live Drowsiness Camera</h3>
+            <p className="text-sm font-light text-[var(--text-secondary)] mt-0.5 leading-snug">
               Open the camera to see live face mesh, eye tracking, and buzzer alerts.
             </p>
           </div>
@@ -935,7 +939,7 @@ export default function LiveDrowsinessCamera({ isLive, onGoLive }: { isLive: boo
                   onGoLive();
                   setTimeout(() => void startCamera(), 300);
                 }}
-                className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold bg-[var(--success)] text-white shadow-lg shadow-[var(--success)]/20 hover:shadow-xl transition-all whitespace-nowrap"
+                className="inline-flex items-center justify-center gap-2 px-4 sm:px-8 py-2.5 rounded-full font-medium text-[var(--accent)] bg-[rgba(250,204,21,0.05)] border border-[rgba(250,204,21,0.3)] hover:bg-[rgba(250,204,21,0.15)] hover:border-[rgba(250,204,21,0.6)] hover:-translate-y-[2px] hover:shadow-[0_4px_20px_rgba(250,204,21,0.15)] transition-all duration-300 max-w-full text-center"
               >
                 <Camera className="w-4 h-4" />
                 Go Live & Open Camera
@@ -949,7 +953,7 @@ export default function LiveDrowsinessCamera({ isLive, onGoLive }: { isLive: boo
                   e.stopPropagation();
                   void startCamera();
                 }}
-                className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold bg-[var(--primary)] text-white disabled:opacity-60 whitespace-nowrap"
+                className="inline-flex items-center justify-center gap-2 px-4 sm:px-8 py-2.5 rounded-full font-medium text-[var(--accent)] bg-[rgba(250,204,21,0.05)] border border-[rgba(250,204,21,0.3)] hover:bg-[rgba(250,204,21,0.15)] hover:border-[rgba(250,204,21,0.6)] hover:-translate-y-[2px] hover:shadow-[0_4px_20px_rgba(250,204,21,0.15)] transition-all duration-300 disabled:opacity-60 max-w-full text-center"
               >
                 {isBusy ? (
                   <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
@@ -963,7 +967,7 @@ export default function LiveDrowsinessCamera({ isLive, onGoLive }: { isLive: boo
             <button
               type="button"
               onClick={() => void stopCamera()}
-              className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold bg-[var(--danger)] text-white whitespace-nowrap"
+              className="inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-medium border border-red-500/50 text-red-400 bg-red-500/10 hover:bg-red-500/15 transition-all whitespace-nowrap"
             >
               <CameraOff className="w-4 h-4" />
               Stop Camera
@@ -975,7 +979,7 @@ export default function LiveDrowsinessCamera({ isLive, onGoLive }: { isLive: boo
       {/* Camera + Stats: stacked on mobile, side-by-side from lg */}
       <div className="mt-4 flex flex-col lg:flex-row gap-4">
         {/* Camera feed */}
-        <div className="relative rounded-2xl overflow-hidden border border-[var(--border)] bg-slate-950 w-full lg:flex-1 min-h-[260px] sm:min-h-[320px]">
+        <div className="relative rounded-2xl overflow-hidden border border-[var(--border)] bg-[var(--bg-alt)] w-full lg:flex-1 min-h-[260px] sm:min-h-[320px]">
           <video
             ref={videoRef}
             muted
@@ -988,19 +992,19 @@ export default function LiveDrowsinessCamera({ isLive, onGoLive }: { isLive: boo
           <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
 
           {cameraState !== 'active' && (
-            <div className="absolute inset-0 flex items-center justify-center bg-[linear-gradient(180deg,rgba(15,23,42,0.92),rgba(30,41,59,0.86))]">
+            <div className="absolute inset-0 flex items-center justify-center bg-[linear-gradient(180deg,rgba(5,5,20,0.92),rgba(10,10,30,0.9))]">
               <div className="text-center px-6" style={{ minWidth: 0 }}>
-                <div className="w-14 h-14 rounded-full bg-white/10 border border-white/10 flex items-center justify-center mx-auto mb-3">
+                <div className="w-14 h-14 rounded-full bg-[var(--accent)]/10 border border-[var(--border)] flex items-center justify-center mx-auto mb-3">
                   {isBusy ? (
                     <div className="w-7 h-7 rounded-full border-4 border-white/20 border-t-white animate-spin" />
                   ) : (
-                    <Camera className="w-7 h-7 text-white" />
+                    <Camera className="w-7 h-7 text-[var(--accent)]" />
                   )}
                 </div>
-                <p className="text-base font-bold text-white">
+                <p className="text-base font-heading font-medium text-[var(--text-primary)]">
                   {isBusy ? (loadingStep || 'Starting webcam...') : 'Camera preview ready'}
                 </p>
-                <p className="text-xs text-slate-300 mt-1.5 max-w-[200px] mx-auto leading-snug">
+                <p className="text-xs text-[var(--text-secondary)] mt-1.5 max-w-[230px] mx-auto leading-snug">
                   {isLive
                     ? (loadingStep.includes('permission') ? 'Check the permission popup in your browser.' : 'Stay in frame for live landmark tracking.')
                     : 'Tap "Go Live & Open Camera" above to start.'}
@@ -1019,44 +1023,46 @@ export default function LiveDrowsinessCamera({ isLive, onGoLive }: { isLive: boo
         {/* Stats sidebar */}
         <div className="flex flex-col gap-3 lg:w-[300px] lg:shrink-0">
           {/* Status card */}
-          <div className="rounded-2xl border border-[var(--border)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.95))] p-4 shadow-[0_8px_24px_rgba(15,23,42,0.07)]">
+          <div className="bento-card relative overflow-hidden bg-white/5 border border-[var(--border)] rounded-2xl p-4 hover:-translate-y-1 hover:border-[var(--accent)]/50 hover:bg-white/10 hover:shadow-[0_8px_32px_rgba(250,204,21,0.08)] transition-all duration-300 group">
+            <div className="absolute top-0 left-[20%] right-[20%] h-[1px] bg-gradient-to-r from-transparent via-[var(--accent)] to-transparent opacity-0 group-hover:opacity-100 group-hover:left-[10%] group-hover:right-[10%] transition-all duration-400" />
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)]">Driver Status</p>
-                <p className="text-base font-black text-[var(--text-primary)] mt-1 leading-tight break-words">{status.status}</p>
+                <p className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-muted)]">Driver Status</p>
+                <p className="text-base font-heading font-medium text-[var(--text-primary)] mt-1 leading-tight break-words">{status.status}</p>
               </div>
-              <span className={cn('shrink-0 px-2.5 py-1.5 rounded-full text-[10px] font-black tracking-widest whitespace-nowrap', visual.badge)}>
+              <span className={cn('shrink-0 px-2.5 py-1.5 rounded-full text-[10px] font-mono font-medium uppercase tracking-widest whitespace-nowrap', visual.badge)}>
                 {status.severity.toUpperCase()}
               </span>
             </div>
 
             <div className="grid grid-cols-3 gap-2 mt-4">
-              <div className="rounded-xl bg-[var(--secondary)]/60 px-3 py-2.5">
-                <p className="text-[9px] font-black uppercase tracking-[0.18em] text-[var(--text-muted)]">EAR</p>
-                <p className="text-lg font-black text-[var(--text-primary)] mt-0.5 tabular-nums">
+              <div className="rounded-xl bg-white/5 border border-[var(--border)] px-3 py-2.5">
+                <p className="text-[9px] font-mono uppercase tracking-widest text-[var(--text-muted)]">EAR</p>
+                <p className="text-lg font-heading font-medium text-[var(--text-primary)] mt-0.5 tabular-nums">
                   {typeof status.ear === 'number' ? status.ear.toFixed(3) : '--'}
                 </p>
               </div>
-              <div className="rounded-xl bg-[var(--secondary)]/60 px-3 py-2.5">
-                <p className="text-[9px] font-black uppercase tracking-[0.18em] text-[var(--text-muted)]">Closed</p>
-                <p className="text-lg font-black text-[var(--text-primary)] mt-0.5 tabular-nums">{status.eyes_closed_seconds.toFixed(1)}s</p>
+              <div className="rounded-xl bg-white/5 border border-[var(--border)] px-3 py-2.5">
+                <p className="text-[9px] font-mono uppercase tracking-widest text-[var(--text-muted)]">Closed</p>
+                <p className="text-lg font-heading font-medium text-[var(--text-primary)] mt-0.5 tabular-nums">{status.eyes_closed_seconds.toFixed(1)}s</p>
               </div>
-              <div className="rounded-xl bg-[var(--secondary)]/60 px-3 py-2.5">
-                <p className="text-[9px] font-black uppercase tracking-[0.18em] text-[var(--text-muted)]">Events</p>
-                <p className="text-lg font-black text-[var(--text-primary)] mt-0.5 tabular-nums">{fatigueEventCount}</p>
+              <div className="rounded-xl bg-white/5 border border-[var(--border)] px-3 py-2.5">
+                <p className="text-[9px] font-mono uppercase tracking-widest text-[var(--text-muted)]">Events</p>
+                <p className="text-lg font-heading font-medium text-[var(--text-primary)] mt-0.5 tabular-nums">{fatigueEventCount}</p>
               </div>
             </div>
           </div>
 
           {/* Live feedback card */}
-          <div className="rounded-2xl border border-[var(--border)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.95))] p-4 shadow-[0_8px_24px_rgba(15,23,42,0.07)]">
+          <div className="bento-card relative overflow-hidden bg-white/5 border border-[var(--border)] rounded-2xl p-4 hover:-translate-y-1 hover:border-[var(--accent)]/50 hover:bg-white/10 hover:shadow-[0_8px_32px_rgba(250,204,21,0.08)] transition-all duration-300 group">
+            <div className="absolute top-0 left-[20%] right-[20%] h-[1px] bg-gradient-to-r from-transparent via-[var(--accent)] to-transparent opacity-0 group-hover:opacity-100 group-hover:left-[10%] group-hover:right-[10%] transition-all duration-400" />
             <div className="flex items-center gap-2">
               {status.alarm_active ? (
                 <AlertTriangle className="w-4 h-4 text-[var(--danger)] shrink-0" />
               ) : (
-                <Camera className="w-4 h-4 text-[var(--primary)] shrink-0" />
+                <Camera className="w-4 h-4 text-[var(--accent)] shrink-0" />
               )}
-              <p className="font-bold text-sm text-[var(--text-primary)]">Live feedback</p>
+              <p className="font-heading font-medium text-sm text-[var(--text-primary)]">Live feedback</p>
             </div>
             <p className="text-xs text-[var(--text-secondary)] mt-2.5 leading-relaxed">
               {error
@@ -1068,15 +1074,16 @@ export default function LiveDrowsinessCamera({ isLive, onGoLive }: { isLive: boo
       </div>
 
       {/* Safety log */}
-      <div className="mt-4 rounded-2xl border border-[var(--border)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.95))] p-4 shadow-[0_8px_24px_rgba(15,23,42,0.07)]">
+      <div className="mt-4 bento-card relative overflow-hidden bg-white/5 border border-[var(--border)] rounded-2xl p-4 hover:-translate-y-1 hover:border-[var(--accent)]/50 hover:bg-white/10 hover:shadow-[0_8px_32px_rgba(250,204,21,0.08)] transition-all duration-300 group">
+        <div className="absolute top-0 left-[20%] right-[20%] h-[1px] bg-gradient-to-r from-transparent via-[var(--accent)] to-transparent opacity-0 group-hover:opacity-100 group-hover:left-[10%] group-hover:right-[10%] transition-all duration-400" />
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)]">Driver Safety Log</p>
+            <p className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-muted)]">Driver Safety Log</p>
             <p className="text-xs text-[var(--text-secondary)] mt-0.5">
               Live session events from the camera detector.
             </p>
           </div>
-          <span className="text-xs font-bold text-[var(--text-secondary)] shrink-0">
+          <span className="text-xs font-mono font-medium uppercase tracking-widest text-[var(--text-secondary)] shrink-0">
             {eventLogs.length} event{eventLogs.length === 1 ? '' : 's'}
           </span>
         </div>
@@ -1086,22 +1093,22 @@ export default function LiveDrowsinessCamera({ isLive, onGoLive }: { isLive: boo
             eventLogs.map((entry) => (
               <div
                 key={entry.id}
-                className="flex items-center justify-between gap-3 rounded-xl border border-[var(--border)] bg-[var(--background)]/80 px-3 py-2.5"
+                className="flex items-center justify-between gap-3 rounded-xl border border-[var(--border)] bg-white/5 px-3 py-2.5"
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   <span
                     className={cn(
                       'w-2 h-2 rounded-full shrink-0',
-                      entry.tone === 'critical' ? 'bg-[var(--danger)]' : 'bg-sky-500',
+                      entry.tone === 'critical' ? 'bg-[var(--danger)]' : 'bg-amber-500',
                     )}
                   />
-                  <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{entry.label}</p>
+                  <p className="text-sm font-medium text-[var(--text-primary)] truncate">{entry.label}</p>
                 </div>
-                <span className="text-xs font-bold text-[var(--text-secondary)] shrink-0">{entry.time}</span>
+                <span className="text-xs font-mono text-[var(--text-secondary)] shrink-0">{entry.time}</span>
               </div>
             ))
           ) : (
-            <div className="rounded-xl border border-dashed border-[var(--border)] px-4 py-5 text-xs text-[var(--text-secondary)] text-center leading-relaxed">
+            <div className="rounded-xl border border-dashed border-[var(--border)] bg-white/5 px-4 py-5 text-xs text-[var(--text-secondary)] text-center leading-relaxed">
               No safety events yet. Open the camera to record drowsiness, yawning, and distraction events.
             </div>
           )}
