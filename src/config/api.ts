@@ -20,9 +20,14 @@ function resolveConfiguredBase() {
       const parsed = new URL(rawValue);
       const configIsLocal = isLocalHostname(parsed.hostname);
 
-      if (!(configIsLocal && !browserIsLocal)) {
-        return trimTrailingSlash(parsed.toString());
+      // If we are on a PUBLIC domain, and the config says LOCALHOST,
+      // we MUST ignore the config and use relative paths instead.
+      // Otherwise, the browser will block the request (Mixed Content).
+      if (!browserIsLocal && configIsLocal) {
+        return '/api';
       }
+
+      return trimTrailingSlash(parsed.toString());
     } catch {
       return trimTrailingSlash(rawValue);
     }

@@ -60,7 +60,12 @@ function isNetworkError(error: unknown) {
     message.includes('failed to fetch') ||
     message.includes('network') ||
     message.includes('offline') ||
-    message.includes('load failed')
+    message.includes('load failed') ||
+    message.includes('aborted') ||
+    message.includes('terminated') ||
+    message.includes('blocked') ||
+    message.includes('mixed content') ||
+    message.includes('cors')
   );
 }
 

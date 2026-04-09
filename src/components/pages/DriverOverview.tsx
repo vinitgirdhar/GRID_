@@ -99,8 +99,13 @@ export default function DriverOverview({
     { ttl: 120000 }
   );
 
-  const error = forecastError || hotspotsError || weatherError 
-    ? 'Unable to load the driver dashboard from the backend API. Start FastAPI on port 8000 and refresh.' 
+  const isLocalHost = typeof window !== 'undefined' && 
+    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+  const error = (forecastError || hotspotsError || weatherError)
+    ? (isLocalHost 
+        ? 'Unable to load data from the backend API. Ensure FastAPI is running on port 8000.' 
+        : 'Unable to connect to the live intelligence feed. Showing simulated demand data.')
     : null;
 
   // Dynamic forecast slicing: find the entry matching the simulated hour and show the next 4 hours
