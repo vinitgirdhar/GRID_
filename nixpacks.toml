@@ -1,8 +1,14 @@
 [phases.setup]
-nixPkgs = ["python311", "libpq", "postgresql"]
+nixPkgs = ["python311", "libpq", "postgresql", "nodejs_20"]
 
 [phases.install]
-cmds = ["pip install --no-cache-dir -r backend/requirements.txt"]
+cmds = [
+  "npm ci",
+  "pip install --no-cache-dir -r backend/requirements.txt"
+]
+
+[phases.build]
+cmds = ["npm run build"]
 
 [start]
-cmd = "uvicorn backend.main:app --host 0.0.0.0 --port $PORT"
+cmd = "uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8000}"
