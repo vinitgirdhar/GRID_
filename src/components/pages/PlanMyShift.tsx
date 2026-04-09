@@ -103,7 +103,7 @@ export default function PlanMyShift() {
         </div>
       </div>
 
-      <div className={cn("grid grid-cols-1 gap-6", result ? "xl:grid-cols-[1fr_1.2fr]" : "max-w-2xl")}>
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_1.2fr] gap-6">
         {/* INPUT CARD */}
         <div className="glass-card space-y-6 p-6 h-fit">
           <div className="space-y-4">
@@ -291,7 +291,7 @@ export default function PlanMyShift() {
               </div>
             </motion.div>
           ) : (
-             <div className="hidden xl:flex h-full min-h-[400px] flex-col items-center justify-center text-center p-8 border border-dashed border-[var(--border)] rounded-[22px]">
+             <div className="flex h-full min-h-[400px] flex-col items-center justify-center text-center p-8 border border-dashed border-[var(--border)] rounded-[22px]">
                 <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
                     <BrainCircuit size={32} className="text-[var(--text-muted)]" />
                 </div>
