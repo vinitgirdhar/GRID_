@@ -33,7 +33,7 @@ function resolveConfiguredBase() {
     }
   }
 
-  return browserIsLocal ? 'http://localhost:8000/api' : 'https://grid-yf8m.onrender.com/api';
+  return browserIsLocal ? 'http://localhost:8000/api' : 'https://grid-2-0p6i.onrender.com/api';
 }
 
 export const API_BASE_URL = resolveConfiguredBase();
