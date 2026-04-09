@@ -24,7 +24,6 @@ import { ForecastResponse, HotspotsResponse, Theme, TransitResponse, WeatherResp
 import { cn } from '../../lib/utils';
 
 const MapComponent = lazy(() => import('../MapComponent'));
-const MissedOpportunityFeed = lazy(() => import('../MissedOpportunityFeed'));
 
 const REFRESH_INTERVAL_MS = 60000;
 
@@ -642,13 +641,7 @@ export default function DriverOverview({
         </div>
       )}
 
-      {/* Missed Opportunity Feed */}
-      <div>
-        <h3 className="font-heading font-medium text-[var(--text-primary)] mb-3">Trips You Missed Nearby</h3>
-        <Suspense fallback={<div className="h-32 rounded-xl bg-[var(--surface)] animate-pulse" />}>
-          <MissedOpportunityFeed onCountChange={() => {}} />
-        </Suspense>
-      </div>
+
 
       {/* Dynamic Details Modal */}
       {expandedCard && (

@@ -481,10 +481,15 @@ function AppShell() {
               <div className="flex items-center justify-between px-2">
                 <span className="text-[10px] font-bold text-[#4b5e78] uppercase tracking-widest font-mono">System</span>
                 <button
+                  onClick={() => startTransition(() => setActivePage('missed-opportunities'))}
                   className="w-8 h-8 flex items-center justify-center bg-[rgba(255,255,255,0.04)] border border-[rgba(250,204,21,0.1)] rounded-full relative text-[#4b5e78] hover:text-[#facc15] hover:border-[rgba(250,204,21,0.3)] transition-all duration-200"
                 >
                   <Bell size={14} />
-                  <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-[var(--danger)] rounded-full border border-[#0a0a1e]"></span>
+                  {missedCount > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[16px] h-4 rounded-full bg-[var(--danger)] text-white text-[9px] font-black flex items-center justify-center px-1 border border-[#0a0a1e]">
+                      {missedCount > 99 ? '99+' : missedCount}
+                    </span>
+                  )}
                 </button>
               </div>
             )}
