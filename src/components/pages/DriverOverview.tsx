@@ -18,6 +18,7 @@ import {
 
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { getActiveHotspotPeriod, getForecast, getHotspots, getWeather, postDriverSession } from '../../services/apiService';
+import { useApiData } from '../../hooks/useApiData';
 import { ForecastResponse, HotspotsResponse, Theme, WeatherResponse, ZoneDemand } from '../../types';
 import MapComponent from '../MapComponent';
 import MissedOpportunityFeed from '../MissedOpportunityFeed';
@@ -50,10 +51,14 @@ export default function DriverOverview({
   setIsLive?: (val: boolean) => void;
 }) {
   const activeHour = currentHour ?? new Date().getHours();
-  const [forecast, setForecast] = useState<ForecastResponse | null>(null);
-  const [hotspots, setHotspots] = useState<HotspotsResponse | null>(null);
-  const [weather, setWeather] = useState<WeatherResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { data: forecast, error: forecastError } = useApiData('forecast', getForecast, { 
+    ttl: 60000 
+  });
+  
+  const { data: hotspots, error: hotspotsError } = useApiData('hotspots', getHotspots, { 
+    ttl: 60000 
+  });
+
   const [theme, setTheme] = useState<Theme>('dark');
   const [expandedCard, setExpandedCard] = useState<'demand' | 'weather' | 'event' | null>(null);
   const [ecoMode, setEcoMode] = useState(false);
@@ -62,51 +67,6 @@ export default function DriverOverview({
   const VIRTUAL_DRIVER_LOCATION: [number, number] = [40.7549, -73.9840];
 
   useEffect(() => {
-    let cancelled = false;
-    let intervalId: ReturnType<typeof setInterval> | null = null;
-
-    const loadDriverData = async () => {
-      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
-        return;
-      }
-
-      try {
-        const [forecastResponse, hotspotResponse] = await Promise.all([getForecast(), getHotspots()]);
-        
-        if (!cancelled) {
-          setForecast(forecastResponse);
-          setHotspots(hotspotResponse);
-          setError(null);
-        }
-
-        const activePeriodResponse = getActiveHotspotPeriod(hotspotResponse);
-        const primaryZoneResponse = activePeriodResponse.zones[0];
-        
-        if (primaryZoneResponse && !cancelled) {
-          getWeather({ zoneId: primaryZoneResponse.zone_id })
-            .then(weatherResponse => {
-              if (!cancelled) setWeather(weatherResponse);
-            })
-            .catch(error => console.warn('Weather API failed to load:', error));
-        }
-
-      } catch {
-        if (!cancelled) {
-          setError('Unable to load the driver dashboard from the backend API. Start FastAPI on port 8000 and refresh.');
-        }
-      }
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        void loadDriverData();
-      }
-    };
-
-    loadDriverData();
-    intervalId = setInterval(loadDriverData, REFRESH_INTERVAL_MS);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
     const isDark = document.documentElement.classList.contains('dark');
     setTheme(isDark ? 'dark' : 'light');
 
@@ -121,12 +81,7 @@ export default function DriverOverview({
 
     observer.observe(document.documentElement, { attributes: true });
     return () => {
-      cancelled = true;
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
       observer.disconnect();
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
     };
   }, []);
 
@@ -136,6 +91,17 @@ export default function DriverOverview({
     ? (activeHour < 15 ? hotspots.morning : hotspots.evening)
     : null;
   const primaryZone = activePeriod?.zones[0];
+
+  const primaryZoneId = primaryZone?.zone_id;
+  const { data: weather, error: weatherError } = useApiData(
+    primaryZoneId ? `weather-${primaryZoneId}` : '--skip--',
+    () => primaryZoneId ? getWeather({ zoneId: primaryZoneId }) : Promise.resolve(null as any),
+    { ttl: 120000 }
+  );
+
+  const error = forecastError || hotspotsError || weatherError 
+    ? 'Unable to load the driver dashboard from the backend API. Start FastAPI on port 8000 and refresh.' 
+    : null;
 
   // Dynamic forecast slicing: find the entry matching the simulated hour and show the next 4 hours
   const forecastStartIndex = forecast?.forecast.findIndex(p => p.hour === activeHour) ?? -1;
@@ -297,8 +263,14 @@ export default function DriverOverview({
       )}
 
       {error && (
-        <div className="glass-card p-6 border border-danger/20 text-danger">
-          {error}
+        <div className="glass-card p-6 border border-danger/20 text-danger flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5 shrink-0" />
+            <p className="text-sm font-semibold">{error}</p>
+          </div>
+          <button onClick={() => window.location.reload()} className="px-4 py-2 bg-danger/10 hover:bg-danger/20 rounded-lg text-xs font-bold uppercase tracking-wider text-danger transition-colors cursor-pointer">
+            Refresh
+          </button>
         </div>
       )}
 

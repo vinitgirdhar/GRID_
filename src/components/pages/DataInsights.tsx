@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -11,6 +10,7 @@ import {
 } from '../charts/insightTooltipUtils';
 import { getActiveHotspotPeriod, getForecast, getHotspots } from '../../services/apiService';
 import { ForecastResponse, HotspotsResponse } from '../../types';
+import { useApiData } from '../../hooks/useApiData';
 
 const COLORS = ['#facc15', '#eab308', '#34d399', '#38bdf8', '#f87171'];
 
@@ -19,17 +19,16 @@ const glowLine = 'absolute top-0 left-[20%] right-[20%] h-[1px] bg-gradient-to-r
 const eyebrow = 'text-[10px] font-mono font-medium text-[var(--text-muted)] uppercase tracking-widest';
 
 export default function DataInsights() {
-  const [forecast, setForecast] = useState<ForecastResponse | null>(null);
-  const [hotspots, setHotspots] = useState<HotspotsResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    Promise.all([getForecast(), getHotspots()])
-      .then(([f, h]) => { if (!cancelled) { setForecast(f); setHotspots(h); } })
-      .catch(() => { if (!cancelled) setError('Unable to load live forecast and hotspot data. Start the FastAPI backend on port 8000 and refresh.'); });
-    return () => { cancelled = true; };
-  }, []);
+  const { data: forecast } = useApiData<ForecastResponse>(
+    'overview:forecast',
+    getForecast,
+    { ttl: 60_000, refetchInterval: 120_000 },
+  );
+  const { data: hotspots } = useApiData<HotspotsResponse>(
+    'overview:hotspots',
+    getHotspots,
+    { ttl: 60_000, refetchInterval: 120_000 },
+  );
 
   const activePeriod = hotspots ? getActiveHotspotPeriod(hotspots) : null;
 
@@ -92,12 +91,6 @@ export default function DataInsights() {
           24-hour forecast and hotspot positioning streamed from the backend API
         </p>
       </div>
-
-      {error && (
-        <div className="relative overflow-hidden bg-red-500/10 border border-red-500/20 rounded-2xl p-4 text-red-400 text-sm" style={{ fontFamily: 'Inter, sans-serif' }}>
-          {error}
-        </div>
-      )}
 
       {/* Row 1 — Demand forecast + Active Hotspots */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

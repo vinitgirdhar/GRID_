@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef } from 'react';
 import { motion } from 'motion/react';
 import { Activity, Car, ChevronRight, CloudRain, DollarSign, Target, Users } from 'lucide-react';
 import {
@@ -13,6 +13,7 @@ import {
 import { getActiveHotspotPeriod, getForecast, getHotspots, getMetrics, getValidationMetrics } from '../../services/apiService';
 import { ForecastResponse, HotspotsResponse, MetricsResponse, ValidationMetricsResponse } from '../../types';
 import { useLiveStream } from '../../hooks/useLiveStream';
+import { useApiData } from '../../hooks/useApiData';
 
 const BAR_COLORS = ['#facc15', '#eab308', '#d4a017', '#b8860b', '#8b6914', '#6b5310'];
 const VALIDATION_REFRESH_INTERVAL_MS = 30000;
@@ -31,65 +32,40 @@ const glowLine = 'absolute top-0 left-[20%] right-[20%] h-[1px] bg-gradient-to-r
 const eyebrow = 'text-[10px] font-mono font-medium text-[var(--text-muted)] uppercase tracking-widest';
 
 export default function Overview() {
-  const [forecast, setForecast] = useState<ForecastResponse | null>(null);
-  const [hotspots, setHotspots] = useState<HotspotsResponse | null>(null);
-  const [metrics, setMetrics] = useState<MetricsResponse | null>(null);
-  const [validation, setValidation] = useState<ValidationMetricsResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  // ── Cached, non-blocking data fetching ──────────────────────────────────────
+  // Data is served instantly on re-navigation (stale-while-revalidate).
+  // Background refresh keeps stats fresh without blocking the UI.
+  const { data: forecast } = useApiData<ForecastResponse>(
+    'overview:forecast',
+    getForecast,
+    { ttl: 60_000, refetchInterval: 120_000 },
+  );
+  const { data: hotspots } = useApiData<HotspotsResponse>(
+    'overview:hotspots',
+    getHotspots,
+    { ttl: 60_000, refetchInterval: 120_000 },
+  );
+  const { data: metrics } = useApiData<MetricsResponse>(
+    'overview:metrics',
+    getMetrics,
+    { ttl: 300_000 },
+  );
+  const { data: validation, refetch: refetchValidation } = useApiData<ValidationMetricsResponse>(
+    'overview:validation',
+    getValidationMetrics,
+    { ttl: 30_000, refetchInterval: VALIDATION_REFRESH_INTERVAL_MS },
+  );
 
   const predictionThrottleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const validationRequestIdRef = useRef(0);
-  const isMountedRef = useRef(true);
-  const refreshValidation = useRef(() => {
-    const requestId = validationRequestIdRef.current + 1;
-    validationRequestIdRef.current = requestId;
-
-    getValidationMetrics()
-      .then((nextValidation) => {
-        if (!isMountedRef.current || validationRequestIdRef.current !== requestId) return;
-        setValidation(nextValidation);
-      })
-      .catch(() => null);
-  });
-
-  useEffect(() => {
-    let cancelled = false;
-    Promise.all([getForecast(), getHotspots(), getMetrics(), getValidationMetrics()])
-      .then(([forecastResponse, hotspotResponse, metricsResponse, validationResponse]) => {
-        if (cancelled) return;
-        setForecast(forecastResponse);
-        setHotspots(hotspotResponse);
-        setMetrics(metricsResponse);
-        setValidation(validationResponse);
-      })
-      .catch(() => { if (!cancelled) setError('Unable to load the admin dashboard. Start FastAPI on port 8000 and refresh.'); });
-    return () => { cancelled = true; };
-  }, []);
-
-  useEffect(() => {
-    const intervalId = setInterval(() => {
-      refreshValidation.current();
-    }, VALIDATION_REFRESH_INTERVAL_MS);
-
-    return () => {
-      clearInterval(intervalId);
-      isMountedRef.current = false;
-      if (predictionThrottleRef.current) {
-        clearTimeout(predictionThrottleRef.current);
-        predictionThrottleRef.current = null;
-      }
-      validationRequestIdRef.current += 1;
-    };
-  }, []);
 
   useLiveStream({
-    onConnected: () => refreshValidation.current(),
-    onRetrain: () => refreshValidation.current(),
+    onConnected: () => refetchValidation(),
+    onRetrain: () => refetchValidation(),
     onPrediction: () => {
       if (predictionThrottleRef.current) return;
       predictionThrottleRef.current = setTimeout(() => {
         predictionThrottleRef.current = null;
-        refreshValidation.current();
+        refetchValidation();
       }, 5000);
     },
   });
@@ -172,9 +148,9 @@ export default function Overview() {
         </p>
       </div>
 
-      {error && (
-        <div className="relative overflow-hidden bg-red-500/10 border border-red-500/20 rounded-2xl p-4 text-red-400 text-sm" style={{ fontFamily: 'Inter, sans-serif' }}>
-          {error}
+      {!forecast && !hotspots && !metrics && (
+        <div className="relative overflow-hidden bg-[rgba(250,204,21,0.05)] border border-[rgba(250,204,21,0.1)] rounded-2xl p-4 text-[var(--text-muted)] text-sm" style={{ fontFamily: 'Inter, sans-serif' }}>
+          Loading dashboard data…
         </div>
       )}
 
