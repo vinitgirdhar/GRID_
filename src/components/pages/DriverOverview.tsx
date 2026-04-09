@@ -656,7 +656,7 @@ export default function DriverOverview({
             </div>
             
             {/* Modal Content body */}
-            <div className="p-6 overflow-y-auto flex-1 space-y-8">
+            <div className="p-6 overflow-y-auto flex-1 space-y-8 hide-scrollbar">
               {expandedCard === 'demand' && (
                 <>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

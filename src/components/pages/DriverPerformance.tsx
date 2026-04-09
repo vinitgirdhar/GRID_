@@ -267,7 +267,8 @@ function ShiftSetupModal({
                 step="1"
                 value={goalAmount}
                 onChange={(event) => setGoalAmount(event.target.value)}
-                className="grid-input-surface pl-10 text-sm"
+                className="grid-input-surface text-sm"
+                style={{ paddingLeft: '2.5rem' }}
               />
             </div>
           </label>
@@ -283,7 +284,8 @@ function ShiftSetupModal({
                 step="0.5"
                 value={shiftHours}
                 onChange={(event) => setShiftHours(event.target.value)}
-                className="grid-input-surface pl-10 text-sm"
+                className="grid-input-surface text-sm"
+                style={{ paddingLeft: '2.5rem' }}
               />
             </div>
           </label>
@@ -371,7 +373,8 @@ function AddEarningsModal({
                 value={fare}
                 onChange={(event) => setFare(event.target.value)}
                 placeholder="20.00"
-                className="grid-input-surface pl-10 text-sm"
+                className="grid-input-surface text-sm"
+                style={{ paddingLeft: '2.5rem' }}
               />
             </div>
           </label>

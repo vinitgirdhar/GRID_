@@ -384,7 +384,7 @@ function AppShell() {
             </div>
           )}
 
-          <nav className="flex-1 min-h-0 overflow-y-auto px-4 space-y-2 py-6 relative">
+          <nav className="flex-1 min-h-0 overflow-y-auto px-4 space-y-2 py-6 relative hide-scrollbar">
             {/* Sliding background indicator */}
             <motion.div
               className="absolute left-4 right-4 h-[46px] top-6 rounded-[16px] bg-[rgba(250,204,21,0.12)] border border-[rgba(250,204,21,0.2)] pointer-events-none"
@@ -562,7 +562,7 @@ function AppShell() {
             <main
               className={cn(
                 'flex-1 w-full max-w-7xl mx-auto px-4 md:px-8',
-                userRole === 'driver' ? 'pt-24 pb-32 lg:pb-8 lg:pt-12' : 'pt-12 pb-8',
+                userRole === 'driver' ? 'pt-24 pb-32 lg:pb-8 lg:pt-12 hide-scrollbar' : 'pt-12 pb-8',
               )}
             >
               <div className="min-h-0">

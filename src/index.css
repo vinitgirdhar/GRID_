@@ -67,6 +67,15 @@
   }
 
   html, body, #root {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  html::-webkit-scrollbar, body::-webkit-scrollbar {
+    display: none;
+  }
+
+  html, body, #root {
     background-color: var(--background);
     background-image:
       radial-gradient(circle at top left, rgba(250, 204, 21, 0.06), transparent 0 28%),
@@ -80,6 +89,12 @@
     @apply font-sans antialiased;
     background-color: var(--background);
     color: var(--text-primary);
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  body::-webkit-scrollbar {
+    display: none;
   }
 
 }
@@ -420,6 +435,10 @@
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(250,204,21,0.2); border-radius: 6px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(250,204,21,0.4); }
+
+/* ── HIDE SCROLLBAR (driver pages) ── */
+.hide-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.hide-scrollbar::-webkit-scrollbar { display: none; }
 
 /* ── INPUT ── */
 .input-clean {

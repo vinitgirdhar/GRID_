@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
     ArrowLeft, Phone, Lock, AlertCircle, Loader2,
@@ -54,6 +54,86 @@ function Field({ label, icon: Icon, error, children }: {
             <div className="relative">
                 <Icon size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] pointer-events-none z-10" />
                 {children}
+            </div>
+            {error && (
+                <p className="text-xs text-red-400 flex items-center gap-1">
+                    <AlertCircle size={11} /> {error}
+                </p>
+            )}
+        </div>
+    );
+}
+
+/* ─── Custom Select (dark-themed dropdown) ─── */
+function CustomSelect({ value, onChange, options, placeholder, icon: Icon, error, disabled }: {
+    value: string;
+    onChange: (v: string) => void;
+    options: string[];
+    placeholder: string;
+    icon: React.ElementType;
+    error?: string | null;
+    disabled?: boolean;
+}) {
+    const [open, setOpen] = useState(false);
+    const ref = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handler = (e: MouseEvent) => {
+            if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, []);
+
+    return (
+        <div className="space-y-1.5">
+            <label className="text-[10px] font-medium text-[var(--text-secondary)] uppercase tracking-widest" style={monoFontStyle}>
+                {placeholder.replace('Select ', '').replace('…', '')}
+            </label>
+            <div ref={ref} className="relative">
+                <Icon size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] pointer-events-none z-10" />
+                <button
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => setOpen((o) => !o)}
+                    className={`${inputCls} text-left flex items-center justify-between pr-9 ${!value ? 'text-[var(--text-muted)]' : ''}`}
+                >
+                    <span className="truncate">{value || placeholder}</span>
+                    <svg
+                        className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)] transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+                        fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                    >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </button>
+
+                <AnimatePresence>
+                    {open && (
+                        <motion.ul
+                            initial={{ opacity: 0, y: -4, scale: 0.98 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                            transition={{ duration: 0.12 }}
+                            className="absolute left-0 right-0 top-[calc(100%+6px)] z-50 rounded-xl border border-[var(--border)] bg-[#0e0e24] shadow-[0_8px_32px_rgba(0,0,0,0.6)] overflow-hidden"
+                        >
+                            {options.map((opt) => (
+                                <li key={opt}>
+                                    <button
+                                        type="button"
+                                        onClick={() => { onChange(opt); setOpen(false); }}
+                                        className={`w-full text-left px-4 py-2.5 text-sm transition-colors duration-100
+                                            ${value === opt
+                                                ? 'bg-[var(--accent)]/15 text-[var(--accent)] font-medium'
+                                                : 'text-[var(--text)] hover:bg-white/5'
+                                            }`}
+                                    >
+                                        {opt}
+                                    </button>
+                                </li>
+                            ))}
+                        </motion.ul>
+                    )}
+                </AnimatePresence>
             </div>
             {error && (
                 <p className="text-xs text-red-400 flex items-center gap-1">
@@ -229,8 +309,6 @@ function RegisterForm({
         }
     };
 
-    const selectCls = `${inputCls} appearance-none`;
-
     return (
         <motion.div
             key="register"
@@ -297,31 +375,25 @@ function RegisterForm({
                     </Field>
                 </div>
 
-                <Field label="Home Borough" icon={MapPin} error={fieldErrors.borough}>
-                    <select
-                        value={borough}
-                        onChange={(e) => setBorough(e.target.value)}
-                        required
-                        disabled={loading}
-                        className={selectCls}
-                    >
-                        <option value="">Select borough…</option>
-                        {NYC_BOROUGHS.map((b) => <option key={b} value={b}>{b}</option>)}
-                    </select>
-                </Field>
+                <CustomSelect
+                    value={borough}
+                    onChange={setBorough}
+                    options={NYC_BOROUGHS}
+                    placeholder="Select borough…"
+                    icon={MapPin}
+                    error={fieldErrors.borough}
+                    disabled={loading}
+                />
 
-                <Field label="Vehicle" icon={Car} error={fieldErrors.carModel}>
-                    <select
-                        value={carModel}
-                        onChange={(e) => setCarModel(e.target.value)}
-                        required
-                        disabled={loading}
-                        className={selectCls}
-                    >
-                        <option value="">Select vehicle…</option>
-                        {CAR_MODELS.map((m) => <option key={m} value={m}>{m}</option>)}
-                    </select>
-                </Field>
+                <CustomSelect
+                    value={carModel}
+                    onChange={setCarModel}
+                    options={CAR_MODELS}
+                    placeholder="Select vehicle…"
+                    icon={Car}
+                    error={fieldErrors.carModel}
+                    disabled={loading}
+                />
 
                 {error && (
                     <motion.div
