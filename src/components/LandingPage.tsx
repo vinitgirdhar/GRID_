@@ -148,7 +148,10 @@ export default function LandingPage({ onBeginAsDriver, onAdminAccess }: LandingP
                 </div>
                 <div className="lp-hero-content">
                     <div className="lp-reveal">
-                        <h1 className="lp-hero-brand">GRID</h1>
+                        <div className="flex items-center gap-3 justify-center mb-4">
+                            <img src="/grid%20logo.png" alt="GRID" className="h-16 w-auto object-contain drop-shadow-lg" />
+                            <h1 className="lp-hero-brand">GRID</h1>
+                        </div>
                         <h2 className="lp-hero-title" style={{ fontSize: 'clamp(1.8rem, 5vw, 2.8rem)' }}>
                             The OS for <strong className="lp-text-gradient">Modern Mobility</strong>
                         </h2>
@@ -377,7 +380,10 @@ export default function LandingPage({ onBeginAsDriver, onAdminAccess }: LandingP
                 <div className="lp-container">
                     <div className="lp-footer-grid">
                         <div className="lp-footer-brand">
-                            <div className="lp-nav-logo">GRID</div>
+                            <div className="flex items-center gap-2 mb-3">
+                                <img src="/grid%20logo.png" alt="GRID" className="h-8 w-auto object-contain" />
+                                <div className="lp-nav-logo">GRID</div>
+                            </div>
                             <p>An intelligent platform combining demand forecasting, drowsiness detection, and voice navigation.</p>
                             <div className="lp-footer-social">
                                 <a href="#" aria-label="GitHub"><Github size={18} /></a>

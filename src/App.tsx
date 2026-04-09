@@ -340,7 +340,7 @@ function AppShell() {
           {/* Sidebar header — layout changes when collapsed */}
           {isSidebarCollapsed ? (
             <div className="flex flex-col items-center gap-2 pt-5 pb-3 px-3">
-              <img src="/grid-logo.png" alt="GRID" className="h-10 w-auto object-contain max-w-[56px]" />
+              <img src="/grid%20logo.png" alt="GRID" className="h-10 w-auto object-contain max-w-[56px]" />
               <button
                 onClick={() => setIsSidebarCollapsed(false)}
                 className="p-1.5 hover:bg-[var(--secondary)] rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
@@ -357,7 +357,7 @@ function AppShell() {
                 transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
                 className="flex items-center gap-3"
               >
-                <img src="/grid-logo.png" alt="GRID" className="h-14 w-auto object-contain" />
+                <img src="/grid%20logo.png" alt="GRID" className="h-14 w-auto object-contain" />
                 <span
                   style={{
                     fontFamily: 'Outfit, sans-serif',
