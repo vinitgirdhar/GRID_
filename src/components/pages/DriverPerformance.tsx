@@ -741,6 +741,8 @@ export default function DriverPerformance() {
         </>
       )}
 
+      <PlanMyShift />
+
       <div className="grid grid-cols-1 xl:grid-cols-[1.2fr_0.8fr] gap-6">
         <div className="glass-card p-4 sm:p-8">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
@@ -934,7 +936,6 @@ export default function DriverPerformance() {
       <ShiftSetupModal open={showSetupModal} onClose={() => setShowSetupModal(false)} onSave={startShift} />
       <AddEarningsModal open={showEntryModal} onClose={() => setShowEntryModal(false)} zones={availableZones} onSave={logTrip} />
 
-      <PlanMyShift />
     </div>
   );
 }
