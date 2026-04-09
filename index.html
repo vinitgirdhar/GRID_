@@ -8,6 +8,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@200;300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" />
+
+  <!-- Preload heavy MediaPipe assets so camera boots instantly -->
+  <link rel="preload" href="/mediapipe-wasm/vision_wasm_internal.wasm" as="fetch" crossorigin />
+  <link rel="preload" href="/mediapipe-models/face_landmarker.task" as="fetch" crossorigin />
+
   <title>GRID</title>
 </head>
 

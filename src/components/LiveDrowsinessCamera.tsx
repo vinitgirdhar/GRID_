@@ -4,12 +4,13 @@ import { motion } from 'motion/react';
 
 import { cn } from '../lib/utils';
 import { postDrowsinessStatus } from '../services/apiService';
+import {
+  getPreloadedFaceLandmarker,
+  type FaceLandmarkerResult,
+  type FaceLandmarkerInstance,
+} from '../services/mediapipePreloader';
 import { DrowsinessResponse, DrowsinessSeverity, DrowsinessUpdatePayload } from '../types';
 
-
-const VISION_WASM_URL = '/mediapipe-wasm';
-const FACE_LANDMARKER_MODEL_URL =
-  '/mediapipe-models/face_landmarker.task';
 
 const LEFT_EYE = [33, 160, 158, 133, 153, 144] as const;
 const RIGHT_EYE = [362, 385, 387, 263, 373, 380] as const;
@@ -24,28 +25,7 @@ const CLOSED_SECONDS_THRESHOLD = 2;
 const POST_INTERVAL_MS = 900;
 const BUZZ_INTERVAL_MS = 1100;
 const CAMERA_START_TIMEOUT_MS = 20000;
-const VISION_BUNDLE_TIMEOUT_MS = 90000;
 const FACE_MESH_LOAD_TIMEOUT_MS = 120000;
-
-type Landmark = { x: number; y: number; z?: number };
-type BlendshapeCategory = { categoryName: string; score: number };
-type FaceLandmarkerResult = {
-  faceLandmarks?: Landmark[][];
-  faceBlendshapes?: Array<{ categories: BlendshapeCategory[] }>;
-};
-type FaceLandmarkerInstance = {
-  detectForVideo: (video: HTMLVideoElement, timestampMs: number) => FaceLandmarkerResult;
-  close?: () => void;
-};
-type VisionBundleModule = {
-  FilesetResolver: { forVisionTasks: (wasmRoot: string) => Promise<unknown> };
-  FaceLandmarker: {
-    createFromOptions: (
-      vision: unknown,
-      options: Record<string, unknown>,
-    ) => Promise<FaceLandmarkerInstance>;
-  };
-};
 
 type SafetyLogTone = 'critical' | 'warning';
 type SafetyLogEntry = {
@@ -863,32 +843,9 @@ export default function LiveDrowsinessCamera({ isLive, onGoLive }: { isLive: boo
         }),
       );
 
-      setLoadingStep('Loading face mesh bundle...');
-      const vision = (await withTimeout(
-        import('@mediapipe/tasks-vision'),
-        VISION_BUNDLE_TIMEOUT_MS,
-        'Face mesh bundle did not load. Check internet access and reload the page.',
-      )) as VisionBundleModule;
-
-      setLoadingStep('Initializing vision runtime...');
-      const visionFiles = await withTimeout(
-        vision.FilesetResolver.forVisionTasks(VISION_WASM_URL),
-        FACE_MESH_LOAD_TIMEOUT_MS,
-        'Face mesh runtime did not initialize from the bundled site assets.',
-      );
-
-      setLoadingStep('Loading bundled face tracking model...');
+      setLoadingStep('Connecting to pre-loaded face mesh...');
       const faceLandmarker = await withTimeout(
-        vision.FaceLandmarker.createFromOptions(visionFiles, {
-          baseOptions: { modelAssetPath: FACE_LANDMARKER_MODEL_URL },
-          outputFaceBlendshapes: true,
-          outputFacialTransformationMatrixes: true,
-          runningMode: 'VIDEO',
-          minFaceDetectionConfidence: 0.25,
-          minFacePresenceConfidence: 0.25,
-          minTrackingConfidence: 0.25,
-          numFaces: 1,
-        }),
+        getPreloadedFaceLandmarker(),
         FACE_MESH_LOAD_TIMEOUT_MS,
         'Face mesh model did not load from the bundled site assets. Please refresh and try again.',
       );

@@ -5,6 +5,7 @@
  */
 import React, { useEffect } from 'react';
 import { runWarmup } from '../services/warmup';
+import { startMediaPipePreload } from '../services/mediapipePreloader';
 
 interface WarmupProviderProps {
   children: React.ReactNode;
@@ -15,6 +16,10 @@ export function WarmupProvider({ children }: WarmupProviderProps) {
     // Fire-and-forget: seeds the shared useApiData cache in the background.
     // Errors are handled internally by warmup.ts — the app always boots.
     runWarmup();
+
+    // Pre-load the ~14 MB MediaPipe WASM + face model in the background
+    // so the drowsiness camera boots instantly when the user opens it.
+    startMediaPipePreload();
   }, []);
 
   return <>{children}</>;
