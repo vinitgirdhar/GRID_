@@ -63,7 +63,7 @@ export function InsightTooltip({ active, config, label, payload }: InsightToolti
   return (
     <div
       className="min-w-[280px] max-w-[340px] rounded-2xl border px-4 py-4 shadow-[0_18px_48px_rgba(15,23,42,0.18)]"
-      style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)' }}
+      style={{ backgroundColor: '#0d0d20', borderColor: 'var(--border)' }}
     >
       <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[var(--text-muted)]">
         {config.title}
@@ -71,7 +71,7 @@ export function InsightTooltip({ active, config, label, payload }: InsightToolti
 
       <div
         className="mt-3 rounded-xl border px-3 py-3"
-        style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
+        style={{ backgroundColor: '#13132b', borderColor: 'var(--border)' }}
       >
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">

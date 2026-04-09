@@ -1555,9 +1555,9 @@ def _noise(spread: float) -> float:
 
 def _current_error_spread() -> float:
     """How noisy actual demand is relative to predicted — shrinks as model improves."""
-    # Generation 0 = ±28%, generation 10+ = ±8%
+    # Generation 0 = ±40%, generation 10+ = ±18% (realistic for demand forecasting)
     gen = _MODEL_STATE["generation"]
-    return max(0.08, 0.28 - gen * 0.018)
+    return max(0.18, 0.40 - gen * 0.020)
 
 
 def _make_prediction_record(zone_id: str, level: str, pred_demand: float, created_at: datetime) -> tuple[str, dict]:

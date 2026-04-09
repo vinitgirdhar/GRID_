@@ -115,14 +115,12 @@ export default function Overview() {
     { label: 'Forecast Volume', value: forecast ? forecast.summary.total_horizon_demand.toLocaleString() : '--', meta: '24h horizon', icon: Activity, iconColor: '#fbbf24' },
     { label: 'Top Zone Demand', value: activePeriod?.zones[0] ? activePeriod.zones[0].predicted_demand.toFixed(1) : '--', meta: 'trips/hr', icon: DollarSign, iconColor: '#4ade80' },
     {
-      label: 'Model Accuracy',
+      label: 'Prediction Accuracy',
       value: validation?.validated_predictions
-        ? `${(validation.model_state.current_r2 * 100).toFixed(2)}%`
-        : metrics?.model_variants[2]
-          ? `${(metrics.model_variants[2].test_r2 * 100).toFixed(2)}%`
-          : '--',
+        ? `${validation.prediction_accuracy_pct.toFixed(1)}%`
+        : '--',
       meta: validation?.validated_predictions
-        ? `${validation.prediction_accuracy_pct.toFixed(1)}% live validation`
+        ? `R² ${(validation.model_state.current_r2 * 100).toFixed(1)}%`
         : metrics?.current_model_label ?? 'backend',
       icon: Target,
       iconColor: '#fb923c',

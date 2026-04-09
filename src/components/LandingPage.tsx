@@ -669,10 +669,10 @@ const LandingCSS = () => (
     .lp-how-header { text-align:center; margin-bottom:80px; }
     .lp-how-header .lp-section-desc { margin:0 auto; }
     .lp-how-steps { display:grid; grid-template-columns:repeat(5,1fr); gap:0; position:relative; }
-    .lp-how-steps::before { content:''; position:absolute; top:40px; left:calc(10% + 20px); right:calc(10% + 20px); height:2px; background:linear-gradient(90deg,var(--lp-accent),var(--lp-pink),var(--lp-accent3)); background-size:200% 100%; animation:lp-line-shimmer 3s linear infinite; transform:scaleX(0); transform-origin:left; transition:transform 1.2s cubic-bezier(0.16,1,0.3,1); }
+    .lp-how-steps::before { content:''; position:absolute; top:40px; left:calc(10% + 20px); right:calc(10% + 20px); height:2px; background:var(--lp-accent); transform:scaleX(0); transform-origin:left; transition:transform 1.2s cubic-bezier(0.16,1,0.3,1); }
     .lp-how-steps.line-visible::before { transform:scaleX(1); }
     .lp-how-step { display:flex; flex-direction:column; align-items:center; text-align:center; padding:0 12px; position:relative; }
-    .lp-step-node { width:80px; height:80px; border-radius:50%; background:var(--lp-bg-alt); border:2px solid var(--lp-accent); display:flex; align-items:center; justify-content:center; margin-bottom:24px; position:relative; z-index:1; animation:lp-glow-pulse 3s ease-in-out infinite; }
+    .lp-step-node { width:80px; height:80px; border-radius:50%; background:var(--lp-bg-alt); border:2px solid var(--lp-accent); display:flex; align-items:center; justify-content:center; margin-bottom:24px; position:relative; z-index:1; }
     .lp-step-num { position:absolute; top:-6px; right:-6px; width:22px; height:22px; border-radius:50%; background:linear-gradient(135deg,var(--lp-accent),var(--lp-accent3)); display:flex; align-items:center; justify-content:center; font-size:0.62rem; font-weight:600; color:#000; }
     .lp-how-step h3 { font-size:1rem; font-weight:500; margin-bottom:8px; }
     .lp-how-step p { font-size:0.74rem; color:var(--lp-text-muted); font-weight:300; line-height:1.6; }
