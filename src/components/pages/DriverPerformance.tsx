@@ -238,7 +238,8 @@ function ShiftSetupModal({
       <motion.div
         initial={{ opacity: 0, y: 16, scale: 0.96 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        className="driver-performance-modal w-full max-w-lg glass-card p-6 sm:p-7 border border-[var(--primary)]/15 shadow-2xl"
+        className="driver-performance-modal w-full max-w-lg rounded-2xl p-6 sm:p-7 border border-[var(--primary)]/15 shadow-2xl"
+        style={{ background: 'rgba(20, 20, 40, 0.97)' }}
       >
         <div className="flex items-start justify-between gap-4 mb-5">
           <div>
@@ -347,7 +348,8 @@ function AddEarningsModal({
       <motion.div
         initial={{ opacity: 0, y: 14, scale: 0.97 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        className="driver-performance-modal w-full max-w-md glass-card p-6 border border-[var(--primary)]/15 shadow-2xl"
+        className="driver-performance-modal w-full max-w-md rounded-2xl p-6 border border-[var(--primary)]/15 shadow-2xl"
+        style={{ background: 'rgba(20, 20, 40, 0.97)' }}
       >
         <div className="flex items-start justify-between gap-4 mb-5">
           <div>

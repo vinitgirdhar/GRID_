@@ -195,8 +195,16 @@ function AppShell() {
       root.style.scrollBehavior = previousBehavior;
     });
 
+    // Recharts ResponsiveContainer measures on mount + resize.  Lazy-loaded
+    // pages may paint before the container has a real width, so charts render
+    // at 0px.  A deferred resize event lets them re-measure after layout.
+    const resizeTimer = window.setTimeout(() => {
+      window.dispatchEvent(new Event('resize'));
+    }, 80);
+
     return () => {
       window.cancelAnimationFrame(restoreId);
+      window.clearTimeout(resizeTimer);
       root.style.scrollBehavior = previousBehavior;
     };
   }, [screen, userRole, activePage]);

@@ -405,7 +405,9 @@ export default function LiveDrowsinessCamera({ isLive, onGoLive }: { isLive: boo
         cancelAnimationFrame(animationFrameRef.current);
       }
       streamRef.current?.getTracks().forEach((track) => track.stop());
-      faceLandmarkerRef.current?.close?.();
+      // Do NOT close the FaceLandmarker — it is a shared singleton from the
+      // preloader and must stay alive for the next mount.
+      faceLandmarkerRef.current = null;
       audioContextRef.current?.close().catch(() => undefined);
     };
   }, []);
@@ -897,7 +899,7 @@ export default function LiveDrowsinessCamera({ isLive, onGoLive }: { isLive: boo
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
 
-    faceLandmarkerRef.current?.close?.();
+    // Do NOT close the FaceLandmarker — it is a shared singleton.
     faceLandmarkerRef.current = null;
 
     const video = videoRef.current;
