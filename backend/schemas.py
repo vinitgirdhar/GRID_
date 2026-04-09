@@ -192,6 +192,14 @@ class DriverLoginRequest(BaseModel):
     password: str
 
 
+class DriverRegisterRequest(BaseModel):
+    phone: str
+    password: str
+    name: str
+    borough: str
+    carModel: str
+
+
 class DriverStatusUpdate(BaseModel):
     status: str
 

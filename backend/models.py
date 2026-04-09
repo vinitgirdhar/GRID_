@@ -62,3 +62,31 @@ class ValidationRecord(Base):
     # validation_source: feedback | movement | simulation
     validation_source = Column(String(32), nullable=False, default="simulation")
     validated_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class DriverAccount(Base):
+    """Persisted driver accounts created via /drivers/register."""
+    __tablename__ = "driver_accounts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    driver_id = Column(String(64), unique=True, nullable=False, index=True)
+    phone = Column(String(32), unique=True, nullable=False, index=True)
+    password_hash = Column(String(128), nullable=False)
+    name = Column(String(255), nullable=False)
+    email = Column(String(255), nullable=True)
+    borough = Column(String(128), nullable=True)
+    car_model = Column(String(128), nullable=True)
+    license_plate = Column(String(32), nullable=True)
+    bio = Column(String(512), nullable=True)
+    tier = Column(String(32), default="bronze", nullable=False)
+    status = Column(String(32), default="offline", nullable=False)
+    avatar = Column(String(512), nullable=True)
+    rating = Column(Float, default=5.0, nullable=False)
+    trips = Column(Integer, default=0, nullable=False)
+    earnings = Column(Integer, default=0, nullable=False)
+    completed_trips = Column(Integer, default=0, nullable=False)
+    cancellation_rate = Column(Float, default=0.0, nullable=False)
+    online_hours = Column(Float, default=0.0, nullable=False)
+    experience = Column(Integer, default=0, nullable=False)
+    joined_date = Column(String(32), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

@@ -4,6 +4,7 @@ from math import hypot
 from pathlib import Path
 from threading import Lock, Thread
 from typing import Any, Dict, List
+import hashlib
 import json
 import re
 import time
@@ -19,10 +20,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, StreamingResponse
 
 from .config import get_settings
+from .database import SessionLocal
+from .models import DriverAccount
 from .schemas import (
     AvoidZone,
     DriverEventCreate,
     DriverLoginRequest,
+    DriverRegisterRequest,
     DriverProfile,
     DriverStatusUpdate,
     DrowsinessResponse,
@@ -553,8 +557,56 @@ def _predict_for_zone(app: FastAPI, prediction_time: datetime, zone_id: str) -> 
     )
 
 
+# ==============================================================================
+# DRIVER ACCOUNT HELPERS
+# ==============================================================================
+
+def _hash_password(password: str) -> str:
+    return hashlib.sha256(password.encode()).hexdigest()
+
+
+def _account_to_driver_dict(acc: "DriverAccount") -> Dict[str, Any]:
+    return {
+        "id": acc.driver_id,
+        "phone": acc.phone,
+        "password_hash": acc.password_hash,
+        "_is_registered": True,
+        "name": acc.name,
+        "email": acc.email or f"{acc.driver_id}@gridfleet.com",
+        "joinedDate": acc.joined_date or datetime.utcnow().date().isoformat(),
+        "carModel": acc.car_model or "Toyota Camry Hybrid",
+        "licensePlate": acc.license_plate or f"NYC-{acc.driver_id[-4:].upper()}",
+        "bio": acc.bio or f"{acc.borough}-based driver.",
+        "experience": acc.experience,
+        "completedTrips": acc.completed_trips,
+        "cancellationRate": acc.cancellation_rate,
+        "onlineHours": acc.online_hours,
+        "tier": acc.tier,
+        "status": acc.status,
+        "avatar": acc.avatar or f"https://picsum.photos/seed/{acc.driver_id}/100/100",
+        "borough": acc.borough or "Manhattan",
+        "rating": acc.rating,
+        "trips": acc.trips,
+        "earnings": acc.earnings,
+    }
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # ── Create DB tables (no-op if already exist) ─────────────────────────────
+    try:
+        from .database import engine
+        from .models import Base
+        Base.metadata.create_all(bind=engine)
+
+        # Load persisted driver accounts into the in-memory DRIVERS dict
+        with SessionLocal() as db:
+            accounts = db.query(DriverAccount).all()
+            with DRIVERS_LOCK:
+                for acc in accounts:
+                    DRIVERS[acc.driver_id] = _account_to_driver_dict(acc)
+    except Exception:
+        pass  # DB unavailable — seed-only mode, still functional
     models_dir = settings.models_dir
     outputs_dir = settings.outputs_dir
 
@@ -1303,23 +1355,122 @@ def toggle_session(toggle: SessionToggle):
 
 def _broadcast_drivers() -> None:
     with DRIVERS_LOCK:
-        snapshot = [{k: v for k, v in d.items() if k != "password"} for d in DRIVERS.values()]
+        snapshot = [
+            {k: v for k, v in d.items() if k not in ("password", "password_hash", "_is_registered")}
+            for d in DRIVERS.values()
+        ]
     _sse_broadcast("drivers", snapshot)
+
+
+def _driver_dict_to_profile(d: Dict[str, Any]) -> DriverProfile:
+    return DriverProfile(**{
+        k: v for k, v in d.items()
+        if k not in ("password", "password_hash", "_is_registered")
+    })
+
+
+@app.post(f"{settings.api_prefix}/drivers/register", response_model=DriverProfile)
+def driver_register(payload: DriverRegisterRequest) -> DriverProfile:
+    import uuid as _uuid
+    # Check for duplicate phone in the in-memory fleet
+    with DRIVERS_LOCK:
+        for d in DRIVERS.values():
+            if d["phone"] == payload.phone:
+                raise HTTPException(status_code=409, detail="This phone number is already registered.")
+
+    driver_id = str(_uuid.uuid4())
+    password_hash = _hash_password(payload.password)
+    email_slug = re.sub(r"[^a-z0-9]+", ".", payload.name.lower()).strip(".")
+    joined_date = datetime.utcnow().date().isoformat()
+    avatar = f"https://picsum.photos/seed/{payload.name.split()[0].lower()}/100/100"
+    license_plate = f"NYC-NEW{payload.phone[-4:]}"
+    bio = f"{payload.borough}-based driver ready to hit the road with GRID."
+
+    driver_dict: Dict[str, Any] = {
+        "id": driver_id,
+        "phone": payload.phone,
+        "password_hash": password_hash,
+        "_is_registered": True,
+        "name": payload.name,
+        "email": f"{email_slug}@gridfleet.com",
+        "joinedDate": joined_date,
+        "carModel": payload.carModel,
+        "licensePlate": license_plate,
+        "bio": bio,
+        "experience": 0,
+        "completedTrips": 0,
+        "cancellationRate": 0.0,
+        "onlineHours": 0.0,
+        "tier": "bronze",
+        "status": "offline",
+        "avatar": avatar,
+        "borough": payload.borough,
+        "rating": 5.0,
+        "trips": 0,
+        "earnings": 0,
+    }
+
+    # Persist to DB (best-effort — works once DATABASE_URL is set on Railway)
+    try:
+        with SessionLocal() as db:
+            account = DriverAccount(
+                driver_id=driver_id,
+                phone=payload.phone,
+                password_hash=password_hash,
+                name=payload.name,
+                email=f"{email_slug}@gridfleet.com",
+                borough=payload.borough,
+                car_model=payload.carModel,
+                license_plate=license_plate,
+                bio=bio,
+                tier="bronze",
+                status="offline",
+                avatar=avatar,
+                rating=5.0,
+                trips=0,
+                earnings=0,
+                completed_trips=0,
+                cancellation_rate=0.0,
+                online_hours=0.0,
+                experience=0,
+                joined_date=joined_date,
+            )
+            db.add(account)
+            db.commit()
+    except Exception:
+        pass  # DB unavailable — driver still added to in-memory fleet for this session
+
+    with DRIVERS_LOCK:
+        DRIVERS[driver_id] = driver_dict
+
+    _broadcast_drivers()
+    return _driver_dict_to_profile(driver_dict)
 
 
 @app.post(f"{settings.api_prefix}/drivers/login", response_model=DriverProfile)
 def driver_login(payload: DriverLoginRequest) -> DriverProfile:
     profile = None
+    password_hash = _hash_password(payload.password)
+
     with DRIVERS_LOCK:
         for driver in DRIVERS.values():
-            if driver["phone"] == payload.phone and driver["password"] == payload.password:
+            if driver["phone"] != payload.phone:
+                continue
+            # Registered accounts use password_hash; seed accounts use plain "password" field
+            if driver.get("_is_registered"):
+                matched = driver.get("password_hash") == password_hash
+            else:
+                matched = driver.get("password") == payload.password
+            if matched:
                 driver["status"] = "online"
                 DRIVER_SESSION["is_live"] = False
                 DRIVER_SESSION["start_time"] = datetime.utcnow()
                 with STATE_LOCK:
                     global DROWSINESS_STATE
                     DROWSINESS_STATE = DrowsinessResponse()
-                profile = DriverProfile(**{k: v for k, v in driver.items() if k != "password"})
+                profile = _driver_dict_to_profile(driver)
+                break
+
     if profile is None:
         raise HTTPException(status_code=401, detail="Invalid phone number or password.")
     _broadcast_drivers()
@@ -1341,10 +1492,7 @@ def driver_logout(driver_id: str) -> dict:
 @app.get(f"{settings.api_prefix}/drivers", response_model=list[DriverProfile])
 def list_drivers() -> list[DriverProfile]:
     with DRIVERS_LOCK:
-        return [
-            DriverProfile(**{k: v for k, v in d.items() if k != "password"})
-            for d in DRIVERS.values()
-        ]
+        return [_driver_dict_to_profile(d) for d in DRIVERS.values()]
 
 
 @app.post(f"{settings.api_prefix}/drivers/{{driver_id}}/status")
