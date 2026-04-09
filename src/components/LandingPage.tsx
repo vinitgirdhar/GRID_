@@ -26,20 +26,21 @@ const MetricCounter = ({ target, prefix = '', suffix = '', decimals = 0, isMini 
     useEffect(() => {
         const observer = new IntersectionObserver(([entry]) => {
             if (entry.isIntersecting) {
-                let start: number | null = null;
                 const duration = isMini ? 1500 : 2000;
                 const delay = isMini ? 300 : 0;
-                setTimeout(() => {
-                    const step = (timestamp: number) => {
-                        if (!start) start = timestamp;
-                        const progress = Math.min((timestamp - start) / duration, 1);
+                const UPDATE_INTERVAL = 80; // ~12fps instead of 60fps — 25 updates vs 120
+                const tid = setTimeout(() => {
+                    const startTime = performance.now();
+                    const interval = setInterval(() => {
+                        const elapsed = performance.now() - startTime;
+                        const progress = Math.min(elapsed / duration, 1);
                         const ease = 1 - Math.pow(1 - progress, 3);
                         setCount(target * ease);
-                        if (progress < 1) window.requestAnimationFrame(step);
-                    };
-                    window.requestAnimationFrame(step);
+                        if (progress >= 1) clearInterval(interval);
+                    }, UPDATE_INTERVAL);
                 }, delay);
                 observer.disconnect();
+                return () => clearTimeout(tid);
             }
         }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
         if (ref.current) observer.observe(ref.current);
@@ -84,7 +85,10 @@ interface LandingPageProps {
 export default function LandingPage({ onBeginAsDriver, onAdminAccess }: LandingPageProps) {
 
     useEffect(() => {
-        void initUnicornStudioBackground();
+        // Defer heavy Unicorn Studio WebGL background until after first paint
+        const raf = requestAnimationFrame(() => {
+            void initUnicornStudioBackground();
+        });
 
         const revealObserver = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
@@ -123,6 +127,7 @@ export default function LandingPage({ onBeginAsDriver, onAdminAccess }: LandingP
         if (howSteps) lineObserver.observe(howSteps);
 
         return () => {
+            cancelAnimationFrame(raf);
             revealObserver.disconnect();
             widgetObserver.disconnect();
             lineObserver.disconnect();
@@ -149,7 +154,7 @@ export default function LandingPage({ onBeginAsDriver, onAdminAccess }: LandingP
                 <div className="lp-hero-content">
                     <div className="lp-reveal">
                         <div className="flex items-center gap-3 justify-center mb-4">
-                            <img src="/grid%20logo.png" alt="GRID" className="h-16 w-auto object-contain drop-shadow-lg" />
+                            <img src="/grid-logo.webp" alt="GRID" width={64} height={64} className="h-16 w-auto object-contain drop-shadow-lg" />
                             <h1 className="lp-hero-brand">GRID</h1>
                         </div>
                         <h2 className="lp-hero-title" style={{ fontSize: 'clamp(1.8rem, 5vw, 2.8rem)' }}>
@@ -381,7 +386,7 @@ export default function LandingPage({ onBeginAsDriver, onAdminAccess }: LandingP
                     <div className="lp-footer-grid">
                         <div className="lp-footer-brand">
                             <div className="flex items-center gap-2 mb-3">
-                                <img src="/grid%20logo.png" alt="GRID" className="h-8 w-auto object-contain" />
+                                <img src="/grid-logo.webp" alt="GRID" width={32} height={32} className="h-8 w-auto object-contain" />
                                 <div className="lp-nav-logo">GRID</div>
                             </div>
                             <p>An intelligent platform combining demand forecasting, drowsiness detection, and voice navigation.</p>
@@ -435,8 +440,6 @@ export default function LandingPage({ onBeginAsDriver, onAdminAccess }: LandingP
 const LandingCSS = () => (
     <style dangerouslySetInnerHTML={{
         __html: `
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700&family=Outfit:wght@200;300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
-
     :root {
       --lp-bg: #050514;
       --lp-bg-alt: #0a0a1e;
@@ -496,11 +499,11 @@ const LandingCSS = () => (
 
     @keyframes lp-spin { to { --lp-angle: 360deg; } }
     @keyframes lp-shimmer { to { --lp-shimmer-pos: 200%; } }
-    @keyframes lp-glow-pulse { 0%,100% { opacity:0.85; filter:drop-shadow(0 0 12px rgba(250,204,21,0.3)); } 50% { opacity:1; filter:drop-shadow(0 0 20px rgba(250,204,21,0.5)); } }
-    @keyframes lp-line-shimmer { 0% { background-position:-200% center; } 100% { background-position:200% center; } }
+    @keyframes lp-glow-pulse { 0%,100% { opacity:0.85; } 50% { opacity:1; } }
+    @keyframes lp-line-shimmer { 0% { transform:translateX(-100%); } 100% { transform:translateX(100%); } }
     @keyframes lp-node-pulse { 0%,100% { opacity:0.7; } 50% { opacity:1; } }
-    @keyframes lp-bar-grow { from { height:0; } to { height:calc(var(--h) * 80px); } }
-    @keyframes lp-progress-fill { from { width:0; } to { width:var(--w); } }
+    @keyframes lp-bar-grow { from { transform:scaleY(0); } to { transform:scaleY(1); } }
+    @keyframes lp-progress-fill { from { transform:scaleX(0); } to { transform:scaleX(1); } }
     @keyframes lp-slideInRow { from { opacity:0; transform:translateX(-12px); } to { opacity:1; transform:translateX(0); } }
     @keyframes lp-fadeInLine { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
     @keyframes lp-popIn { from { opacity:0; transform:scale(0); } to { opacity:1; transform:scale(1); } }
@@ -555,7 +558,7 @@ const LandingCSS = () => (
         }
 
     /* BENTO */
-    .lp-bento-section { padding:120px 0; position:relative; }
+    .lp-bento-section { padding:120px 0; position:relative; content-visibility:auto; contain-intrinsic-size:auto 800px; }
     .lp-bento-section::before { content:''; position:absolute; top:0; left:0; width:100%; height:100%; background-image:radial-gradient(rgba(250,204,21,0.12) 1px,transparent 1px); background-size:24px 24px; mask-image:radial-gradient(ellipse 60% 50% at 50% 50%,black,transparent); -webkit-mask-image:radial-gradient(ellipse 60% 50% at 50% 50%,black,transparent); pointer-events:none; }
     .lp-section-glow { position:absolute; top:20%; left:50%; transform:translateX(-50%); width:600px; height:400px; background:radial-gradient(ellipse,rgba(250,204,21,0.08),transparent 70%); pointer-events:none; }
     .lp-section-glow.lp-right { top:30%; right:0; left:auto; transform:none; width:500px; height:500px; background:radial-gradient(ellipse,rgba(250,204,21,0.06),transparent 70%); }
@@ -572,7 +575,7 @@ const LandingCSS = () => (
 
     /* WIDGETS */
     .lp-widget-bars { display:flex; align-items:flex-end; gap:6px; height:80px; padding-top:8px; }
-    .lp-bar { flex:1; border-radius:3px 3px 0 0; background:linear-gradient(to top,var(--lp-accent),var(--lp-pink)); height:calc(var(--h) * 80px); min-height:4px; }
+    .lp-bar { flex:1; border-radius:3px 3px 0 0; background:linear-gradient(to top,var(--lp-accent),var(--lp-pink)); height:calc(var(--h) * 80px); min-height:4px; transform-origin:bottom; will-change:transform; }
     .lp-bento-card.animated .lp-bar { animation:lp-bar-grow 0.8s cubic-bezier(0.34,1.56,0.64,1) both; }
     .lp-bento-card.animated .lp-bar:nth-child(1){animation-delay:0.1s}
     .lp-bento-card.animated .lp-bar:nth-child(2){animation-delay:0.2s}
@@ -599,7 +602,7 @@ const LandingCSS = () => (
     .lp-progress-item { display:flex; flex-direction:column; gap:4px; }
     .lp-progress-label { display:flex; justify-content:space-between; font-size:0.68rem; color:var(--lp-text-muted); font-family:var(--lp-font-mono); }
     .lp-progress-track { width:100%; height:4px; border-radius:2px; background:rgba(255,255,255,0.05); overflow:hidden; }
-    .lp-progress-fill { height:100%; border-radius:2px; background:linear-gradient(90deg,var(--lp-accent),var(--lp-pink)); width:0; }
+    .lp-progress-fill { height:100%; border-radius:2px; background:linear-gradient(90deg,var(--lp-accent),var(--lp-pink)); width:var(--w); transform:scaleX(0); transform-origin:left; will-change:transform; }
     .lp-bento-card.animated .lp-progress-fill { animation:lp-progress-fill 1.2s cubic-bezier(0.16,1,0.3,1) forwards; }
     .lp-bento-card.animated .lp-progress-item:nth-child(1) .lp-progress-fill{animation-delay:0.2s}
     .lp-bento-card.animated .lp-progress-item:nth-child(2) .lp-progress-fill{animation-delay:0.35s}
@@ -632,7 +635,7 @@ const LandingCSS = () => (
     .lp-metric-label { font-size:0.62rem; color:var(--lp-text-dim); margin-top:2px; font-family:var(--lp-font-mono); text-transform:uppercase; letter-spacing:0.05em; }
 
     /* SHOWCASE */
-    .lp-showcase-section { padding:120px 0; position:relative; overflow:hidden; }
+    .lp-showcase-section { padding:120px 0; position:relative; overflow:hidden; content-visibility:auto; contain-intrinsic-size:auto 600px; }
     .lp-showcase-grid { display:grid; grid-template-columns:1fr 1.2fr; gap:60px; align-items:center; }
     .lp-showcase-features { display:flex; flex-direction:column; gap:28px; margin-top:32px; }
     .lp-showcase-feature { display:flex; gap:16px; align-items:flex-start; }
@@ -661,7 +664,7 @@ const LandingCSS = () => (
     .lp-mb { width:4px; border-radius:1px; background:var(--lp-accent); opacity:0.6; }
 
     /* HOW IT WORKS */
-    .lp-how-section { padding:120px 0; position:relative; background:var(--lp-bg-alt); }
+    .lp-how-section { padding:120px 0; position:relative; background:var(--lp-bg-alt); content-visibility:auto; contain-intrinsic-size:auto 600px; }
     .lp-how-section::before { content:''; position:absolute; top:0; left:0; width:100%; height:1px; background:linear-gradient(90deg,transparent,var(--lp-border),transparent); }
     .lp-how-header { text-align:center; margin-bottom:80px; }
     .lp-how-header .lp-section-desc { margin:0 auto; }
@@ -675,7 +678,7 @@ const LandingCSS = () => (
     .lp-how-step p { font-size:0.74rem; color:var(--lp-text-muted); font-weight:300; line-height:1.6; }
 
     /* METRICS */
-    .lp-metrics-section { padding:20px 0; border-top:1px solid var(--lp-border); border-bottom:1px solid var(--lp-border); }
+    .lp-metrics-section { padding:20px 0; border-top:1px solid var(--lp-border); border-bottom:1px solid var(--lp-border); content-visibility:auto; contain-intrinsic-size:auto 200px; }
     .lp-metrics-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:40px; }
     .lp-metric-item { text-align:center; }
     .lp-metric-number { font-family:var(--lp-font-heading); font-size:clamp(2rem,3.5vw,2.8rem); font-weight:200; letter-spacing:-0.03em; background:linear-gradient(135deg,var(--lp-text) 0%,var(--lp-accent2) 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }

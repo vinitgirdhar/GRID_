@@ -62,7 +62,7 @@ export function InsightTooltip({ active, config, label, payload }: InsightToolti
 
   return (
     <div
-      className="min-w-[280px] max-w-[340px] rounded-2xl border px-4 py-4 shadow-[0_18px_48px_rgba(15,23,42,0.18)] backdrop-blur-xl"
+      className="min-w-[280px] max-w-[340px] rounded-2xl border px-4 py-4 shadow-[0_18px_48px_rgba(15,23,42,0.18)]"
       style={{ backgroundColor: 'var(--card)', borderColor: 'var(--border)' }}
     >
       <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[var(--text-muted)]">

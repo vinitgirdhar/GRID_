@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Suspense, lazy, startTransition, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity,
   BarChart3,
@@ -19,12 +19,10 @@ import {
   Users,
   Wifi,
 } from 'lucide-react';
-import { motion } from 'motion/react';
-
 import OfflineBanner from './components/OfflineBanner';
-import DrowsinessMonitor from './components/DrowsinessMonitor';
+const DrowsinessMonitor = lazy(() => import('./components/DrowsinessMonitor'));
+const DriverLogin = lazy(() => import('./components/DriverLogin'));
 import LandingPage from './components/LandingPage';
-import DriverLogin from './components/DriverLogin';
 import { OfflineProvider, useOffline } from './OfflineContext';
 import { cn } from './lib/utils';
 import { Driver, Page, UserRole } from './types';
@@ -88,7 +86,7 @@ function MobileClock() {
   useEffect(() => {
     const timer = setInterval(() => {
       setTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-    }, 1000);
+    }, 60000);
 
     return () => clearInterval(timer);
   }, []);
@@ -115,6 +113,13 @@ function AppShell() {
   const currentDriverRef = useRef<Driver | null>(null);
   const [activePage, setActivePage] = useState<Page>('overview');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isSidebarAnimating, setIsSidebarAnimating] = useState(false);
+  const toggleSidebar = (collapsed: boolean) => {
+    setIsSidebarAnimating(true);
+    setIsSidebarCollapsed(collapsed);
+    // Clear after the 220ms transition finishes
+    setTimeout(() => setIsSidebarAnimating(false), 240);
+  };
   const [currentHour, setCurrentHour] = useState(() => new Date().getHours());
   const [copilotDest, setCopilotDest] = useState<string | null>(null);
   const [isLive, setIsLive] = useState(true);
@@ -180,8 +185,7 @@ function AppShell() {
     return () => clearInterval(timer);
   }, []);
 
-  useLayoutEffect(() => {
-    if (typeof window === 'undefined') return;
+  useEffect(() => {
     const root = document.documentElement;
     const previousBehavior = root.style.scrollBehavior;
     root.style.scrollBehavior = 'auto';
@@ -197,15 +201,23 @@ function AppShell() {
     };
   }, [screen, userRole, activePage]);
 
+  const sidebarItems = userRole === 'admin' ? ADMIN_ITEMS : DRIVER_ITEMS;
+  const isSidebarItemActive = (itemId: string) =>
+    activePage === itemId || (userRole === 'admin' && activePage === 'profile' && itemId === 'drivers');
+  const activeNavIndex = useMemo(
+    () => sidebarItems.findIndex((item) => isSidebarItemActive(item.id)),
+    [activePage, userRole],
+  );
+
   const handleLogin = (role: UserRole, driver?: Driver) => {
     if (driver) {
       postDriverStatus(driver.id, 'online');
-      postDriverSession({ is_live: false }).catch(() => {});
+      postDriverSession({ is_live: true }).catch(() => {});
     }
     setUserRole(role);
     setCurrentDriver(role === 'driver' ? driver ?? null : null);
     setSelectedDriverProfile(null);
-    setIsLive(false);
+    setIsLive(true);
     setActivePage('overview');
   };
 
@@ -238,10 +250,12 @@ function AppShell() {
   if (!userRole) {
     if (screen === 'driver-login') {
       return (
-        <DriverLogin
-          onSuccess={(driver) => { handleLogin('driver', driver); }}
-          onBack={() => setScreen('landing')}
-        />
+        <Suspense fallback={<PageLoadingFallback />}>
+          <DriverLogin
+            onSuccess={(driver) => { handleLogin('driver', driver); }}
+            onBack={() => setScreen('landing')}
+          />
+        </Suspense>
       );
     }
     return (
@@ -253,10 +267,6 @@ function AppShell() {
       />
     );
   }
-
-  const sidebarItems = userRole === 'admin' ? ADMIN_ITEMS : DRIVER_ITEMS;
-  const isSidebarItemActive = (itemId: string) =>
-    activePage === itemId || (userRole === 'admin' && activePage === 'profile' && itemId === 'drivers');
 
   const renderPage = () => {
     if (userRole === 'admin') {
@@ -328,10 +338,8 @@ function AppShell() {
       />
 
       <div className="flex min-h-screen bg-[#050514] text-[#e8edf3] font-sans relative" style={{overflowX: 'clip'}}>
-        <motion.aside
-          initial={false}
-          animate={{ width: isSidebarCollapsed ? 80 : 260 }}
-          transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
+        <aside
+          style={{ width: isSidebarCollapsed ? 80 : 260, transition: isSidebarAnimating ? 'width 220ms cubic-bezier(0.32, 0.72, 0, 1)' : 'none' }}
           className={cn(
             'fixed left-0 top-0 h-full bg-[#0a0a1e] border-r border-[rgba(250,204,21,0.1)] z-50 flex-col',
             userRole === 'driver' ? 'hidden lg:flex' : 'flex',
@@ -340,9 +348,9 @@ function AppShell() {
           {/* Sidebar header — layout changes when collapsed */}
           {isSidebarCollapsed ? (
             <div className="flex flex-col items-center gap-2 pt-5 pb-3 px-3">
-              <img src="/grid%20logo.png" alt="GRID" className="h-10 w-auto object-contain max-w-[56px]" />
+              <img src="/grid-logo.webp" alt="GRID" width={40} height={40} className="h-10 w-auto object-contain max-w-[56px]" />
               <button
-                onClick={() => setIsSidebarCollapsed(false)}
+                onClick={() => toggleSidebar(false)}
                 className="p-1.5 hover:bg-[var(--secondary)] rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                 style={{ transition: 'background-color 150ms ease-out, color 150ms ease-out' }}
               >
@@ -351,13 +359,8 @@ function AppShell() {
             </div>
           ) : (
             <div className="p-6 flex items-center justify-between">
-              <motion.div
-                initial={{ opacity: 0, x: -8 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
-                className="flex items-center gap-3"
-              >
-                <img src="/grid%20logo.png" alt="GRID" className="h-14 w-auto object-contain" />
+              <div className="flex items-center gap-3">
+                <img src="/grid-logo.webp" alt="GRID" width={56} height={56} className="h-14 w-auto object-contain" />
                 <span
                   style={{
                     fontFamily: 'Outfit, sans-serif',
@@ -373,9 +376,9 @@ function AppShell() {
                 >
                   GRID
                 </span>
-              </motion.div>
+              </div>
               <button
-                onClick={() => setIsSidebarCollapsed(true)}
+                onClick={() => toggleSidebar(true)}
                 className="p-2 hover:bg-[var(--secondary)] rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                 style={{ transition: 'background-color 150ms ease-out, color 150ms ease-out' }}
               >
@@ -386,23 +389,20 @@ function AppShell() {
 
           <nav className="flex-1 min-h-0 overflow-y-auto px-4 space-y-2 py-6 relative hide-scrollbar">
             {/* Sliding background indicator */}
-            <motion.div
+            <div
               className="absolute left-4 right-4 h-[46px] top-6 rounded-[16px] bg-[rgba(250,204,21,0.12)] border border-[rgba(250,204,21,0.2)] pointer-events-none"
-              animate={{
-                y: sidebarItems.findIndex((item) => isSidebarItemActive(item.id)) * 52,
+              style={{
+                transform: `translateY(${activeNavIndex * 52}px)`,
+                transition: 'transform 300ms cubic-bezier(0.23, 1, 0.32, 1)',
               }}
-              transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
             />
             {sidebarItems.map((item, index) => {
               const isActive = isSidebarItemActive(item.id);
 
               return (
-                <motion.button
+                <button
                   key={item.id}
-                  onClick={() => setActivePage(item.id as Page)}
-                  initial={{ opacity: 0, x: -12 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.2, delay: index * 0.03, ease: [0.23, 1, 0.32, 1] }}
+                  onClick={() => startTransition(() => setActivePage(item.id as Page))}
                   className={cn(
                     'w-full relative z-10 flex items-center gap-4 px-4 py-3 rounded-[16px] group',
                     'transition-colors duration-150 ease-out',
@@ -433,7 +433,7 @@ function AppShell() {
                       )}
                     </>
                   )}
-                </motion.button>
+                </button>
               );
             })}
           </nav>
@@ -465,23 +465,25 @@ function AppShell() {
               </div>
             )}
             {userRole === 'driver' && isLive && (
-              <DrowsinessMonitor isLive={isLive} collapsed={isSidebarCollapsed} />
+              <Suspense fallback={null}>
+                <DrowsinessMonitor isLive={isLive} collapsed={isSidebarCollapsed} />
+              </Suspense>
             )}
             {!isSidebarCollapsed && (
               <div className="flex items-center justify-between px-2">
                 <span className="text-[10px] font-bold text-[#4b5e78] uppercase tracking-widest font-mono">System</span>
-                <motion.button
+                <button
                   className="w-8 h-8 flex items-center justify-center bg-[rgba(255,255,255,0.04)] border border-[rgba(250,204,21,0.1)] rounded-full relative text-[#4b5e78] hover:text-[#facc15] hover:border-[rgba(250,204,21,0.3)] transition-all duration-200"
                 >
                   <Bell size={14} />
                   <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-[var(--danger)] rounded-full border border-[#0a0a1e]"></span>
-                </motion.button>
+                </button>
               </div>
             )}
 
             {isSidebarCollapsed ? (
               <div
-                onClick={() => setActivePage('profile')}
+                onClick={() => startTransition(() => setActivePage('profile'))}
                 className="w-10 h-10 mx-auto rounded-full bg-[rgba(250,204,21,0.1)] flex items-center justify-center border border-[rgba(250,204,21,0.2)] cursor-pointer hover:border-[rgba(250,204,21,0.5)]"
                 style={{ transition: 'border-color 150ms ease-out' }}
               >
@@ -489,7 +491,7 @@ function AppShell() {
               </div>
             ) : (
               <div
-                onClick={() => setActivePage('profile')}
+                onClick={() => startTransition(() => setActivePage('profile'))}
                 className="flex items-center gap-3 p-3 rounded-[16px] bg-[rgba(255,255,255,0.03)] border border-[rgba(250,204,21,0.1)] hover:border-[rgba(250,204,21,0.25)] cursor-pointer group relative"
                 style={{ transition: 'border-color 150ms ease-out' }}
               >
@@ -513,10 +515,10 @@ function AppShell() {
               </div>
             )}
           </div>
-        </motion.aside>
+        </aside>
 
           <div
-            style={{ transition: 'margin-left 220ms cubic-bezier(0.32, 0.72, 0, 1)' }}
+            style={{ transition: isSidebarAnimating ? 'margin-left 220ms cubic-bezier(0.32, 0.72, 0, 1)' : 'none' }}
             className={cn(
               'flex-1 flex flex-col min-h-[100dvh] relative',
               userRole === 'driver'
@@ -530,13 +532,13 @@ function AppShell() {
           >
           {userRole === 'driver' && (
             <div className="lg:hidden fixed top-0 left-0 right-0 p-4 sm:p-6 flex justify-between items-center z-40 pointer-events-none gap-3">
-              <div className="flex items-center gap-2 pointer-events-auto bg-[rgba(10,10,30,0.92)] backdrop-blur-md border border-[rgba(250,204,21,0.12)] rounded-full p-1 pl-4 pr-1">
+              <div className="flex items-center gap-2 pointer-events-auto bg-[rgba(10,10,30,0.97)] border border-[rgba(250,204,21,0.12)] rounded-full p-1 pl-4 pr-1">
                 <MobileClock />
                 <div className="w-8 h-8 rounded-full bg-[rgba(250,204,21,0.12)] flex items-center justify-center">
                   <Search size={16} className="text-[#facc15]" />
                 </div>
               </div>
-              <div className="flex items-center gap-3 bg-[rgba(10,10,30,0.92)] backdrop-blur-md border border-[rgba(250,204,21,0.12)] p-2 px-4 rounded-full pointer-events-auto">
+              <div className="flex items-center gap-3 bg-[rgba(10,10,30,0.97)] border border-[rgba(250,204,21,0.12)] p-2 px-4 rounded-full pointer-events-auto">
                 <div className="flex items-center gap-1">
                   <div className="w-4 h-4 rounded-full bg-[rgba(250,204,21,0.15)] flex items-center justify-center">
                     <Navigation size={10} className="text-[#facc15]" />
@@ -576,38 +578,38 @@ function AppShell() {
             <div className="lg:hidden fixed bottom-0 left-0 right-0 flex justify-center z-50 pointer-events-none px-3 pb-[max(16px,env(safe-area-inset-bottom))]">
               <div className="nav-pill pointer-events-auto relative">
                 {/* Sliding background for active item — x:10 = pill left padding, 44 = item width(40) + gap(4) */}
-                <motion.div
+                <div
                   className="absolute top-[6px] left-0 w-10 h-10 rounded-full bg-[var(--primary)] pointer-events-none"
-                  animate={{
-                    x: 10 + DRIVER_ITEMS.findIndex((item) => activePage === item.id) * 44,
+                  style={{
+                    transform: `translateX(${10 + DRIVER_ITEMS.findIndex((item) => activePage === item.id) * 44}px)`,
+                    transition: 'transform 300ms cubic-bezier(0.23, 1, 0.32, 1)',
                   }}
-                  transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
                 />
                 {DRIVER_ITEMS.map((item) => (
-                  <motion.div
+                  <div
                     key={item.id}
                     className={cn(
-                      'nav-pill-item relative z-10',
+                      'nav-pill-item relative z-10 hover:scale-105 active:scale-95',
                       activePage === item.id ? 'text-white' : 'text-[var(--text-secondary)]',
                     )}
-                    onClick={() => setActivePage(item.id as Page)}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
+                    style={{ transition: 'transform 150ms ease' }}
+                    onClick={() => startTransition(() => setActivePage(item.id as Page))}
                   >
                     <item.icon size={20} strokeWidth={activePage === item.id ? 2.5 : 2} className="transition-colors" />
                     {item.id === 'overview' && missedCount > 0 && (
                       <span className="absolute top-0.5 right-0.5 w-2.5 h-2.5 rounded-full bg-[var(--danger)] border-2 border-white" />
                     )}
-                  </motion.div>
+                  </div>
                 ))}
-                <motion.div
-                  className="w-10 h-10 ml-2 rounded-full border-2 border-[var(--primary)] overflow-hidden cursor-pointer relative z-10"
-                  onClick={() => setActivePage('profile')}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
+                <div
+                  className="w-10 h-10 ml-2 rounded-full border-2 border-[var(--primary)] overflow-hidden cursor-pointer relative z-10 hover:scale-105 active:scale-95"
+                  style={{ transition: 'transform 150ms ease' }}
+                  onClick={() => startTransition(() => setActivePage('profile'))}
                 >
-                  <img src="https://picsum.photos/seed/driver/100/100" alt="Profile" className="w-full h-full object-cover" />
-                </motion.div>
+                  <div className="w-full h-full flex items-center justify-center bg-[rgba(250,204,21,0.1)]">
+                    <User size={18} className="text-[#fbbf24]" />
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -618,9 +620,9 @@ function AppShell() {
             <VoicePilot />
           </Suspense>
         )}
-        {userRole === 'driver' && (
+        {userRole === 'driver' && isLive && (
           <Suspense fallback={null}>
-            <SafetyZen isLive={isLive} />
+            <SafetyZen isLive={true} />
           </Suspense>
         )}
       </div>

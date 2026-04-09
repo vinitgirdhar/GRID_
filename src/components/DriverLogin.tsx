@@ -467,7 +467,7 @@ export default function DriverLogin({ onSuccess, onBack }: DriverLoginProps) {
                     className="text-center mb-8"
                 >
                     <div className="inline-flex items-center gap-3 mb-3">
-                        <img src="/grid%20logo.png" alt="GRID" className="h-12 w-auto object-contain drop-shadow-[0_0_20px_rgba(250,204,21,0.2)]" />
+                        <img src="/grid-logo.webp" alt="GRID" width={48} height={48} className="h-12 w-auto object-contain drop-shadow-[0_0_20px_rgba(250,204,21,0.2)]" />
                         <span
                             className="text-2xl tracking-widest"
                             style={{

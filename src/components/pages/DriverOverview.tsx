@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import {
   TrendingUp,
   DollarSign,
@@ -20,9 +20,10 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { getActiveHotspotPeriod, getForecast, getHotspots, getWeather, postDriverSession } from '../../services/apiService';
 import { useApiData } from '../../hooks/useApiData';
 import { ForecastResponse, HotspotsResponse, Theme, WeatherResponse, ZoneDemand } from '../../types';
-import MapComponent from '../MapComponent';
-import MissedOpportunityFeed from '../MissedOpportunityFeed';
 import { cn } from '../../lib/utils';
+
+const MapComponent = lazy(() => import('../MapComponent'));
+const MissedOpportunityFeed = lazy(() => import('../MissedOpportunityFeed'));
 
 const REFRESH_INTERVAL_MS = 60000;
 
@@ -332,15 +333,17 @@ export default function DriverOverview({
           </div>
         </div>
 
-        <MapComponent
-          zones={mapZones}
-          theme={theme}
-          height="450px"
-          simplified={true}
-          zoom={15}
-          showYouAreHere={true}
-          youAreHerePosition={VIRTUAL_DRIVER_LOCATION}
-        />
+        <Suspense fallback={<div style={{ height: '450px' }} className="rounded-xl bg-[var(--surface)] animate-pulse" />}>
+          <MapComponent
+            zones={mapZones}
+            theme={theme}
+            height="450px"
+            simplified={true}
+            zoom={15}
+            showYouAreHere={true}
+            youAreHerePosition={VIRTUAL_DRIVER_LOCATION}
+          />
+        </Suspense>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
@@ -574,13 +577,15 @@ export default function DriverOverview({
       {/* Missed Opportunity Feed */}
       <div>
         <h3 className="font-semibold text-[#e8edf3] mb-3">Trips You Missed Nearby</h3>
-        <MissedOpportunityFeed onCountChange={() => {}} />
+        <Suspense fallback={<div className="h-32 rounded-xl bg-[var(--surface)] animate-pulse" />}>
+          <MissedOpportunityFeed onCountChange={() => {}} />
+        </Suspense>
       </div>
 
       {/* Dynamic Details Modal */}
       {expandedCard && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/70 backdrop-blur-md animate-in fade-in duration-200"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/80 animate-in fade-in duration-200"
           onClick={() => setExpandedCard(null)}
         >
           <div 

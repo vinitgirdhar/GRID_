@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@200;300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "leaflet/dist/leaflet.css";
 @import "tailwindcss";
 
@@ -111,12 +110,6 @@
   border-radius: var(--radius-card);
   /* No box-shadow on base — avoids repaint on every scroll frame */
   overflow: hidden;
-  /* Only animate transform + border-color (GPU-composited, no repaint) */
-  transition:
-    transform 0.3s var(--ease-out),
-    border-color 0.3s var(--ease-out),
-    background-color 0.3s var(--ease-out),
-    box-shadow 0.3s var(--ease-out);
   position: relative;
   /* Contain layout/style changes to this subtree */
   contain: layout style;
@@ -131,25 +124,34 @@
   height: 1px;
   background: linear-gradient(90deg, transparent, rgba(250, 204, 21, 0.5), transparent);
   opacity: 0;
-  transition:
-    opacity 0.3s var(--ease-out),
-    left 0.3s var(--ease-out),
-    right 0.3s var(--ease-out);
   pointer-events: none;
 }
 
-.glass-card:hover {
-  will-change: transform;
-  transform: translateY(-3px);
-  border-color: rgba(250, 204, 21, 0.24);
-  background: rgba(255, 255, 255, 0.045);
-  box-shadow: 0 8px 32px rgba(250, 204, 21, 0.08);
-}
+/* Only apply hover effects when pointer device is present (not during touch scroll) */
+@media (hover: hover) {
+  .glass-card {
+    transition:
+      transform 0.3s var(--ease-out),
+      border-color 0.3s var(--ease-out);
+  }
 
-.glass-card:hover::before {
-  opacity: 1;
-  left: 10%;
-  right: 10%;
+  .glass-card::before {
+    transition:
+      opacity 0.3s var(--ease-out),
+      left 0.3s var(--ease-out),
+      right 0.3s var(--ease-out);
+  }
+
+  .glass-card:hover {
+    transform: translateY(-3px);
+    border-color: rgba(250, 204, 21, 0.24);
+  }
+
+  .glass-card:hover::before {
+    opacity: 1;
+    left: 10%;
+    right: 10%;
+  }
 }
 
 /* ── KPI CARD ── */
@@ -157,6 +159,9 @@
   width: 100%;
   max-width: 80rem;
   margin: 0 auto;
+  /* Skip rendering off-screen content for scroll perf */
+  content-visibility: auto;
+  contain-intrinsic-size: 0 800px;
 }
 
 .grid-eyebrow,
@@ -231,16 +236,16 @@
   background: rgba(250, 204, 21, 0.05);
   color: var(--accent);
   font-weight: 500;
+  /* Only composited properties — no background-color or box-shadow transitions */
   transition:
     transform 160ms var(--ease-out),
-    background-color 200ms var(--ease-out),
     border-color 200ms var(--ease-out),
-    box-shadow 200ms var(--ease-out),
     color 200ms var(--ease-out);
 }
 
 .grid-action-button:hover {
   transform: translateY(-2px);
+  /* Static values — applied instantly on hover, no transition repaint */
   background: rgba(250, 204, 21, 0.15);
   border-color: rgba(250, 204, 21, 0.6);
   box-shadow: 0 4px 20px rgba(250, 204, 21, 0.15);
@@ -407,9 +412,10 @@
 
 /* ── MOBILE NAV PILL (dark) ── */
 .nav-pill {
-  background: rgba(10, 10, 30, 0.85);
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  background: rgba(10, 10, 30, 0.96);
+  /* backdrop-filter removed — forces per-frame recomposition during scroll
+     on fixed elements. The near-opaque bg (0.96) provides the same dark
+     glass aesthetic without the compositor cost. */
   border-radius: var(--radius-pill);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(250, 204, 21, 0.1);
   padding: 6px 10px;
@@ -592,11 +598,4 @@
   .animate-pulse-soft {
     animation: none !important;
   }
-}
-
-/* Prevent backdrop-filter from being applied to every scroll frame
-   on elements that don't strictly need it */
-.nav-pill {
-  /* The blur only needs 1 repaint at mount — hint the browser */
-  contain: layout style;
 }

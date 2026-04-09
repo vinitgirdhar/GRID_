@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { motion } from 'motion/react';
 import { Activity, Award, Clock3, DollarSign, Gauge, Medal, Plus, Sparkles, Star, Target, TrendingUp, Trophy, X, Zap } from 'lucide-react';
@@ -178,7 +179,7 @@ function buildFallbackPeriod(): HotspotPeriod {
 function CustomTooltip({ active, payload, label }: any) {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-[var(--card)] border border-[var(--border)] p-3 rounded-lg shadow-xl backdrop-blur-md">
+      <div className="bg-[var(--card)] border border-[var(--border)] p-3 rounded-lg shadow-xl">
         <p className="text-xs text-[var(--text-secondary)] mb-1">{label}</p>
         <p className="text-sm font-bold text-primary">{formatCurrencyPrecise(payload[0].value)}</p>
       </div>
@@ -232,8 +233,8 @@ function ShiftSetupModal({
     return null;
   }
 
-  return (
-    <div className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm p-4 flex items-center justify-center">
+  return createPortal(
+    <div className="fixed inset-0 z-40 bg-black/80 p-4 flex items-center justify-center">
       <motion.div
         initial={{ opacity: 0, y: 16, scale: 0.96 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -309,7 +310,8 @@ function ShiftSetupModal({
           </button>
         </div>
       </motion.div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -340,8 +342,8 @@ function AddEarningsModal({
     return null;
   }
 
-  return (
-    <div className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm p-4 flex items-center justify-center">
+  return createPortal(
+    <div className="fixed inset-0 z-40 bg-black/80 p-4 flex items-center justify-center">
       <motion.div
         initial={{ opacity: 0, y: 14, scale: 0.97 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -413,7 +415,8 @@ function AddEarningsModal({
           </button>
         </div>
       </motion.div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
