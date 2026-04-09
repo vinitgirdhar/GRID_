@@ -18,8 +18,8 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, StreamingResponse
 
-from config import get_settings
-from schemas import (
+from .config import get_settings
+from .schemas import (
     AvoidZone,
     DriverEventCreate,
     DriverLoginRequest,

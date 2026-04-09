@@ -1,7 +1,7 @@
 from sqlalchemy import Column, DateTime, Float, Integer, String, func
 from geoalchemy2 import Geometry
 
-from database import Base
+from .database import Base
 
 
 class SpatialZone(Base):
