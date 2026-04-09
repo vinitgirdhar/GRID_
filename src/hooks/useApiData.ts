@@ -166,3 +166,14 @@ export function invalidateCache(cacheKey?: string) {
     memoryCache.clear();
   }
 }
+
+/**
+ * Directly seed the cache with pre-fetched data (used by warmup.ts).
+ * Only writes if the cache entry is absent or older than ttl.
+ */
+export function seedCache<T>(cacheKey: string, data: T, ttl = 30_000): void {
+  const existing = memoryCache.get(cacheKey);
+  if (!existing || Date.now() - existing.fetchedAt > ttl) {
+    memoryCache.set(cacheKey, { data, fetchedAt: Date.now() });
+  }
+}

@@ -520,9 +520,8 @@ export default function DriverLogin({ onSuccess, onBack }: DriverLoginProps) {
                         id="driver-auth-tab-login"
                         aria-selected={view === 'login'}
                         aria-controls="driver-auth-panel"
-                        className={`relative flex-1 py-2 rounded-lg text-sm transition-colors duration-200 z-10 ${
-                            view === 'login' ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)] hover:text-[var(--text)]'
-                        }`}
+                        className={`relative flex-1 py-2 rounded-lg text-sm transition-colors duration-200 z-10 ${view === 'login' ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)] hover:text-[var(--text)]'
+                            }`}
                         style={bodyFontStyle}
                     >
                         Sign In
@@ -534,9 +533,8 @@ export default function DriverLogin({ onSuccess, onBack }: DriverLoginProps) {
                         id="driver-auth-tab-register"
                         aria-selected={view === 'register'}
                         aria-controls="driver-auth-panel"
-                        className={`relative flex-1 py-2 rounded-lg text-sm transition-colors duration-200 z-10 ${
-                            view === 'register' ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)] hover:text-[var(--text)]'
-                        }`}
+                        className={`relative flex-1 py-2 rounded-lg text-sm transition-colors duration-200 z-10 ${view === 'register' ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)] hover:text-[var(--text)]'
+                            }`}
                         style={bodyFontStyle}
                     >
                         Sign Up

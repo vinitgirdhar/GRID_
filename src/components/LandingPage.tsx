@@ -294,11 +294,11 @@ export default function LandingPage({ onBeginAsDriver, onAdminAccess }: LandingP
                                     </thead>
                                     <tbody>
                                         {[
-                                            { zone: 'Midtown Center', badge: 'lp-running', status: 'Surging', pickups: '842 / hr', bars: [8,14,18,22,26] },
-                                            { zone: 'JFK Airport', badge: 'lp-running', status: 'High Demand', pickups: '512 / hr', bars: [12,16,10,18,20] },
-                                            { zone: 'Upper East Side', badge: 'lp-pending', status: 'Rising', pickups: '320 / hr', bars: [4,6,8,12,16] },
-                                            { zone: 'Times Square', badge: 'lp-running', status: 'Surging', pickups: '950 / hr', bars: [18,16,20,24,28] },
-                                            { zone: 'Williamsburg', badge: 'lp-stopped', status: 'Stable', pickups: '145 / hr', bars: [8,8,8,8,8] },
+                                            { zone: 'Midtown Center', badge: 'lp-running', status: 'Surging', pickups: '842 / hr', bars: [8, 14, 18, 22, 26] },
+                                            { zone: 'JFK Airport', badge: 'lp-running', status: 'High Demand', pickups: '512 / hr', bars: [12, 16, 10, 18, 20] },
+                                            { zone: 'Upper East Side', badge: 'lp-pending', status: 'Rising', pickups: '320 / hr', bars: [4, 6, 8, 12, 16] },
+                                            { zone: 'Times Square', badge: 'lp-running', status: 'Surging', pickups: '950 / hr', bars: [18, 16, 20, 24, 28] },
+                                            { zone: 'Williamsburg', badge: 'lp-stopped', status: 'Stable', pickups: '145 / hr', bars: [8, 8, 8, 8, 8] },
                                         ].map(({ zone, badge, status, pickups, bars }) => (
                                             <tr key={zone}>
                                                 <td>{zone}</td>
