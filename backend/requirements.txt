@@ -3,11 +3,10 @@ starlette>=0.40.0,<0.42.0
 uvicorn[standard]
 pandas
 lightgbm
-psycopg2
+psycopg2-binary
 sqlalchemy
 geoalchemy2
 pydantic
 pydantic-settings
 python-dotenv
 google-genai
-airllm
