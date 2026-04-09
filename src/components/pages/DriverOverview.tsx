@@ -13,13 +13,14 @@ import {
   Clock,
   X,
   Leaf,
-  AlertTriangle
+  AlertTriangle,
+  TrainFront
 } from 'lucide-react';
 
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
-import { getActiveHotspotPeriod, getForecast, getHotspots, getWeather, postDriverSession } from '../../services/apiService';
+import { getActiveHotspotPeriod, getForecast, getHotspots, getTransit, getWeather, postDriverSession } from '../../services/apiService';
 import { useApiData } from '../../hooks/useApiData';
-import { ForecastResponse, HotspotsResponse, Theme, WeatherResponse, ZoneDemand } from '../../types';
+import { ForecastResponse, HotspotsResponse, Theme, TransitResponse, WeatherResponse, ZoneDemand } from '../../types';
 import { cn } from '../../lib/utils';
 
 const MapComponent = lazy(() => import('../MapComponent'));
@@ -61,7 +62,7 @@ export default function DriverOverview({
   });
 
   const [theme, setTheme] = useState<Theme>('dark');
-  const [expandedCard, setExpandedCard] = useState<'demand' | 'weather' | 'event' | null>(null);
+  const [expandedCard, setExpandedCard] = useState<'demand' | 'weather' | 'event' | 'transit' | null>(null);
   const [ecoMode, setEcoMode] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   // Virtual driver location: Midtown Manhattan, NYC (fixed — no real GPS)
@@ -99,6 +100,17 @@ export default function DriverOverview({
     () => primaryZoneId ? getWeather({ zoneId: primaryZoneId }) : Promise.resolve(null as any),
     { ttl: 120000 }
   );
+
+  const { data: transit } = useApiData<TransitResponse>(
+    'transit',
+    () => getTransit(),
+    { ttl: 120000 }
+  );
+
+  const nearestTransitZone = useMemo(() => {
+    if (!transit || !primaryZoneId) return transit?.zones[0] ?? null;
+    return transit.zones.find(z => z.zone_id === primaryZoneId) ?? transit.zones[0] ?? null;
+  }, [transit, primaryZoneId]);
 
   const isLocalHost = typeof window !== 'undefined' && 
     (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
@@ -195,13 +207,13 @@ export default function DriverOverview({
     <div className="space-y-6">
       <div className="flex flex-wrap gap-2 items-end justify-between">
         <div className="min-w-0">
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#facc15]" style={{fontFamily:'Outfit,sans-serif',fontWeight:300,letterSpacing:'-0.03em'}}>Intelligence</h1>
-          <p className="text-[#94a3b8] mt-1 text-sm">Urban demand & awareness &middot; <span className="text-[#fbbf24] font-semibold">{timeLabel}</span></p>
+          <h1 className="text-2xl sm:text-3xl font-heading font-light tracking-tight text-[var(--primary)]" style={{letterSpacing:'-0.03em'}}>Intelligence</h1>
+          <p className="text-[var(--text-secondary)] mt-1 text-sm">Urban demand & awareness &middot; <span className="text-[var(--primary)] font-medium">{timeLabel}</span></p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={() => setEcoMode((prev) => !prev)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-bold transition-all duration-200 ${ecoMode ? 'bg-green-500/15 border-green-500/30 text-green-400' : 'bg-white/5 border-[rgba(250,204,21,0.15)] text-[#94a3b8] hover:text-[#e8edf3]'}`}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-all duration-200 ${ecoMode ? 'bg-green-500/15 border-green-500/30 text-green-400' : 'bg-white/5 border-[rgba(250,204,21,0.15)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
             title="Toggle Eco-Mode"
           >
             <Leaf size={13} />
@@ -209,7 +221,7 @@ export default function DriverOverview({
           </button>
           <button
             onClick={() => setShowAdvanced((prev: boolean) => !prev)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-bold transition-all duration-200 ${showAdvanced ? 'bg-[rgba(250,204,21,0.12)] border-[rgba(250,204,21,0.3)] text-[#facc15]' : 'bg-white/5 border-[rgba(250,204,21,0.15)] text-[#94a3b8] hover:text-[#e8edf3]'}`}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-all duration-200 ${showAdvanced ? 'bg-[rgba(250,204,21,0.12)] border-[rgba(250,204,21,0.3)] text-[var(--primary)]' : 'bg-white/5 border-[rgba(250,204,21,0.15)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
             title="Toggle advanced data"
           >
             🔬 Deep Data {showAdvanced ? '▴' : '▾'}
@@ -225,10 +237,10 @@ export default function DriverOverview({
               }
             }}
             className={cn(
-              "flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-full border transition-all duration-300 shadow-sm",
+              "flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-full border transition-all duration-300 shadow-sm",
               isLive
-                ? "text-[#34d399] bg-[#34d399]/10 border-[#34d399]/25"
-                : "text-[#4b5e78] bg-white/5 border-[rgba(250,204,21,0.15)] hover:text-[#94a3b8]"
+                ? "text-[var(--success)] bg-[var(--success)]/10 border-[var(--success)]/25"
+                : "text-[var(--text-muted)] bg-white/5 border-[rgba(250,204,21,0.15)] hover:text-[var(--text-secondary)]"
             )}
           >
             <span className={cn(
@@ -245,8 +257,8 @@ export default function DriverOverview({
         <div className="p-4 rounded-2xl bg-green-500/10 border border-green-500/20 flex items-center gap-3">
           <Leaf size={18} className="text-green-500 shrink-0" />
           <div>
-            <p className="text-sm font-bold text-green-400">Eco-Mode Active</p>
-            <p className="text-xs text-[#94a3b8] mt-0.5">GRID is routing you through fuel-efficient, low-idle paths. Estimated CO₂ saved today: <span className="font-bold text-green-400">1.2 kg</span>.</p>
+            <p className="text-sm font-medium text-green-400">Eco-Mode Active</p>
+            <p className="text-xs text-[var(--text-secondary)] mt-0.5">GRID is routing you through fuel-efficient, low-idle paths. Estimated CO₂ saved today: <span className="font-medium text-green-400">1.2 kg</span>.</p>
           </div>
         </div>
       )}
@@ -256,10 +268,10 @@ export default function DriverOverview({
         <div className="p-4 rounded-2xl bg-[var(--danger)]/8 border border-[var(--danger)]/20 flex items-center gap-3">
           <AlertTriangle size={18} className="text-[var(--danger)] shrink-0" />
           <div className="flex-1">
-            <p className="text-sm font-bold text-[var(--danger)]">🔥 Surge Alert: High demand in {primaryZone?.zone_name ?? 'your zone'}</p>
+            <p className="text-sm font-medium text-[var(--danger)]">🔥 Surge Alert: High demand in {primaryZone?.zone_name ?? 'your zone'}</p>
             <p className="text-xs text-[var(--text-secondary)] mt-0.5">
               Position now for maximum earnings. Demand peaks at {' '}
-              <span className="font-bold text-[var(--danger)]">
+              <span className="font-medium text-[var(--danger)]">
                 {dynamicPeak ? `${dynamicPeak.hour % 12 || 12}:00 ${dynamicPeak.hour >= 12 ? 'PM' : 'AM'}` : 'peak window'}
               </span> {' '}
               in your area.
@@ -272,9 +284,9 @@ export default function DriverOverview({
         <div className="glass-card p-6 border border-danger/20 text-danger flex items-center justify-between">
           <div className="flex items-center gap-3">
             <AlertTriangle className="w-5 h-5 shrink-0" />
-            <p className="text-sm font-semibold">{error}</p>
+            <p className="text-sm font-medium">{error}</p>
           </div>
-          <button onClick={() => window.location.reload()} className="px-4 py-2 bg-danger/10 hover:bg-danger/20 rounded-lg text-xs font-bold uppercase tracking-wider text-danger transition-colors cursor-pointer">
+          <button onClick={() => window.location.reload()} className="px-4 py-2 bg-danger/10 hover:bg-danger/20 rounded-lg text-xs font-mono font-medium uppercase tracking-widest text-danger transition-colors cursor-pointer">
             Refresh
           </button>
         </div>
@@ -292,16 +304,16 @@ export default function DriverOverview({
               </div>
             </div>
             <div>
-              <p className="text-[11px] font-semibold text-[var(--text-secondary)] mb-1 leading-tight">{kpi.label}</p>
+              <p className="text-[11px] font-mono text-[var(--text-secondary)] mb-1 leading-tight">{kpi.label}</p>
               {idx === 0 ? (
                 <>
                   <p className="text-lg font-extrabold text-[var(--text-primary)] leading-tight tracking-tight truncate">{kpi.change}</p>
-                  <p className="text-[11px] text-[var(--text-secondary)] font-semibold mt-0.5">{kpi.value} rides predicted</p>
+                  <p className="text-[11px] text-[var(--text-secondary)] font-medium mt-0.5">{kpi.value} rides predicted</p>
                 </>
               ) : (
                 <>
                   <p className="text-xl font-extrabold text-[var(--text-primary)] leading-tight tracking-tight">{kpi.value}</p>
-                  <p className="text-[11px] text-[var(--text-secondary)] font-semibold mt-0.5 truncate">{kpi.change}</p>
+                  <p className="text-[11px] text-[var(--text-secondary)] font-medium mt-0.5 truncate">{kpi.change}</p>
                 </>
               )}
             </div>
@@ -315,20 +327,20 @@ export default function DriverOverview({
             <div className="p-2 bg-sky-500/10 rounded-lg">
               <MapPin className="text-sky-500 w-5 h-5" />
             </div>
-            <h3 className="font-semibold text-[#e8edf3]">Hotspot Map</h3>
+            <h3 className="font-heading font-medium text-[var(--text-primary)]">Hotspot Map</h3>
           </div>
           <div className="flex gap-3 flex-wrap">
             <div className="flex items-center gap-1.5">
               <div className="w-2 h-2 rounded-full bg-danger shrink-0"></div>
-              <span className="text-[10px] font-bold text-[#94a3b8] uppercase">High</span>
+              <span className="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-widest">High</span>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="w-2 h-2 rounded-full bg-warning shrink-0"></div>
-              <span className="text-[10px] font-bold text-[#94a3b8] uppercase">Moderate</span>
+              <span className="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-widest">Moderate</span>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="w-2 h-2 rounded-full bg-primary shrink-0"></div>
-              <span className="text-[10px] font-bold text-[#94a3b8] uppercase">Low</span>
+              <span className="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-widest">Low</span>
             </div>
           </div>
         </div>
@@ -346,7 +358,7 @@ export default function DriverOverview({
         </Suspense>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-stretch">
         <div
           onClick={() => setExpandedCard('demand')}
           className="glass-card p-4 sm:p-6 flex flex-col h-full cursor-pointer group"
@@ -355,35 +367,35 @@ export default function DriverOverview({
             <div className="p-2 bg-primary/10 rounded-lg">
               <TrendingUp className="text-primary w-5 h-5" />
             </div>
-            <h3 className="font-semibold text-[#e8edf3]">Where Money Is</h3>
+            <h3 className="font-heading font-medium text-[var(--text-primary)]">Where Money Is</h3>
           </div>
 
           <div className="flex-1 space-y-6">
             <div className="space-y-4">
               <div className="flex items-start justify-between">
-                <p className="text-lg font-black text-[var(--danger)] leading-tight">High Demand Expected</p>
-                <span className="px-2 py-1 bg-[var(--danger)]/10 text-[var(--danger)] text-[10px] font-black rounded uppercase border border-[var(--danger)]/20">HIGH DEMAND</span>
+                <p className="text-lg font-heading font-medium text-[var(--danger)] leading-tight">High Demand Expected</p>
+                <span className="px-2 py-1 bg-[var(--danger)]/10 text-[var(--danger)] text-[10px] font-mono font-medium rounded uppercase tracking-widest border border-[var(--danger)]/20">HIGH DEMAND</span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <p className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-widest">Area</p>
-                  <p className="text-sm font-bold text-[var(--text-primary)]">{primaryZone ? `${primaryZone.borough} - ${primaryZone.zone_name}` : '--'}</p>
+                  <p className="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-widest">Area</p>
+                  <p className="text-sm font-medium text-[var(--text-primary)]">{primaryZone ? `${primaryZone.borough} - ${primaryZone.zone_name}` : '--'}</p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-widest">Best time to be there</p>
-                  <p className="text-sm font-bold text-[var(--text-primary)]">{activePeriod?.target_time ?? '--'}</p>
+                  <p className="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-widest">Best time to be there</p>
+                  <p className="text-sm font-medium text-[var(--text-primary)]">{activePeriod?.target_time ?? '--'}</p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-widest">Expected pickups</p>
-                  <p className="text-sm font-bold text-[var(--text-primary)]">{primaryZone ? primaryZone.predicted_demand.toFixed(1) : '--'}</p>
+                  <p className="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-widest">Expected pickups</p>
+                  <p className="text-sm font-medium text-[var(--text-primary)]">{primaryZone ? primaryZone.predicted_demand.toFixed(1) : '--'}</p>
                 </div>
               </div>
             </div>
 
             {showAdvanced && (
               <div className="h-[100px] w-full mt-4">
-                <p className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-widest mb-2">3 Hour Trend</p>
+                <p className="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-widest mb-2">3 Hour Trend</p>
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={trendData} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
                     <defs>
@@ -418,7 +430,7 @@ export default function DriverOverview({
             <div className="flex items-start gap-2">
               <Zap size={14} className="text-[var(--primary-dark)] mt-0.5 shrink-0" />
               <p className="text-xs text-[var(--text-secondary)] leading-relaxed italic">
-                <span className="font-bold text-[var(--primary-dark)] not-italic">Tip:</span> “Position near {primaryZone?.zone_name ?? 'the top zone'} during the active hotspot window.”
+                <span className="font-heading font-medium text-[var(--primary-dark)] not-italic">Tip:</span> "Position near {primaryZone?.zone_name ?? 'the top zone'} during the active hotspot window."
               </p>
             </div>
           </div>
@@ -432,52 +444,52 @@ export default function DriverOverview({
             <div className="p-2 bg-sky-500/10 rounded-lg">
               <CloudRain className="text-sky-500 w-5 h-5" />
             </div>
-            <h3 className="font-semibold text-[#e8edf3]">Weather Effect</h3>
+            <h3 className="font-heading font-medium text-[var(--text-primary)]">Weather Effect</h3>
           </div>
 
           <div className="flex-1 space-y-6">
             <div className="space-y-4">
               <div className="flex items-start justify-between">
-                <p className="text-lg font-black text-[var(--accent)] leading-tight">Weather-Adjusted Demand</p>
-                <span className="px-2 py-1 bg-sky-500/10 text-sky-400 text-[10px] font-black rounded uppercase border border-sky-500/20">
+                <p className="text-lg font-heading font-medium text-[var(--accent)] leading-tight">Weather-Adjusted Demand</p>
+                <span className="px-2 py-1 bg-sky-500/10 text-sky-400 text-[10px] font-mono font-medium rounded uppercase tracking-widest border border-sky-500/20">
                   {weather?.condition ?? primaryZone?.weather_condition ?? 'Checking...'}
                 </span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <p className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-widest">Area</p>
-                  <p className="text-sm font-bold text-[var(--text-primary)]">{weather?.location_name ?? primaryZone?.borough ?? '--'}</p>
+                  <p className="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-widest">Area</p>
+                  <p className="text-sm font-medium text-[var(--text-primary)]">{weather?.location_name ?? primaryZone?.borough ?? '--'}</p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-widest">Best time to be there</p>
-                  <p className="text-sm font-bold text-[var(--text-primary)]">{activePeriod?.label ?? '--'}</p>
+                  <p className="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-widest">Best time to be there</p>
+                  <p className="text-sm font-medium text-[var(--text-primary)]">{activePeriod?.label ?? '--'}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <Thermometer size={14} className="text-[var(--text-secondary)]" />
-                  <p className="text-sm font-bold text-[var(--text-primary)]">{weather ? `${weather.temp_f.toFixed(1)}°F` : '--'}</p>
+                  <p className="text-sm font-medium text-[var(--text-primary)]">{weather ? `${weather.temp_f.toFixed(1)}°F` : '--'}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <Wind size={14} className="text-[var(--text-secondary)]" />
-                  <p className="text-sm font-bold text-[var(--text-primary)]">{weather ? `${weather.wind_kph.toFixed(1)} kph` : '--'}</p>
+                  <p className="text-sm font-medium text-[var(--text-primary)]">{weather ? `${weather.wind_kph.toFixed(1)} kph` : '--'}</p>
                 </div>
               </div>
             </div>
 
             <div className="p-4 rounded-xl bg-sky-500/5 border border-sky-500/15">
-              <p className="text-xs font-bold text-[#e8edf3] mb-1">Impact Analysis</p>
-              <p className="text-[11px] text-[#94a3b8] leading-relaxed">
-                Current weather is <span className="text-sky-400 font-bold">{weather?.condition ?? primaryZone?.weather_condition ?? 'Unknown'}</span>
-                {' '}with demand impact rated <span className="text-sky-400 font-bold">{weather?.demand_impact ?? 'Unknown'}</span>.
+              <p className="text-xs font-heading font-medium text-[var(--text-primary)] mb-1">Impact Analysis</p>
+              <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
+                Current weather is <span className="text-sky-400 font-medium">{weather?.condition ?? primaryZone?.weather_condition ?? 'Unknown'}</span>
+                {' '}with demand impact rated <span className="text-sky-400 font-medium">{weather?.demand_impact ?? 'Unknown'}</span>.
               </p>
             </div>
           </div>
 
           <div className="mt-6 pt-4 border-t border-[var(--border)] mt-auto">
             <div className="flex items-start gap-2">
-              <Zap size={14} className="text-slate-600 mt-0.5 shrink-0" />
+              <Zap size={14} className="text-sky-500 mt-0.5 shrink-0" />
               <p className="text-xs text-[var(--text-secondary)] leading-relaxed italic">
-                <span className="font-bold text-slate-600 not-italic">Tip:</span> “Use weather as confirmation, but follow the hotspot ranking first.”
+                <span className="font-heading font-medium text-sky-500 not-italic">Tip:</span> "Use weather as confirmation, but follow the hotspot ranking first."
               </p>
             </div>
           </div>
@@ -491,34 +503,34 @@ export default function DriverOverview({
             <div className="p-2 bg-warning/10 rounded-lg">
               <Calendar className="text-warning w-5 h-5" />
             </div>
-            <h3 className="font-semibold text-[#e8edf3]">Nearby Events</h3>
+            <h3 className="font-heading font-medium text-[var(--text-primary)]">Nearby Events</h3>
           </div>
 
           <div className="flex-1 space-y-6">
             <div className="space-y-4">
               <div className="flex items-start justify-between">
-                <p className="text-lg font-black text-[var(--warning)] leading-tight">Events Boosting Rides</p>
-                <span className="px-2 py-1 bg-[var(--warning)]/10 text-[var(--warning)] text-[10px] font-black rounded uppercase border border-[var(--warning)]/20">EVENT BOOST</span>
+                <p className="text-lg font-heading font-medium text-[var(--warning)] leading-tight">Events Boosting Rides</p>
+                <span className="px-2 py-1 bg-[var(--warning)]/10 text-[var(--warning)] text-[10px] font-mono font-medium rounded uppercase tracking-widest border border-[var(--warning)]/20">EVENT BOOST</span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <p className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-widest">Area</p>
-                  <p className="text-sm font-bold text-[var(--text-primary)]">{activePeriod?.recommended_zones[0]?.zone_name ?? '--'}</p>
+                  <p className="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-widest">Area</p>
+                  <p className="text-sm font-medium text-[var(--text-primary)]">{activePeriod?.recommended_zones[0]?.zone_name ?? '--'}</p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-widest">Best time to be there</p>
-                  <p className="text-sm font-bold text-[var(--text-primary)]">{activePeriod?.target_time ?? '--'}</p>
+                  <p className="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-widest">Best time to be there</p>
+                  <p className="text-sm font-medium text-[var(--text-primary)]">{activePeriod?.target_time ?? '--'}</p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-widest">Expected Surge</p>
-                  <p className="text-sm font-bold text-warning">{primaryZone?.demand_level ?? '--'}</p>
+                  <p className="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-widest">Expected Surge</p>
+                  <p className="text-sm font-medium text-warning">{primaryZone?.demand_level ?? '--'}</p>
                 </div>
               </div>
             </div>
 
             <div className="p-4 rounded-xl bg-[var(--warning)]/5 border border-[var(--warning)]/20">
-              <p className="text-xs font-bold text-[var(--text-primary)] mb-1">Impact Analysis</p>
+              <p className="text-xs font-heading font-medium text-[var(--text-primary)] mb-1">Impact Analysis</p>
               <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
                 Focus on the top recommended zone and avoid low-yield zones: {activePeriod?.avoid_zones.map((zone) => zone.zone_id).join(', ') || '--'}.
               </p>
@@ -529,30 +541,86 @@ export default function DriverOverview({
             <div className="flex items-start gap-2">
               <Zap size={14} className="text-[var(--warning)] mt-0.5 shrink-0" />
               <p className="text-xs text-[var(--text-secondary)] leading-relaxed italic">
-                <span className="font-bold text-[var(--warning)] not-italic">Tip:</span> “Cycle toward the highest-ranked zone before the peak forecast hour.”
+                <span className="font-heading font-medium text-[var(--warning)] not-italic">Tip:</span> "Cycle toward the highest-ranked zone before the peak forecast hour."
               </p>
             </div>
           </div>
         </div>
-      </div>
+        <div
+          onClick={() => setExpandedCard('transit')}
+          className="glass-card p-4 sm:p-6 flex flex-col h-full cursor-pointer group"
+        >
+          <div className="flex items-center gap-2 mb-6">
+            <div className="p-2 bg-emerald-500/10 rounded-lg">
+              <TrainFront className="text-emerald-500 w-5 h-5" />
+            </div>
+            <h3 className="font-heading font-medium text-[var(--text-primary)]">Transit Hubs</h3>
+          </div>
+
+          <div className="flex-1 space-y-6">
+            <div className="space-y-4">
+              <div className="flex items-start justify-between">
+                <p className="text-lg font-heading font-medium text-emerald-400 leading-tight">Subway & Bus Coverage</p>
+                <span className="px-2 py-1 bg-emerald-500/10 text-emerald-400 text-[10px] font-mono font-medium rounded uppercase tracking-widest border border-emerald-500/20">TRANSIT</span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-widest">Nearest Hub</p>
+                  <p className="text-sm font-medium text-[var(--text-primary)]">{nearestTransitZone?.borough ?? '--'}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-widest">Active Routes</p>
+                  <p className="text-sm font-medium text-[var(--text-primary)]">{nearestTransitZone?.total_routes ?? '--'}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-widest">Trips Today</p>
+                  <p className="text-sm font-medium text-emerald-400">{nearestTransitZone?.total_trips ?? '--'}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-widest">Stops Covered</p>
+                  <p className="text-sm font-medium text-[var(--text-primary)]">{nearestTransitZone?.total_stops ?? '--'}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/15">
+              <p className="text-xs font-heading font-medium text-[var(--text-primary)] mb-1">Impact Analysis</p>
+              <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
+                {nearestTransitZone
+                  ? <>{nearestTransitZone.subway_routes} subway + {nearestTransitZone.bus_routes} bus routes serving {nearestTransitZone.total_stops} stops near your zone.</>
+                  : 'Loading transit data...'}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-6 pt-4 border-t border-[var(--border)] mt-auto">
+            <div className="flex items-start gap-2">
+              <Zap size={14} className="text-emerald-500 mt-0.5 shrink-0" />
+              <p className="text-xs text-[var(--text-secondary)] leading-relaxed italic">
+                <span className="font-heading font-medium text-emerald-500 not-italic">Tip:</span> "Position near busy transit stops — passengers exiting subways often need rides."
+              </p>
+            </div>
+          </div>
+        </div>      </div>
 
       {showAdvanced && (
         <div className="glass-card p-6">
           <div className="flex items-center gap-2 mb-2">
-            <span className="px-2 py-0.5 text-[10px] font-black uppercase tracking-wider bg-[var(--primary)]/10 text-[var(--primary-dark)] rounded border border-[var(--primary)]/20">
+            <span className="px-2 py-0.5 text-[10px] font-mono font-medium uppercase tracking-widest bg-[var(--primary)]/10 text-[var(--primary-dark)] rounded border border-[var(--primary)]/20">
               Advanced data is showing — charts &amp; raw numbers
             </span>
           </div>
           <div className="flex items-center justify-between mb-5">
             <div>
-              <h3 className="font-semibold text-[#e8edf3]">Demand Breakdown</h3>
+              <h3 className="font-heading font-medium text-[var(--text-primary)]">Demand Breakdown</h3>
               <p className="text-sm text-[var(--text-secondary)] mt-1">
                 How GRID calculates demand: base + weather + events + time-of-day boost.
               </p>
             </div>
             <div className="text-right">
-              <p className="text-xs uppercase tracking-wider text-[var(--text-secondary)]">Estimated Next-Hour Demand</p>
-              <p className="text-2xl font-bold text-[var(--primary)]">{formulaPrediction.toFixed(1)}</p>
+              <p className="text-xs font-mono uppercase tracking-widest text-[var(--text-secondary)]">Estimated Next-Hour Demand</p>
+              <p className="text-2xl font-heading font-medium text-[var(--primary)]">{formulaPrediction.toFixed(1)}</p>
             </div>
           </div>
 
@@ -576,7 +644,7 @@ export default function DriverOverview({
 
       {/* Missed Opportunity Feed */}
       <div>
-        <h3 className="font-semibold text-[#e8edf3] mb-3">Trips You Missed Nearby</h3>
+        <h3 className="font-heading font-medium text-[var(--text-primary)] mb-3">Trips You Missed Nearby</h3>
         <Suspense fallback={<div className="h-32 rounded-xl bg-[var(--surface)] animate-pulse" />}>
           <MissedOpportunityFeed onCountChange={() => {}} />
         </Suspense>
@@ -601,8 +669,8 @@ export default function DriverOverview({
                       <TrendingUp className="text-primary w-6 h-6" />
                     </div>
                     <div>
-                      <h2 className="text-2xl font-black text-[var(--text-primary)]">Where Money Is</h2>
-                      <p className="text-[var(--text-secondary)] font-medium text-sm mt-0.5">Detailed hotspot volume breakdown</p>
+                      <h2 className="text-2xl font-heading font-medium text-[var(--text-primary)]">Where Money Is</h2>
+                      <p className="text-[var(--text-secondary)] font-light text-sm mt-0.5">Detailed hotspot volume breakdown</p>
                     </div>
                   </>
                 )}
@@ -612,8 +680,8 @@ export default function DriverOverview({
                       <CloudRain className="text-sky-500 w-6 h-6" />
                     </div>
                     <div>
-                      <h2 className="text-2xl font-black text-[var(--text-primary)]">Weather Effect</h2>
-                      <p className="text-[var(--text-secondary)] font-medium text-sm mt-0.5">Atmospheric conditions and demand impact</p>
+                      <h2 className="text-2xl font-heading font-medium text-[var(--text-primary)]">Weather Effect</h2>
+                      <p className="text-[var(--text-secondary)] font-light text-sm mt-0.5">Atmospheric conditions and demand impact</p>
                     </div>
                   </>
                 )}
@@ -623,8 +691,19 @@ export default function DriverOverview({
                       <Calendar className="text-warning w-6 h-6" />
                     </div>
                     <div>
-                      <h2 className="text-2xl font-black text-[var(--text-primary)]">Nearby Events</h2>
-                      <p className="text-[var(--text-secondary)] font-medium text-sm mt-0.5">Regional activity and surge tracking</p>
+                      <h2 className="text-2xl font-heading font-medium text-[var(--text-primary)]">Nearby Events</h2>
+                      <p className="text-[var(--text-secondary)] font-light text-sm mt-0.5">Regional activity and surge tracking</p>
+                    </div>
+                  </>
+                )}
+                {expandedCard === 'transit' && (
+                  <>
+                    <div className="p-3 bg-emerald-500/10 rounded-xl">
+                      <TrainFront className="text-emerald-500 w-6 h-6" />
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-heading font-medium text-[var(--text-primary)]">Transit Hubs</h2>
+                      <p className="text-[var(--text-secondary)] font-light text-sm mt-0.5">MTA coverage and passenger flow near your zone</p>
                     </div>
                   </>
                 )}
@@ -643,21 +722,21 @@ export default function DriverOverview({
                 <>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="p-5 rounded-2xl bg-[var(--danger)]/5 border border-[var(--danger)]/20">
-                      <p className="text-[11px] font-black tracking-widest text-[var(--danger)] uppercase mb-1">Peak Time Window</p>
-                      <p className="text-xl font-bold text-[var(--text-primary)]">{activePeriod?.target_time ?? '--'}</p>
+                      <p className="text-[11px] font-mono font-medium tracking-widest text-[var(--danger)] uppercase mb-1">Peak Time Window</p>
+                      <p className="text-xl font-heading font-light text-[var(--text-primary)]">{activePeriod?.target_time ?? '--'}</p>
                     </div>
                     <div className="p-5 rounded-2xl bg-[var(--primary)]/5 border border-[var(--primary)]/20">
-                      <p className="text-[11px] font-black tracking-widest text-[var(--primary-dark)] uppercase mb-1">Base Demand Layer</p>
-                      <p className="text-xl font-bold text-[var(--text-primary)]">{baseDemand.toFixed(1)} rides</p>
+                      <p className="text-[11px] font-mono font-medium tracking-widest text-[var(--primary-dark)] uppercase mb-1">Base Demand Layer</p>
+                      <p className="text-xl font-heading font-light text-[var(--text-primary)]">{baseDemand.toFixed(1)} rides</p>
                     </div>
                     <div className="p-5 rounded-2xl bg-[var(--success)]/5 border border-[var(--success)]/20">
-                      <p className="text-[11px] font-black tracking-widest text-[var(--success)] uppercase mb-1">Total Adjusted Lift</p>
-                      <p className="text-xl font-bold text-[var(--text-primary)]">+{(weatherLift + eventLift + horizonLift).toFixed(1)} rides</p>
+                      <p className="text-[11px] font-mono font-medium tracking-widest text-[var(--success)] uppercase mb-1">Total Adjusted Lift</p>
+                      <p className="text-xl font-heading font-light text-[var(--text-primary)]">+{(weatherLift + eventLift + horizonLift).toFixed(1)} rides</p>
                     </div>
                   </div>
                   
                   <div className="space-y-4">
-                    <h3 className="text-lg font-bold text-[var(--text-primary)] border-b border-[rgba(250,204,21,0.1)] pb-2">Extended 4-Hour Trend Detail</h3>
+                    <h3 className="text-lg font-heading font-medium text-[var(--text-primary)] border-b border-[rgba(250,204,21,0.1)] pb-2">Extended 4-Hour Trend Detail</h3>
                     <div className="h-[250px] w-full">
                       <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={trendData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
@@ -696,29 +775,29 @@ export default function DriverOverview({
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div className="p-4 rounded-2xl bg-white/5 border border-[rgba(250,204,21,0.1)] text-center">
                       <Thermometer className="mx-auto text-orange-500 mb-2 w-8 h-8" />
-                      <p className="text-xs font-bold text-[var(--text-secondary)] uppercase">Temperature</p>
-                      <p className="text-xl font-bold text-[var(--text-primary)] mt-1">{weather ? `${weather.temp_f.toFixed(1)}°F` : '--'}</p>
+                      <p className="text-xs font-mono text-[var(--text-secondary)] uppercase tracking-widest">Temperature</p>
+                      <p className="text-xl font-heading font-light text-[var(--text-primary)] mt-1">{weather ? `${weather.temp_f.toFixed(1)}°F` : '--'}</p>
                     </div>
                     <div className="p-4 rounded-2xl bg-white/5 border border-[rgba(250,204,21,0.1)] text-center">
                       <Wind className="mx-auto text-sky-500 mb-2 w-8 h-8" />
-                      <p className="text-xs font-bold text-[var(--text-secondary)] uppercase">Wind Speed</p>
-                      <p className="text-xl font-bold text-[var(--text-primary)] mt-1">{weather ? `${weather.wind_kph.toFixed(1)} kph` : '--'}</p>
+                      <p className="text-xs font-mono text-[var(--text-secondary)] uppercase tracking-widest">Wind Speed</p>
+                      <p className="text-xl font-heading font-light text-[var(--text-primary)] mt-1">{weather ? `${weather.wind_kph.toFixed(1)} kph` : '--'}</p>
                     </div>
                     <div className="p-4 rounded-2xl bg-white/5 border border-[rgba(250,204,21,0.1)] text-center">
                       <CloudRain className="mx-auto text-indigo-500 mb-2 w-8 h-8" />
-                      <p className="text-xs font-bold text-[var(--text-secondary)] uppercase">Precipitation</p>
-                      <p className="text-xl font-bold text-[var(--text-primary)] mt-1">{weather ? `${weather.precip_mm.toFixed(1)} mm` : '0 mm'}</p>
+                      <p className="text-xs font-mono text-[var(--text-secondary)] uppercase tracking-widest">Precipitation</p>
+                      <p className="text-xl font-heading font-light text-[var(--text-primary)] mt-1">{weather ? `${weather.precip_mm.toFixed(1)} mm` : '0 mm'}</p>
                     </div>
                     <div className="p-4 rounded-2xl bg-white/5 border border-[rgba(250,204,21,0.1)] text-center">
                       <Zap className="mx-auto text-yellow-500 mb-2 w-8 h-8" />
-                      <p className="text-xs font-bold text-[var(--text-secondary)] uppercase">Lift Multiplier</p>
-                      <p className="text-xl font-bold text-[var(--text-primary)] mt-1">{weatherFactor.toFixed(2)}x</p>
+                      <p className="text-xs font-mono text-[var(--text-secondary)] uppercase tracking-widest">Lift Multiplier</p>
+                      <p className="text-xl font-heading font-light text-[var(--text-primary)] mt-1">{weatherFactor.toFixed(2)}x</p>
                     </div>
                   </div>
                   
                   <div className="p-6 rounded-2xl bg-sky-500/5 border border-sky-500/15">
-                    <h3 className="text-lg font-bold text-sky-400 mb-2">Weather Strategy Guidance</h3>
-                    <p className="text-[#94a3b8] leading-relaxed font-normal">
+                    <h3 className="text-lg font-heading font-medium text-sky-400 mb-2">Weather Strategy Guidance</h3>
+                    <p className="text-[var(--text-secondary)] leading-relaxed font-normal">
                       Current conditions ({weather?.condition ?? primaryZone?.weather_condition ?? 'Unknown'}) are providing a 
                       {(weatherLift > 0 ? ' positive ' : ' neutral ')} influence on baseline demand calculations. As weather intensity 
                       grows, fewer competitive vehicles typically remain on network—generating supply choke points near transit hubs. Keep 
@@ -736,16 +815,16 @@ export default function DriverOverview({
                       <div className="w-5 h-5 rounded-full bg-danger/15 flex items-center justify-center shrink-0">
                         <MapPin size={11} className="text-danger" />
                       </div>
-                      <span className="text-xs font-black text-danger uppercase tracking-widest">Avoid Zones</span>
+                      <span className="text-xs font-mono font-medium text-danger uppercase tracking-widest">Avoid Zones</span>
                       {activePeriod?.avoid_zones.length ? (
-                        <span className="ml-auto text-[10px] font-black text-danger bg-danger/10 border border-danger/20 px-2 py-0.5 rounded-full">
+                        <span className="ml-auto text-[10px] font-mono font-medium text-danger bg-danger/10 border border-danger/20 px-2 py-0.5 rounded-full">
                           {activePeriod.avoid_zones.length} zones
                         </span>
                       ) : null}
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {activePeriod?.avoid_zones.map((zone) => (
-                        <span key={zone.zone_id} className="px-3 py-1.5 bg-white border border-danger/25 rounded-full text-xs font-bold text-danger">
+                        <span key={zone.zone_id} className="px-3 py-1.5 bg-white border border-danger/25 rounded-full text-xs font-mono font-medium text-danger">
                           Zone {zone.zone_id}
                         </span>
                       )) ?? <p className="text-sm text-[var(--text-muted)]">No active avoid zones.</p>}
@@ -758,9 +837,9 @@ export default function DriverOverview({
                       <div className="w-5 h-5 rounded-full bg-success/15 flex items-center justify-center shrink-0">
                         <TrendingUp size={11} className="text-success" />
                       </div>
-                      <span className="text-xs font-black text-success uppercase tracking-widest">Recommended Targets</span>
+                      <span className="text-xs font-mono font-medium text-success uppercase tracking-widest">Recommended Targets</span>
                       {activePeriod?.recommended_zones.length ? (
-                        <span className="ml-auto text-[10px] font-black text-success bg-success/10 border border-success/20 px-2 py-0.5 rounded-full">
+                        <span className="ml-auto text-[10px] font-mono font-medium text-success bg-success/10 border border-success/20 px-2 py-0.5 rounded-full">
                           {activePeriod.recommended_zones.length} zones
                         </span>
                       ) : null}
@@ -776,15 +855,15 @@ export default function DriverOverview({
                           'bg-white/5 text-[var(--text-muted)]';
                         return (
                           <div key={zone.zone_id} className="flex items-center gap-3 px-4 py-3 rounded-xl bg-[var(--surface)] border border-[var(--border)]">
-                            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${rankBadge}`}>
+                            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-medium shrink-0 ${rankBadge}`}>
                               {idx + 1}
                             </span>
-                            <span className="font-bold text-[var(--text-primary)] text-sm flex-1 truncate">{zone.zone_name}</span>
+                            <span className="font-medium text-[var(--text-primary)] text-sm flex-1 truncate">{zone.zone_name}</span>
                             <div className="flex items-center gap-3 shrink-0">
                               <div className="w-16 h-1 rounded-full bg-[var(--border)] overflow-hidden">
                                 <div className="h-full rounded-full bg-success" style={{ width: `${pct}%` }} />
                               </div>
-                              <span className="text-xs font-bold text-[var(--text-secondary)] w-20 text-right tabular-nums">
+                              <span className="text-xs font-mono text-[var(--text-secondary)] w-20 text-right tabular-nums">
                                 {zone.expected_trips_per_hour.toFixed(0)} trips/hr
                               </span>
                             </div>
@@ -795,12 +874,93 @@ export default function DriverOverview({
                   </div>
                 </div>
               )}
+
+              {expandedCard === 'transit' && (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="p-4 rounded-2xl bg-white/5 border border-[rgba(250,204,21,0.1)] text-center">
+                      <TrainFront className="mx-auto text-emerald-500 mb-2 w-8 h-8" />
+                      <p className="text-xs font-mono text-[var(--text-secondary)] uppercase tracking-widest">Total Stops</p>
+                      <p className="text-xl font-heading font-light text-[var(--text-primary)] mt-1">{nearestTransitZone?.total_stops ?? '--'}</p>
+                    </div>
+                    <div className="p-4 rounded-2xl bg-white/5 border border-[rgba(250,204,21,0.1)] text-center">
+                      <MapPin className="mx-auto text-blue-500 mb-2 w-8 h-8" />
+                      <p className="text-xs font-mono text-[var(--text-secondary)] uppercase tracking-widest">Subway Routes</p>
+                      <p className="text-xl font-heading font-light text-[var(--text-primary)] mt-1">{nearestTransitZone?.subway_routes ?? '--'}</p>
+                    </div>
+                    <div className="p-4 rounded-2xl bg-white/5 border border-[rgba(250,204,21,0.1)] text-center">
+                      <Clock className="mx-auto text-amber-500 mb-2 w-8 h-8" />
+                      <p className="text-xs font-mono text-[var(--text-secondary)] uppercase tracking-widest">Bus Routes</p>
+                      <p className="text-xl font-heading font-light text-[var(--text-primary)] mt-1">{nearestTransitZone?.bus_routes ?? '--'}</p>
+                    </div>
+                    <div className="p-4 rounded-2xl bg-white/5 border border-[rgba(250,204,21,0.1)] text-center">
+                      <Zap className="mx-auto text-yellow-500 mb-2 w-8 h-8" />
+                      <p className="text-xs font-mono text-[var(--text-secondary)] uppercase tracking-widest">Trips Today</p>
+                      <p className="text-xl font-heading font-light text-[var(--text-primary)] mt-1">{nearestTransitZone?.total_trips ?? '--'}</p>
+                    </div>
+                  </div>
+
+                  {/* Zone-by-zone breakdown */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-heading font-medium text-[var(--text-primary)] border-b border-[rgba(250,204,21,0.1)] pb-2">All Transit Zones</h3>
+                    <div className="space-y-3">
+                      {transit?.zones.map((zone) => {
+                        const maxTrips = transit.zones[0]?.total_trips ?? 1;
+                        const pct = Math.round((zone.total_trips / maxTrips) * 100);
+                        return (
+                          <div key={zone.zone_id} className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--border)]">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="font-medium text-[var(--text-primary)] text-sm">{zone.borough}</span>
+                              <div className="flex items-center gap-3">
+                                <div className="w-20 h-1.5 rounded-full bg-[var(--border)] overflow-hidden">
+                                  <div className="h-full rounded-full bg-emerald-500" style={{ width: `${pct}%` }} />
+                                </div>
+                                <span className="text-xs font-mono text-[var(--text-secondary)] w-16 text-right tabular-nums">
+                                  {zone.total_trips} trips
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex flex-wrap gap-2 text-[11px] text-[var(--text-secondary)]">
+                              <span>{zone.total_stops} stops</span>
+                              <span>·</span>
+                              <span>{zone.subway_routes} subway</span>
+                              <span>·</span>
+                              <span>{zone.bus_routes} bus</span>
+                              <span>·</span>
+                              <span>{zone.rail_routes} rail</span>
+                            </div>
+                            {zone.busy_stops.length > 0 && (
+                              <div className="mt-2 flex flex-wrap gap-1.5">
+                                {zone.busy_stops.map((stop) => (
+                                  <span key={stop.stop_id} className="px-2 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-[10px] font-mono font-medium text-emerald-400">
+                                    {stop.stop_name} ({stop.trips_today})
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      }) ?? <p className="text-sm text-[var(--text-muted)]">Loading transit zones...</p>}
+                    </div>
+                  </div>
+
+                  <div className="p-6 rounded-2xl bg-emerald-500/5 border border-emerald-500/15">
+                    <h3 className="text-lg font-heading font-medium text-emerald-400 mb-2">Transit Strategy Guidance</h3>
+                    <p className="text-[var(--text-secondary)] leading-relaxed font-normal">
+                      Focus on subway exit clusters during rush hours — passengers leaving subway stations are high-intent riders. 
+                      Bus stop pickups tend to be dispersed but consistent throughout the day. Position near the busiest stops 
+                      in {nearestTransitZone?.borough ?? 'your zone'} where {nearestTransitZone?.total_trips ?? 'many'} trips are 
+                      running today.
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
             
             {/* Modal footer */}
             <div className="p-4 bg-white/5/50 border-t border-[var(--border)] flex justify-end">
               <button 
-                className="px-6 py-2 bg-[var(--text-primary)] hover:bg-[var(--text-secondary)] text-[var(--surface)] font-bold rounded-full transition-all duration-300 shadow-md"
+                className="px-6 py-2 bg-[var(--text-primary)] hover:bg-[var(--text-secondary)] text-[var(--surface)] font-medium rounded-full transition-all duration-300 shadow-md"
                 onClick={() => setExpandedCard(null)}
               >
                 Close Details

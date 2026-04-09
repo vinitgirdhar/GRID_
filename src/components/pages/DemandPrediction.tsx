@@ -1,54 +1,78 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Calendar, Clock, MapPin, Sparkles, AlertCircle, Cloud, Zap, BrainCircuit, Music, Trophy, Flame, Navigation, Users } from 'lucide-react';
+import { Calendar, Clock, MapPin, Sparkles, AlertCircle, Cloud, Zap, BrainCircuit, Music, Trophy, Flame, Navigation, Users, TrendingUp, type LucideIcon } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { getActiveHotspotPeriod, getHotspots, getPrediction } from '../../services/apiService';
 import { HotspotZone, PredictionResponse } from '../../types';
 
-const LIVE_EVENTS = [
-  {
-    id: 1,
-    name: 'Madison Square Garden Concert',
-    zone: 'Midtown',
-    surge: '+28%',
-    type: 'music',
-    icon: Music,
-    color: 'text-purple-400',
-    bg: 'bg-purple-500/10 border-purple-500/20',
-    time: '9:00 PM',
-    attendees: '20,000 attendees',
-    scale: 'Arena Capacity',
-  },
-  {
-    id: 2,
-    name: 'Yankees Game – Yankee Stadium',
-    zone: 'Bronx',
-    surge: '+18%',
-    type: 'sports',
-    icon: Trophy,
-    color: 'text-sky-400',
-    bg: 'bg-sky-500/10 border-sky-500/20',
-    time: '7:30 PM',
-    attendees: '47,000 attendees',
-    scale: 'Stadium Capacity',
-  },
-  {
-    id: 3,
-    name: 'Heavy Rain Advisory',
-    zone: 'All Boroughs',
-    surge: '+12%',
-    type: 'weather',
-    icon: Cloud,
-    color: 'text-sky-400',
-    bg: 'bg-sky-500/10 border-sky-500/20',
-    time: 'Now',
-    attendees: 'City-wide',
-    scale: 'All 5 Boroughs',
-  },
-];
+interface LiveEvent {
+  id: string;
+  name: string;
+  zone: string;
+  surge: string;
+  icon: LucideIcon;
+  color: string;
+  bg: string;
+  time: string;
+  attendees: string;
+  scale: string;
+}
 
-function SmartStrategyCard({ prediction, zoneName }: { prediction: PredictionResponse; zoneName: string }) {
-  const matchedEvent = LIVE_EVENTS.find(e => zoneName.toLowerCase().includes(e.zone.toLowerCase()) || e.zone === 'All Boroughs');
+function buildLiveEvents(zones: HotspotZone[]): LiveEvent[] {
+  if (!zones.length) return [];
+
+  // Take top 3 zones by predicted demand
+  const sorted = [...zones].sort((a, b) => b.predicted_demand - a.predicted_demand).slice(0, 3);
+
+  return sorted.map((zone) => {
+    const isWeather = zone.weather_condition.toLowerCase() !== 'clear' && zone.weather_condition.toLowerCase() !== 'sunny';
+    const isHighEvent = zone.event_intensity === 'High';
+    const demandPct = Math.round((zone.predicted_demand / (sorted[0].predicted_demand || 1)) * 100);
+    const surgePct = isHighEvent ? Math.round(demandPct * 0.28) : isWeather ? Math.round(demandPct * 0.12) : Math.round(demandPct * 0.18);
+
+    let icon: LucideIcon;
+    let color: string;
+    let bg: string;
+    let eventLabel: string;
+    let scaleLabel: string;
+
+    if (isHighEvent) {
+      icon = Trophy;
+      color = 'text-purple-400';
+      bg = 'bg-purple-500/10 border-purple-500/20';
+      eventLabel = `High Demand — ${zone.zone_name}`;
+      scaleLabel = 'Event Zone';
+    } else if (isWeather) {
+      icon = Cloud;
+      color = 'text-sky-400';
+      bg = 'bg-sky-500/10 border-sky-500/20';
+      eventLabel = `${zone.weather_condition} — ${zone.zone_name}`;
+      scaleLabel = zone.borough;
+    } else {
+      icon = TrendingUp;
+      color = 'text-amber-400';
+      bg = 'bg-amber-500/10 border-amber-500/20';
+      eventLabel = `Peak Demand — ${zone.zone_name}`;
+      scaleLabel = 'Demand Zone';
+    }
+
+    return {
+      id: zone.zone_id,
+      name: eventLabel,
+      zone: zone.borough,
+      surge: `+${surgePct}%`,
+      icon,
+      color,
+      bg,
+      time: 'Now',
+      attendees: `~${zone.predicted_demand.toLocaleString()} trips/hr`,
+      scale: scaleLabel,
+    };
+  });
+}
+
+function SmartStrategyCard({ prediction, zoneName, liveEvents }: { prediction: PredictionResponse; zoneName: string; liveEvents: LiveEvent[] }) {
+  const matchedEvent = liveEvents.find(e => zoneName.toLowerCase().includes(e.zone.toLowerCase()));
   const baseAdvice = prediction.demand_level === 'High'
     ? `Demand is peaking in ${zoneName}. Position near transit hubs for fastest pickup.`
     : `Moderate demand in ${zoneName}. Consider moving to adjacent high-demand zones.`;
@@ -136,6 +160,8 @@ export default function DemandPrediction() {
   const [selectedZoneId, setSelectedZoneId] = useState('');
   const hasAutoPredicted = useRef(false);
 
+  const liveEvents = useMemo(() => buildLiveEvents(topZones), [topZones]);
+
   const targetDateObj = new Date();
   targetDateObj.setDate(targetDateObj.getDate() + dateOffset);
   const selectedDate = targetDateObj.toISOString().split('T')[0];
@@ -207,7 +233,7 @@ export default function DemandPrediction() {
 
   const selectedZone = topZones.find((zone) => zone.zone_id === selectedZoneId);
 
-  const inputCls = 'w-full bg-white/5 border border-[var(--border)] rounded-xl py-3 pl-10 pr-4 text-sm focus:outline-none focus:border-[var(--accent)]/40 focus:ring-1 focus:ring-[var(--accent)]/10 transition-all text-[var(--text)] appearance-none';
+  const inputCls = 'w-full bg-white/5 border border-[var(--border)] rounded-xl py-3 pl-10 pr-4 text-sm focus:outline-none focus:border-[var(--accent)]/40 focus:ring-1 focus:ring-[var(--accent)]/10 transition-all text-[var(--text)] appearance-none [&>option]:bg-[#0f1724] [&>option]:text-[var(--text)]';
   const labelCls = 'text-[10px] font-mono font-medium text-[var(--text-muted)] uppercase tracking-widest';
 
   return (
@@ -243,7 +269,7 @@ export default function DemandPrediction() {
             exit={{ opacity: 0, y: -8 }}
           >
             {prediction ? (
-              <SmartStrategyCard prediction={prediction} zoneName={prediction.zone_name} />
+              <SmartStrategyCard prediction={prediction} zoneName={prediction.zone_name} liveEvents={liveEvents} />
             ) : (
               <div className="relative overflow-hidden bg-white/5 border border-[var(--border)] rounded-2xl p-6 flex items-center gap-4">
                 <div className="relative shrink-0">
@@ -506,7 +532,7 @@ export default function DemandPrediction() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {LIVE_EVENTS.map((event) => (
+          {liveEvents.map((event) => (
             <div
               key={event.id}
               className={`relative overflow-hidden rounded-2xl border p-4 hover:-translate-y-1 hover:shadow-[0_4px_20px_rgba(0,0,0,0.3)] transition-all duration-300 group/event ${event.bg}`}

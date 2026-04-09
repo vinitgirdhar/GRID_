@@ -293,3 +293,31 @@ class GoalRouteResponse(BaseModel):
     meets_target: bool
     zones: list[GoalRouteZone]
     summary_text: str
+
+
+class TransitStop(BaseModel):
+    stop_id: str
+    stop_name: str
+    lat: float
+    lng: float
+    routes: list[str]
+    route_types: list[int]
+    trips_today: int
+
+
+class TransitZoneSummary(BaseModel):
+    zone_id: str
+    borough: str
+    total_stops: int
+    total_routes: int
+    total_trips: int
+    subway_routes: int
+    bus_routes: int
+    rail_routes: int
+    busy_stops: list[TransitStop]
+
+
+class TransitResponse(BaseModel):
+    generated_at: datetime
+    zones: list[TransitZoneSummary]
+    nearest_zone: TransitZoneSummary | None = None

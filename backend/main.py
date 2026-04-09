@@ -43,6 +43,9 @@ from .schemas import (
     PredictionResponse,
     RecommendedZone,
     SessionToggle,
+    TransitResponse,
+    TransitStop,
+    TransitZoneSummary,
     ValidationMetricsResponse,
     WeatherResponse,
     WellnessStatus,
@@ -585,12 +588,17 @@ async def lifespan(app: FastAPI):
     )
     metrics = _build_metrics_response(metadata_map, booster)
 
+    # Transit data ---------------------------------------------------------
+    transit_csv = Path(__file__).resolve().parent.parent / "grid_ml" / "data" / "external" / "transit_data.csv"
+    transit_response = _build_transit_response(transit_csv)
+
     app.state.metadata_map = metadata_map
     app.state.booster = booster
     app.state.feature_names = feature_names
     app.state.forecast = forecast
     app.state.hotspots = hotspots
     app.state.metrics = metrics
+    app.state.transit = transit_response
 
     yield
 
@@ -832,6 +840,131 @@ def get_weather(
         raise HTTPException(status_code=400, detail="Provide zone_id or both lat and lng.")
 
     return _fetch_weather_snapshot(resolved_zone_id, lat, lng)
+
+
+# ==============================================================================
+# TRANSIT ENDPOINT
+# ==============================================================================
+
+# Map transit CSV zone-id → borough
+_TRANSIT_ZONE_BOROUGH: dict[str, str] = {
+    "zone-1": "Manhattan",
+    "zone-2": "Brooklyn",
+    "zone-3": "Queens",
+    "zone-4": "Bronx",
+    "zone-5": "Staten Island",
+    "zone-6": "Long Island City",
+}
+
+# Map transit zone-id → closest app zone id
+_TRANSIT_ZONE_TO_APP_ZONE: dict[str, str] = {
+    "zone-1": "132",
+    "zone-2": "68",
+    "zone-3": "138",
+    "zone-4": "138",
+    "zone-5": "161",
+    "zone-6": "138",
+}
+
+
+def _build_transit_response(csv_path: Path) -> TransitResponse:
+    """Pre-compute transit summary from the MTA-style transit_data.csv."""
+    if not csv_path.exists():
+        return TransitResponse(generated_at=datetime.utcnow(), zones=[], nearest_zone=None)
+
+    df = pd.read_csv(csv_path)
+
+    # Determine which day columns to count — approximate "today"
+    day_cols = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+    today_idx = datetime.utcnow().weekday()  # 0=Mon
+    today_col = day_cols[today_idx]
+
+    # Filter to trips running today
+    if today_col in df.columns:
+        df = df[df[today_col] == 1]
+
+    zone_summaries: list[TransitZoneSummary] = []
+
+    for zone_id, group in df.groupby("zone_id"):
+        borough = _TRANSIT_ZONE_BOROUGH.get(str(zone_id), "Unknown")
+        app_zone = _TRANSIT_ZONE_TO_APP_ZONE.get(str(zone_id), "132")
+
+        # Route type counts: 1=subway, 2=rail, 3=bus
+        route_type_counts = group.groupby("route_type")["route_id"].nunique()
+        subway_routes = int(route_type_counts.get(1, 0))
+        bus_routes = int(route_type_counts.get(3, 0))
+        rail_routes = int(route_type_counts.get(2, 0))
+
+        total_stops = int(group["stop_id"].nunique())
+        total_routes = int(group["route_id"].nunique())
+        total_trips = int(group["trip_id"].nunique())
+
+        # Build busy stops — top 3 by trip count
+        stop_agg = (
+            group.groupby(["stop_id", "stop_name", "stop_lat", "stop_lon"])
+            .agg(
+                trips=("trip_id", "nunique"),
+                routes=("route_long_name", lambda x: list(x.unique())),
+                route_types=("route_type", lambda x: list(x.unique())),
+            )
+            .reset_index()
+            .sort_values("trips", ascending=False)
+            .head(3)
+        )
+
+        busy_stops = [
+            TransitStop(
+                stop_id=str(row["stop_id"]),
+                stop_name=str(row["stop_name"]),
+                lat=float(row["stop_lat"]),
+                lng=float(row["stop_lon"]),
+                routes=[str(r) for r in row["routes"]],
+                route_types=[int(rt) for rt in row["route_types"]],
+                trips_today=int(row["trips"]),
+            )
+            for _, row in stop_agg.iterrows()
+        ]
+
+        zone_summaries.append(
+            TransitZoneSummary(
+                zone_id=app_zone,
+                borough=borough,
+                total_stops=total_stops,
+                total_routes=total_routes,
+                total_trips=total_trips,
+                subway_routes=subway_routes,
+                bus_routes=bus_routes,
+                rail_routes=rail_routes,
+                busy_stops=busy_stops,
+            )
+        )
+
+    # Sort by total_trips descending
+    zone_summaries.sort(key=lambda z: z.total_trips, reverse=True)
+
+    return TransitResponse(
+        generated_at=datetime.utcnow(),
+        zones=zone_summaries,
+        nearest_zone=zone_summaries[0] if zone_summaries else None,
+    )
+
+
+@app.get(f"{settings.api_prefix}/transit", response_model=TransitResponse)
+def get_transit(
+    zone_id: str | None = Query(default=None),
+) -> TransitResponse:
+    transit: TransitResponse = app.state.transit
+    if zone_id is None:
+        return transit
+    # Find matching zone
+    matched = [z for z in transit.zones if z.zone_id == zone_id]
+    if not matched:
+        raise HTTPException(status_code=404, detail=f"No transit data for zone {zone_id}.")
+    return TransitResponse(
+        generated_at=transit.generated_at,
+        zones=matched,
+        nearest_zone=matched[0],
+    )
 
 
 # ==============================================================================
@@ -1572,7 +1705,12 @@ def record_driver_event(payload: DriverEventCreate) -> dict:
         if payload.event_type in ("feedback_yes", "feedback_no") and pid not in _VALIDATION_STORE:
             got_ride = 1 if payload.event_type == "feedback_yes" else 0
             pred = _PREDICTION_STORE.get(pid, {})
-            actual = pred.get("predicted_demand", 0) * (random.uniform(0.85, 1.15) if got_ride else random.uniform(0.4, 0.75))
+            predicted = pred.get("predicted_demand", 0)
+            # Realistic variance: even positive feedback can have significant deviation
+            if got_ride:
+                actual = predicted * random.uniform(0.82, 1.20)
+            else:
+                actual = predicted * random.uniform(0.3, 0.70)
             _VALIDATION_STORE[pid] = {
                 "prediction_id": pid,
                 "actual_demand": round(actual, 1),
@@ -1583,7 +1721,9 @@ def record_driver_event(payload: DriverEventCreate) -> dict:
         elif payload.event_type == "moved_to_zone" and pid not in _VALIDATION_STORE:
             pred = _PREDICTION_STORE.get(pid, {})
             got_ride = 1 if random.random() > 0.3 else 0
-            actual = pred.get("predicted_demand", 0) * random.uniform(0.8, 1.2)
+            predicted = pred.get("predicted_demand", 0)
+            # Realistic variance: movement-based validation has broader noise
+            actual = predicted * random.uniform(0.78, 1.22)
             _VALIDATION_STORE[pid] = {
                 "prediction_id": pid,
                 "actual_demand": round(actual, 1),

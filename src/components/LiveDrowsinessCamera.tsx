@@ -133,6 +133,14 @@ function drawEyePath(
       context.lineTo(point.x, point.y);
     }
   });
+  // Soft bloom pass — same path, wider + transparent
+  context.save();
+  context.globalAlpha = 0.2;
+  context.strokeStyle = color;
+  context.lineWidth = 7;
+  context.stroke();
+  context.restore();
+  // Crisp main pass
   context.strokeStyle = color;
   context.lineWidth = 2;
   context.stroke();
@@ -182,14 +190,56 @@ function drawStatusChip(
   y: number,
   label: string,
   fill: string,
+  alphaMultiplier = 1,
 ) {
-  const width = Math.max(112, 22 + label.length * 8.2);
-  drawRoundedPanel(context, x, y, width, 34, 17, fill);
+  const chipWidth = Math.max(112, 22 + label.length * 8.2);
+  context.save();
+  context.globalAlpha = alphaMultiplier;
+  drawRoundedPanel(context, x, y, chipWidth, 34, 17, fill);
   context.fillStyle = '#f8fafc';
   context.font = '700 12px Segoe UI';
   context.fillText(label, x + 14, y + 21);
+  context.restore();
 }
 
+function drawCornerBrackets(
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  size: number,
+  color: string,
+  lineWidth: number,
+) {
+  context.strokeStyle = color;
+  context.lineWidth = lineWidth;
+  context.lineCap = 'square';
+  // top-left
+  context.beginPath();
+  context.moveTo(x, y + size);
+  context.lineTo(x, y);
+  context.lineTo(x + size, y);
+  context.stroke();
+  // top-right
+  context.beginPath();
+  context.moveTo(x + w - size, y);
+  context.lineTo(x + w, y);
+  context.lineTo(x + w, y + size);
+  context.stroke();
+  // bottom-left
+  context.beginPath();
+  context.moveTo(x, y + h - size);
+  context.lineTo(x, y + h);
+  context.lineTo(x + size, y + h);
+  context.stroke();
+  // bottom-right
+  context.beginPath();
+  context.moveTo(x + w - size, y + h);
+  context.lineTo(x + w, y + h);
+  context.lineTo(x + w, y + h - size);
+  context.stroke();
+}
 
 function buildPayload(
   next: Partial<DrowsinessResponse> & Pick<DrowsinessUpdatePayload, 'status' | 'severity'>,
@@ -483,6 +533,7 @@ export default function LiveDrowsinessCamera({ isLive, onGoLive }: { isLive: boo
     result: FaceLandmarkerResult | null,
     next: DrowsinessUpdatePayload,
     fatigueEventCount: number,
+    timestamp: number,
   ) {
     const canvas = canvasRef.current;
     const video = videoRef.current;
@@ -508,6 +559,25 @@ export default function LiveDrowsinessCamera({ isLive, onGoLive }: { isLive: boo
     context.lineCap = 'round';
 
     if (!result?.faceLandmarks?.length) {
+      // Horizontal scan line — gives the camera a "searching" feel
+      const scanT = (timestamp % 2600) / 2600;
+      const scanY = scanT * height;
+      const scanGrad = context.createLinearGradient(0, scanY - 28, 0, scanY + 28);
+      scanGrad.addColorStop(0, 'rgba(56, 189, 248, 0)');
+      scanGrad.addColorStop(0.5, 'rgba(56, 189, 248, 0.07)');
+      scanGrad.addColorStop(1, 'rgba(56, 189, 248, 0)');
+      context.fillStyle = scanGrad;
+      context.fillRect(0, scanY - 28, width, 56);
+
+      // Targeting brackets centred in frame — breathe slowly
+      const bracketAlpha = 0.22 + 0.1 * Math.sin(timestamp / 1100);
+      const bw = width * 0.42;
+      const bh = height * 0.44;
+      context.save();
+      context.globalAlpha = bracketAlpha;
+      drawCornerBrackets(context, (width - bw) / 2, (height - bh) / 2, bw, bh, Math.min(bw, bh) * 0.16, 'rgba(56, 189, 248, 1)', 1.5);
+      context.restore();
+
       drawRoundedPanel(context, 18, 18, 340, 112, 24, 'rgba(15, 23, 42, 0.74)', 'rgba(255,255,255,0.08)');
       context.fillStyle = 'rgba(56, 189, 248, 0.95)';
       context.font = '700 12px Segoe UI';
@@ -519,13 +589,15 @@ export default function LiveDrowsinessCamera({ isLive, onGoLive }: { isLive: boo
       context.font = '500 13px Segoe UI';
       context.fillText('Center your face in frame to start live analytics.', 34, 99);
 
-      drawStatusChip(context, width - 170, 22, 'CAMERA LIVE', 'rgba(14,165,233,0.92)');
+      const chipAlpha0 = 0.78 + 0.22 * (0.5 + 0.5 * Math.sin(timestamp / 900));
+      drawStatusChip(context, width - 170, 22, 'CAMERA LIVE', 'rgba(14,165,233,0.92)', chipAlpha0);
       return;
     }
 
     const points = result.faceLandmarks[0].map((landmark) => ({
       x: landmark.x * width,
       y: landmark.y * height,
+      z: landmark.z ?? 0,
     }));
 
     const leftEye = LEFT_EYE.map((index) => points[index]);
@@ -538,9 +610,12 @@ export default function LiveDrowsinessCamera({ isLive, onGoLive }: { isLive: boo
     context.scale(-1, 1);
 
     context.fillStyle = next.alarm_active ? 'rgba(248, 113, 113, 0.95)' : 'rgba(125, 211, 252, 0.92)';
+    const baseDotRadius = next.alarm_active ? 1.85 : 1.6;
     for (const point of points) {
+      // Landmarks with negative z are closer to the camera — make them slightly larger
+      const depthScale = Math.max(0.45, Math.min(1.9, 1.0 + (-point.z) * 4.0));
       context.beginPath();
-      context.arc(point.x, point.y, next.alarm_active ? 1.8 : 1.55, 0, Math.PI * 2);
+      context.arc(point.x, point.y, baseDotRadius * depthScale, 0, Math.PI * 2);
       context.fill();
     }
 
@@ -560,9 +635,11 @@ export default function LiveDrowsinessCamera({ isLive, onGoLive }: { isLive: boo
     context.fillText('RIGHT EYE', rightEyeScreenX - 22, rightEye[3].y - 14);
 
     if (next.alarm_active) {
-      context.strokeStyle = 'rgba(239, 68, 68, 0.95)';
-      context.lineWidth = 4;
-      context.strokeRect(8, 8, width - 16, height - 16);
+      const aBracketAlpha = 0.65 + 0.35 * (0.5 + 0.5 * Math.sin(timestamp / 380));
+      context.save();
+      context.globalAlpha = aBracketAlpha;
+      drawCornerBrackets(context, 8, 8, width - 16, height - 16, 44, '#ef4444', 3.5);
+      context.restore();
     }
 
     const heroFill = next.alarm_active
@@ -592,12 +669,16 @@ export default function LiveDrowsinessCamera({ isLive, onGoLive }: { isLive: boo
     drawMetricTile(context, 28 + metricWidth, metricY, metricWidth, 'STATUS', next.alarm_active ? 'ALERT' : next.severity.toUpperCase());
     drawMetricTile(context, 38 + metricWidth * 2, metricY, metricWidth, 'EVENTS', String(fatigueEventCount));
 
+    const chipAlpha = next.alarm_active
+      ? 0.7 + 0.3 * (0.5 + 0.5 * Math.sin(timestamp / 420))
+      : 0.8 + 0.2 * (0.5 + 0.5 * Math.sin(timestamp / 950));
     drawStatusChip(
       context,
       width - 164,
       22,
       next.alarm_active ? 'ALERT TRIGGERED' : 'TRACKING LIVE',
       next.alarm_active ? 'rgba(239,68,68,0.95)' : 'rgba(34,197,94,0.9)',
+      chipAlpha,
     );
   }
 
@@ -712,7 +793,7 @@ export default function LiveDrowsinessCamera({ isLive, onGoLive }: { isLive: boo
       lastLoggedEventRef.current = null;
     }
 
-    drawOverlay(result, next, fatigueEventCountRef.current);
+    drawOverlay(result, next, fatigueEventCountRef.current, frameTimestamp);
     void postStatus(next);
 
     if (next.alarm_active) {
@@ -1014,7 +1095,7 @@ export default function LiveDrowsinessCamera({ isLive, onGoLive }: { isLive: boo
           )}
 
           {status.alarm_active && (
-            <div className="absolute top-3 right-3 px-3 py-1.5 rounded-full bg-[var(--danger)] text-white text-[10px] font-black tracking-widest shadow-lg animate-pulse">
+            <div className="absolute top-3 right-3 px-3 py-1.5 rounded-full bg-[var(--danger)] text-white text-[10px] font-black tracking-widest shadow-lg animate-alert-ring">
               DROWSY
             </div>
           )}
@@ -1030,7 +1111,7 @@ export default function LiveDrowsinessCamera({ isLive, onGoLive }: { isLive: boo
                 <p className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-muted)]">Driver Status</p>
                 <p className="text-base font-heading font-medium text-[var(--text-primary)] mt-1 leading-tight break-words">{status.status}</p>
               </div>
-              <span className={cn('shrink-0 px-2.5 py-1.5 rounded-full text-[10px] font-mono font-medium uppercase tracking-widest whitespace-nowrap', visual.badge)}>
+              <span className={cn('shrink-0 px-2.5 py-1.5 rounded-full text-[10px] font-mono font-medium uppercase tracking-widest whitespace-nowrap', visual.badge, status.severity === 'critical' && 'animate-alert-ring')}>
                 {status.severity.toUpperCase()}
               </span>
             </div>

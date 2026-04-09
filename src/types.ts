@@ -366,3 +366,32 @@ export interface ValidationMetricsResponse {
   model_state: ModelLearningState;
   retrain_log: RetrainEvent[];
 }
+
+// Transit ---------------------------------------------------------------
+export interface TransitStop {
+  stop_id: string;
+  stop_name: string;
+  lat: number;
+  lng: number;
+  routes: string[];
+  route_types: number[];
+  trips_today: number;
+}
+
+export interface TransitZoneSummary {
+  zone_id: string;
+  borough: string;
+  total_stops: number;
+  total_routes: number;
+  total_trips: number;
+  subway_routes: number;
+  bus_routes: number;
+  rail_routes: number;
+  busy_stops: TransitStop[];
+}
+
+export interface TransitResponse {
+  generated_at: string;
+  zones: TransitZoneSummary[];
+  nearest_zone: TransitZoneSummary | null;
+}

@@ -23,6 +23,7 @@ import {
   PredictionResponse,
   ValidationMetricsResponse,
   ValidationPointData,
+  TransitResponse,
   WeatherResponse,
   WellnessStatus,
 } from '../types';
@@ -758,6 +759,57 @@ const MOCK_ZONES = [
   { zone_id: 'midtown_east', zone_name: 'Midtown East', borough: 'Manhattan', lat: 40.7549, lng: -73.9660, demand: 72 },
   { zone_id: 'jfk_airport', zone_name: 'JFK Airport', borough: 'Queens', lat: 40.6413, lng: -73.7781, demand: 110 },
 ];
+
+export function mockGetTransit(): TransitResponse {
+  return {
+    generated_at: new Date().toISOString(),
+    zones: [
+      {
+        zone_id: '132',
+        borough: 'Manhattan',
+        total_stops: 24,
+        total_routes: 7,
+        total_trips: 175,
+        subway_routes: 4,
+        bus_routes: 2,
+        rail_routes: 1,
+        busy_stops: [
+          { stop_id: 'S0042', stop_name: 'Manhattan - 168 St & 2 Ave', lat: 40.77583, lng: -74.01675, routes: ['Broadway-7 Av Local', '7 Av Express'], route_types: [1], trips_today: 42 },
+          { stop_id: 'S0023', stop_name: 'Manhattan - 8 Ave Station', lat: 40.715785, lng: -74.016914, routes: ['Broadway-7 Av Local'], route_types: [1], trips_today: 38 },
+          { stop_id: 'S0073', stop_name: 'Manhattan - Terminal', lat: 40.732885, lng: -74.038513, routes: ['Broadway-7 Av Local'], route_types: [1], trips_today: 35 },
+        ],
+      },
+      {
+        zone_id: '68',
+        borough: 'Brooklyn',
+        total_stops: 16,
+        total_routes: 6,
+        total_trips: 150,
+        subway_routes: 3,
+        bus_routes: 2,
+        rail_routes: 1,
+        busy_stops: [
+          { stop_id: 'S0101', stop_name: 'Brooklyn - Atlantic Ave', lat: 40.6845, lng: -73.9785, routes: ['Atlantic Ave Local'], route_types: [1], trips_today: 36 },
+          { stop_id: 'S0102', stop_name: 'Brooklyn - Flatbush Ave', lat: 40.6833, lng: -73.9715, routes: ['Flatbush Line'], route_types: [1], trips_today: 31 },
+        ],
+      },
+      {
+        zone_id: '138',
+        borough: 'Queens',
+        total_stops: 14,
+        total_routes: 5,
+        total_trips: 125,
+        subway_routes: 2,
+        bus_routes: 2,
+        rail_routes: 1,
+        busy_stops: [
+          { stop_id: 'S0201', stop_name: 'Queens - Jamaica Station', lat: 40.7024, lng: -73.8009, routes: ['Queens Blvd Express'], route_types: [1], trips_today: 28 },
+        ],
+      },
+    ],
+    nearest_zone: null,
+  };
+}
 
 import type { GoalRouteRequest, GoalRouteResponse, GoalRouteZone } from './apiService';
 

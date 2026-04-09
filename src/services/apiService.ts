@@ -11,6 +11,7 @@ import {
   HotspotsResponse,
   MetricsResponse,
   PredictionResponse,
+  TransitResponse,
   ValidationMetricsResponse,
   WeatherResponse,
   WellnessStatus,
@@ -27,6 +28,7 @@ import {
   mockGetHotspots,
   mockGetMetrics,
   mockGetPrediction,
+  mockGetTransit,
   mockGetWeather,
   mockGetWellnessStatus,
   mockLoginDriver,
@@ -253,6 +255,15 @@ export async function getWeather(query: WeatherQuery): Promise<WeatherResponse> 
     `/weather${suffix ? `?${suffix}` : ''}`,
     undefined,
     () => mockGetWeather({ zoneId: query.zoneId }),
+  );
+}
+
+export async function getTransit(zoneId?: string): Promise<TransitResponse> {
+  const suffix = zoneId ? `?zone_id=${zoneId}` : '';
+  return fetchJson<TransitResponse>(
+    `/transit${suffix}`,
+    undefined,
+    () => mockGetTransit(),
   );
 }
 
