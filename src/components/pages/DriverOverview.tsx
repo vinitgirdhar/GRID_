@@ -173,8 +173,8 @@ export default function DriverOverview({
     },
   ];
 
-  const mapZones: ZoneDemand[] = useMemo(() => (
-    activePeriod?.zones.map((zone) => ({
+  const mapZones: ZoneDemand[] = useMemo(() => {
+    const zones = activePeriod?.zones.map((zone) => ({
       id: zone.zone_id,
       name: zone.zone_name,
       lat: zone.lat,
@@ -183,8 +183,34 @@ export default function DriverOverview({
       demandLevel: zone.demand_level,
       eventIntensity: zone.event_intensity,
       weatherCondition: zone.weather_condition,
-    })) ?? []
-  ), [activePeriod]);
+    })) ?? [];
+
+    if (!ecoMode || zones.length === 0) return zones;
+
+    // Eco mode: sort by proximity-weighted efficiency (demand / distance)
+    const [driverLat, driverLng] = VIRTUAL_DRIVER_LOCATION;
+    const withDistance = zones.map(z => {
+      const dLat = z.lat - driverLat;
+      const dLng = z.lng - driverLng;
+      const dist = Math.sqrt(dLat * dLat + dLng * dLng) || 0.001; // degrees, ~0.01 ≈ 1km in NYC
+      return { zone: z, dist, efficiency: z.demand / dist };
+    });
+    withDistance.sort((a, b) => b.efficiency - a.efficiency);
+    return withDistance.map(w => w.zone);
+  }, [activePeriod, ecoMode]);
+
+  const ecoStats = useMemo(() => {
+    if (!ecoMode || mapZones.length === 0) return null;
+    const [driverLat, driverLng] = VIRTUAL_DRIVER_LOCATION;
+    const nearbyCount = mapZones.filter(z => {
+      const dLat = z.lat - driverLat;
+      const dLng = z.lng - driverLng;
+      return Math.sqrt(dLat * dLat + dLng * dLng) < 0.03; // ~3km radius
+    }).length;
+    const topZone = mapZones[0];
+    const estimatedCO2 = (nearbyCount * 0.4).toFixed(1); // rough kg saved by shorter trips
+    return { nearbyCount, topZone, estimatedCO2 };
+  }, [ecoMode, mapZones]);
 
   const baseDemand = currentForecastPoint?.total_predicted_demand ?? primaryZone?.predicted_demand ?? 0;
   const hourlyForecast = trendData[1]?.value ?? trendData[0]?.value ?? 0;
@@ -256,8 +282,13 @@ export default function DriverOverview({
         <div className="p-4 rounded-2xl bg-green-500/10 border border-green-500/20 flex items-center gap-3">
           <Leaf size={18} className="text-green-500 shrink-0" />
           <div>
-            <p className="text-sm font-medium text-green-400">Eco-Mode Active</p>
-            <p className="text-xs text-[var(--text-secondary)] mt-0.5">GRID is routing you through fuel-efficient, low-idle paths. Estimated CO₂ saved today: <span className="font-medium text-green-400">1.2 kg</span>.</p>
+            <p className="text-sm font-medium text-green-400">Eco-Mode Active — Nearby-First Routing</p>
+            <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+              {ecoStats
+                ? <>Prioritizing <span className="font-medium text-green-400">{ecoStats.nearbyCount}</span> nearby zone{ecoStats.nearbyCount !== 1 ? 's' : ''}. Top pick: <span className="font-medium text-green-400">{ecoStats.topZone?.name ?? '--'}</span>. Est. CO₂ saved: <span className="font-medium text-green-400">{ecoStats.estimatedCO2} kg</span>.</>
+                : <>GRID is routing you through fuel-efficient, low-idle paths.</>
+              }
+            </p>
           </div>
         </div>
       )}
