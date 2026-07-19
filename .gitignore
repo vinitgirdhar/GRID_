@@ -22,3 +22,21 @@ grid_ml/notebooks/.ipynb_checkpoints/
 .venv/
 __pycache__/
 *.pyc
+
+# IDE/Agent folders and rules
+.claude/
+.cursor/
+.cursorrules
+.windsurfrules
+.opencode.json
+skills-lock.json
+
+# Redundant agent docs
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+DEPLOYMENT_RAILWAY.md
+
+# External tests
+testsprite_tests/
+
