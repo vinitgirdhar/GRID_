@@ -367,8 +367,9 @@ export default function DriverOverview({
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {liveKpis.map((kpi, idx) => (
-          <div key={kpi.label} className="kpi-card !p-4">
-            <div className="mb-3">
+          <div key={kpi.label} className="kpi-card !p-3 sm:!p-4">
+            {/* Icon row hidden on mobile — halves card height so all 4 KPIs fit one screen */}
+            <div className="hidden sm:block mb-3">
               <div className="p-1.5 bg-primary/10 rounded-lg inline-flex">
                 {idx === 0 && <DollarSign className="text-primary w-4 h-4" />}
                 {idx === 1 && <CheckCircle className="text-success w-4 h-4" />}

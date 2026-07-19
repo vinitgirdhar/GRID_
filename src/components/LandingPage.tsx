@@ -362,17 +362,19 @@ export default function LandingPage({ onBeginAsDriver, onAdminAccess }: LandingP
             <section className="lp-metrics-section">
                 <div className="lp-container">
                     <div className="lp-metrics-grid">
+                        {/* Real numbers — R² and data volume from grid_ml/models/lightgbm_metadata.json,
+                            latency measured on the production LightGBM booster (0.1ms/prediction) */}
                         <div className="lp-metric-item lp-reveal">
-                            <div className="lp-metric-number"><MetricCounter target={92.4} suffix="%" decimals={1} /></div>
-                            <div className="lp-metric-label">Accuracy on Demand Curves</div>
+                            <div className="lp-metric-number"><MetricCounter target={98.2} suffix="%" decimals={1} /></div>
+                            <div className="lp-metric-label">R² on Unseen Demand Data</div>
                         </div>
                         <div className="lp-metric-item lp-reveal">
-                            <div className="lp-metric-number"><MetricCounter target={5} prefix="<" suffix="ms" /></div>
-                            <div className="lp-metric-label">Inference Latency</div>
+                            <div className="lp-metric-number"><MetricCounter target={1} prefix="<" suffix="ms" /></div>
+                            <div className="lp-metric-label">Model Inference Latency</div>
                         </div>
                         <div className="lp-metric-item lp-reveal">
-                            <div className="lp-metric-number"><MetricCounter target={250} suffix="K+" /></div>
-                            <div className="lp-metric-label">NYC Trips Analyzed</div>
+                            <div className="lp-metric-number"><MetricCounter target={688} suffix="K+" /></div>
+                            <div className="lp-metric-label">NYC Zone-Hours Analyzed</div>
                         </div>
                         <div className="lp-metric-item lp-reveal">
                             <div className="lp-metric-number"><MetricCounter target={100} suffix="%" /></div>

@@ -31,7 +31,7 @@ interface ProfileProps {
   onSave?: (updates: Pick<Driver, 'bio' | 'phone'>) => void;
 }
 
-const PANEL = 'rounded-[28px] border border-[rgba(250,204,21,0.12)] bg-white/5 p-6 shadow-[0_4px_16px_rgba(0,0,0,0.4)]';
+const PANEL = 'rounded-[28px] border border-[rgba(250,204,21,0.12)] bg-white/5 p-4 sm:p-6 shadow-[0_4px_16px_rgba(0,0,0,0.4)]';
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const WEIGHTS = [0.78, 0.86, 0.93, 0.98, 1.1, 1.18, 0.9];
 const TABS: Array<{ id: ProfileTab; label: string; icon: ElementType }> = [
@@ -89,7 +89,7 @@ function InfoCard({ label, value, icon: Icon }: { label: string; value: string; 
         <Icon size={15} />
         <span className="text-[11px] font-black uppercase tracking-[0.24em]">{label}</span>
       </div>
-      <p className="mt-4 text-base font-bold text-[var(--text-primary)]">{value}</p>
+      <p className="mt-2 sm:mt-4 text-sm sm:text-base font-bold text-[var(--text-primary)] truncate">{value}</p>
     </div>
   );
 }
@@ -161,12 +161,12 @@ export default function Profile({ driver, viewerRole, onBack, onSave }: ProfileP
 
   return (
     <div className="space-y-6">
-      <section className="relative overflow-hidden rounded-[34px] border border-[var(--border)] bg-[var(--surface)] px-6 py-7 shadow-[0_20px_70px_rgba(15,23,42,0.05)] sm:px-8 sm:py-8 lg:px-10 lg:py-10">
+      <section className="relative overflow-hidden rounded-[34px] border border-[var(--border)] bg-[var(--surface)] px-4 py-5 shadow-[0_20px_70px_rgba(15,23,42,0.05)] sm:px-8 sm:py-8 lg:px-10 lg:py-10">
         <div className="absolute inset-0 opacity-[0.4]" style={{ backgroundImage: 'linear-gradient(rgba(250,204,21,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(250,204,21,0.1) 1px, transparent 1px)', backgroundSize: '34px 34px' }} />
         <div className="absolute -left-20 top-0 h-72 w-72 rounded-full bg-[#facc15]/20 blur-[120px]" />
         <div className="absolute right-0 top-10 h-64 w-64 rounded-full bg-sky-400/20 blur-[130px]" />
 
-        <div className="relative space-y-8">
+        <div className="relative space-y-5 sm:space-y-8">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">
               {viewerRole === 'admin' && onBack ? (
@@ -179,7 +179,7 @@ export default function Profile({ driver, viewerRole, onBack, onSave }: ProfileP
                 {viewerRole === 'admin' ? 'Admin View' : 'Driver Profile'}
               </span>
             </div>
-            <span className="rounded-full border border-[rgba(250,204,21,0.1)] bg-white/5 px-4 py-2 text-[11px] font-black uppercase tracking-[0.24em] text-[var(--text-secondary)]">
+            <span className="hidden sm:inline-flex rounded-full border border-[rgba(250,204,21,0.1)] bg-white/5 px-4 py-2 text-[11px] font-black uppercase tracking-[0.24em] text-[var(--text-secondary)]">
               {viewerRole === 'admin' ? 'Read only for now' : 'Editable bio and phone'}
             </span>
           </div>
@@ -187,7 +187,7 @@ export default function Profile({ driver, viewerRole, onBack, onSave }: ProfileP
           <div className="grid gap-8 lg:grid-cols-[minmax(0,1.35fr)_340px]">
             <div className="flex flex-col gap-6">
               <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-                <div className="h-28 w-28 shrink-0 overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-1 shadow-md">
+                <div className="h-20 w-20 sm:h-28 sm:w-28 shrink-0 overflow-hidden rounded-[22px] sm:rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-1 shadow-md">
                   <img src={driver.avatar} alt={driver.name} referrerPolicy="no-referrer" className="h-full w-full rounded-[24px] object-cover" />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -195,9 +195,10 @@ export default function Profile({ driver, viewerRole, onBack, onSave }: ProfileP
                     <span className={cn('rounded-full border px-3 py-1 text-[11px] font-black uppercase tracking-[0.22em]', statusTone)}>{driver.status}</span>
                     <span className={cn('rounded-full border px-3 py-1 text-[11px] font-black uppercase tracking-[0.22em]', tierTone)}>{driver.tier} tier</span>
                   </div>
-                  <h1 className="mt-4 text-3xl font-black tracking-[-0.04em] text-[var(--text-primary)] sm:text-4xl">{driver.name}</h1>
-                  <p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--text-secondary)]">{driver.bio}</p>
-                  <div className="mt-5 flex flex-wrap items-center gap-3 text-sm text-[var(--text-secondary)]">
+                  <h1 className="mt-2 text-2xl sm:mt-4 sm:text-4xl font-black tracking-[-0.04em] text-[var(--text-primary)]">{driver.name}</h1>
+                  {/* Bio hidden on mobile — it repeats in the General tab */}
+                  <p className="hidden sm:block mt-3 max-w-2xl text-sm leading-7 text-[var(--text-secondary)]">{driver.bio}</p>
+                  <div className="mt-3 sm:mt-5 flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm text-[var(--text-secondary)]">
                     <span className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5"><MapPin size={14} />{driver.borough}</span>
                     <span className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5"><Calendar size={14} />Joined {longDate(driver.joinedDate)}</span>
                     <span className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5"><Car size={14} />{driver.carModel}</span>
@@ -205,7 +206,7 @@ export default function Profile({ driver, viewerRole, onBack, onSave }: ProfileP
                 </div>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
                 {summary.map((card, index) => (
                   <motion.div key={card.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22, delay: index * 0.04, ease: [0.23, 1, 0.32, 1] }} className="group relative overflow-hidden rounded-[24px] border border-[var(--border)] bg-[var(--surface)]/80 p-4 shadow-sm transition-[border-color] hover:border-[var(--border-hover)]">
                     <div className={cn('absolute right-0 top-0 h-28 w-28 rounded-full blur-3xl', card.glow)} />
@@ -214,15 +215,16 @@ export default function Profile({ driver, viewerRole, onBack, onSave }: ProfileP
                         <span className="text-[11px] font-black uppercase tracking-[0.24em] text-[var(--text-muted)]">{card.label}</span>
                         <div className="rounded-2xl border border-[rgba(250,204,21,0.1)] bg-white/5 p-2 text-[var(--text-secondary)]"><card.icon size={16} /></div>
                       </div>
-                      <p className="mt-5 text-2xl font-black tracking-[-0.04em] text-[var(--text-primary)]">{card.value}</p>
-                      <p className="mt-4 text-xs leading-6 text-[var(--text-secondary)] transition-opacity duration-200 ease-out md:opacity-0 md:group-hover:opacity-100">{card.detail}</p>
+                      <p className="mt-2 text-lg sm:mt-5 sm:text-2xl font-black tracking-[-0.04em] text-[var(--text-primary)]">{card.value}</p>
+                      <p className="hidden md:block mt-4 text-xs leading-6 text-[var(--text-secondary)] transition-opacity duration-200 ease-out md:opacity-0 md:group-hover:opacity-100">{card.detail}</p>
                     </div>
                   </motion.div>
                 ))}
               </div>
             </div>
 
-            <div className="rounded-[30px] border border-[var(--border)] bg-[var(--surface)]/80 p-5 shadow-sm">
+            {/* Hidden on mobile — contact/vehicle/experience all repeat in the General tab */}
+            <div className="hidden lg:block rounded-[30px] border border-[var(--border)] bg-[var(--surface)]/80 p-5 shadow-sm">
               <div className="flex items-center justify-between border-b border-[var(--border)] pb-4">
                 <div>
                   <p className="text-[11px] font-black uppercase tracking-[0.24em] text-[var(--text-muted)]">At a glance</p>
@@ -270,7 +272,7 @@ export default function Profile({ driver, viewerRole, onBack, onSave }: ProfileP
               <div className={PANEL}>
                 <p className="text-[11px] font-black uppercase tracking-[0.24em] text-[var(--text-muted)]">General</p>
                 <h2 className="mt-2 text-2xl font-black tracking-[-0.03em] text-[var(--text-primary)]">Identity and vehicle setup</h2>
-                <div className="mt-6 grid gap-4 md:grid-cols-2">
+                <div className="mt-4 sm:mt-6 grid grid-cols-2 gap-3 sm:gap-4">
                   <InfoCard label="Full name" value={driver.name} icon={User} />
                   <InfoCard label="Primary borough" value={driver.borough} icon={MapPin} />
                   <InfoCard label="Joined GRID" value={longDate(driver.joinedDate)} icon={Calendar} />
@@ -382,8 +384,8 @@ export default function Profile({ driver, viewerRole, onBack, onSave }: ProfileP
                   <div>
                     <p className="text-[11px] font-black uppercase tracking-[0.24em] text-[var(--text-muted)]">Performance</p>
                     <h2 className="mt-2 text-2xl font-black tracking-[-0.03em] text-[var(--text-primary)]">Daily earnings and online hours</h2>
-                    <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
-                      A rolling weekly trend that pairs payout strength with availability, so the profile reads like a true operating snapshot instead of a flat stat sheet.
+                    <p className="hidden sm:block mt-2 text-sm leading-7 text-[var(--text-secondary)]">
+                      A rolling weekly trend that pairs payout strength with availability.
                     </p>
                   </div>
                   <div className="rounded-[24px] border border-[var(--primary)]/20 bg-[var(--primary)]/12 px-4 py-3">
@@ -392,7 +394,7 @@ export default function Profile({ driver, viewerRole, onBack, onSave }: ProfileP
                   </div>
                 </div>
 
-                <div className="mt-8 h-[340px] w-full">
+                <div className="mt-4 sm:mt-8 h-[240px] sm:h-[340px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart data={series} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                       <defs>
@@ -420,19 +422,19 @@ export default function Profile({ driver, viewerRole, onBack, onSave }: ProfileP
                     <div className="rounded-[24px] border border-[var(--border)] bg-[var(--secondary)]/70 p-5">
                       <p className="text-[11px] font-black uppercase tracking-[0.24em] text-[var(--text-muted)]">Peak output</p>
                       <p className="mt-3 text-xl font-black tracking-[-0.03em] text-[var(--text-primary)]">{bestDay.day}</p>
-                      <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
+                      <p className="hidden sm:block mt-2 text-sm leading-7 text-[var(--text-secondary)]">
                         Highest projected earning day this week at {money(bestDay.earnings)} across {bestDay.hours} online hours.
                       </p>
                     </div>
                     <div className="rounded-[24px] border border-[rgba(250,204,21,0.1)] bg-white/5 p-5">
                       <p className="text-[11px] font-black uppercase tracking-[0.24em] text-[var(--text-muted)]">Completion rate</p>
                       <p className="mt-3 text-xl font-black tracking-[-0.03em] text-[var(--text-primary)]">{(100 - driver.cancellationRate).toFixed(1)}%</p>
-                      <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">This profile stays inside healthy cancellation bounds for marketplace quality.</p>
+                      <p className="hidden sm:block mt-2 text-sm leading-7 text-[var(--text-secondary)]">This profile stays inside healthy cancellation bounds for marketplace quality.</p>
                     </div>
                     <div className="rounded-[24px] border border-[rgba(250,204,21,0.1)] bg-white/5 p-5">
                       <p className="text-[11px] font-black uppercase tracking-[0.24em] text-[var(--text-muted)]">7-day cadence</p>
                       <p className="mt-3 text-xl font-black tracking-[-0.03em] text-[var(--text-primary)]">{averageHours} hrs/day</p>
-                      <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">Rolling weekly availability aligned with {driver.tier} tier service expectations.</p>
+                      <p className="hidden sm:block mt-2 text-sm leading-7 text-[var(--text-secondary)]">Rolling weekly availability aligned with {driver.tier} tier service expectations.</p>
                     </div>
                   </div>
                 </div>
@@ -469,13 +471,13 @@ export default function Profile({ driver, viewerRole, onBack, onSave }: ProfileP
                   <div className="mt-5 rounded-[26px] border border-[var(--primary)]/20 bg-[var(--primary)]/10 p-5">
                     <p className="text-[11px] font-black uppercase tracking-[0.24em] text-[var(--primary-dark)]">Clearance score</p>
                     <p className="mt-3 text-3xl font-black tracking-[-0.04em] text-[var(--text-primary)]">100%</p>
-                    <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
-                      Every required document is present in this mock profile. This tab is optimized for quick admin inspection and reassuring driver self-checks before going live.
+                    <p className="hidden sm:block mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+                      Every required document is present. Quick admin inspection and driver self-checks before going live.
                     </p>
                   </div>
                 </div>
 
-                <div className={PANEL}>
+                <div className={cn(PANEL, 'hidden lg:block')}>
                   <p className="text-[11px] font-black uppercase tracking-[0.24em] text-[var(--text-muted)]">Review note</p>
                   <p className="mt-4 text-sm leading-7 text-[var(--text-secondary)]">
                     Password and security settings are intentionally excluded from this first release because authentication is still mock-based. The page is ready for a future settings block once real identity flows land.

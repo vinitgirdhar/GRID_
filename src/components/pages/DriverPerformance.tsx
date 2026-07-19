@@ -572,8 +572,8 @@ export default function DriverPerformance() {
         <div>
           <p className="grid-eyebrow">Driver Dashboard</p>
           <h1 className="grid-page-title">Performance Analytics</h1>
-          <p className="grid-page-subtitle">
-            Track the live shift, compare pace against your target, and follow GRID strategy guidance without losing the clean, high-contrast rhythm from the new dashboard system.
+          <p className="grid-page-subtitle hidden sm:block">
+            Track the live shift, compare pace against your target, and follow GRID strategy guidance.
           </p>
         </div>
         <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-3">
@@ -596,9 +596,9 @@ export default function DriverPerformance() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {shiftQuickStats.map((stat) => (
-          <div key={stat.label} className="glass-card p-4 sm:p-5">
+          <div key={stat.label} className="glass-card p-3 sm:p-5">
             <p className="grid-data-label">{stat.label}</p>
-            <p className="driver-performance-number mt-4 text-2xl sm:text-[2rem] text-[var(--text-primary)]">
+            <p className="driver-performance-number mt-1 sm:mt-4 text-xl sm:text-[2rem] text-[var(--text-primary)]">
               {stat.value}
             </p>
           </div>
@@ -630,7 +630,7 @@ export default function DriverPerformance() {
             <div className="glass-card p-4 sm:p-6 lg:p-8 overflow-hidden relative">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(244,176,0,0.16),transparent_45%),radial-gradient(circle_at_bottom_right,rgba(47,158,110,0.12),transparent_35%)] pointer-events-none" />
               <div className="relative flex flex-col lg:flex-row gap-6 lg:gap-8 lg:items-center">
-                <div className="relative w-full max-w-[220px] sm:max-w-[250px] mx-auto lg:mx-0 aspect-square">
+                <div className="relative w-full max-w-[170px] sm:max-w-[250px] mx-auto lg:mx-0 aspect-square">
                   <svg viewBox="0 0 220 220" className="w-full h-full -rotate-90">
                     <circle cx="110" cy="110" r="86" fill="none" stroke="rgba(148,163,184,0.15)" strokeWidth="18" />
                     <motion.circle
@@ -664,7 +664,7 @@ export default function DriverPerformance() {
                   <div>
                     <p className="grid-eyebrow">Live Shift</p>
                     <h2 className="text-xl sm:text-3xl text-[var(--text-primary)]">Live Shift Tracker</h2>
-                    <p className="text-sm text-[var(--text-secondary)] mt-2 max-w-2xl">{statusVisual.copy}</p>
+                    <p className="hidden sm:block text-sm text-[var(--text-secondary)] mt-2 max-w-2xl">{statusVisual.copy}</p>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
@@ -779,7 +779,7 @@ export default function DriverPerformance() {
               </AreaChart>
             </ResponsiveContainer>
           </div>
-          <div className="grid-note-panel mt-8 flex items-start gap-3">
+          <div className="grid-note-panel mt-4 sm:mt-8 hidden sm:flex items-start gap-3">
             <InfoDot />
             <p className="text-sm text-[var(--text-secondary)] italic">
               <span className="font-bold text-[var(--text-primary)] not-italic">Benchmark:</span> Use the manual shift tracker above for live decisions and this weekly curve as the baseline earnings context.
@@ -848,7 +848,7 @@ export default function DriverPerformance() {
               </BarChart>
             </ResponsiveContainer>
           </div>
-          <div className="mt-6 rounded-2xl border border-emerald-500/18 bg-emerald-500/6 p-4 flex items-start gap-3">
+          <div className="mt-6 rounded-2xl border border-emerald-500/18 bg-emerald-500/6 p-4 hidden sm:flex items-start gap-3">
             <Sparkles className="text-success w-5 h-5 shrink-0 mt-0.5" />
             <p className="text-sm text-[var(--text-secondary)] italic">
               <span className="font-bold text-[var(--text-primary)] not-italic">GRID Co-Pilot:</span> {leadZone.zone_name} is the strongest live opportunity right now, with an estimated {leadZone.expected_trips_per_hour.toFixed(0)} trips per hour.
@@ -878,7 +878,7 @@ export default function DriverPerformance() {
                   <badge.icon size={20} className={badge.earned ? badge.color : 'text-[var(--text-muted)]'} />
                 </div>
                 <p className={cn('text-xs font-medium', badge.earned ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]')}>{badge.label}</p>
-                <p className="text-[10px] text-[var(--text-secondary)] leading-tight">{badge.desc}</p>
+                <p className="hidden sm:block text-[10px] text-[var(--text-secondary)] leading-tight">{badge.desc}</p>
                 {badge.earned && <span className={cn('text-[9px] font-medium px-2 py-0.5 rounded-full border', badge.bg, badge.color)}>UNLOCKED</span>}
               </div>
             ))}
@@ -930,7 +930,7 @@ export default function DriverPerformance() {
           ))}
         </div>
 
-        <div className="grid-note-panel mt-4 flex items-start gap-3">
+        <div className="grid-note-panel mt-4 hidden sm:flex items-start gap-3">
           <Sparkles className="text-[var(--primary-dark)] w-5 h-5 shrink-0 mt-0.5" />
           <p className="text-sm text-[var(--text-secondary)] italic">
             <span className="font-bold text-[var(--text-primary)] not-italic">GRID Challenge:</span> Hit your configured goal today to light up the leaderboard marker and unlock the Goal Crusher badge.
