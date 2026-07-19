@@ -22,10 +22,8 @@ import { getActiveHotspotPeriod, getDrivers, getForecast, getHotspots, getTransi
 import { useApiData } from '../../hooks/useApiData';
 import { useLiveStream } from '../../hooks/useLiveStream';
 import { Driver, ForecastResponse, HotspotsResponse, Theme, TransitResponse, WeatherResponse, ZoneDemand } from '../../types';
-import type { MapDriverPin } from '../MapComponent';
+import MapComponent, { MapDriverPin } from '../MapComponent';
 import { cn } from '../../lib/utils';
-
-const MapComponent = lazy(() => import('../MapComponent'));
 
 const REFRESH_INTERVAL_MS = 60000;
 
