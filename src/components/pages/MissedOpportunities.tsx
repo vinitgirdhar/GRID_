@@ -9,7 +9,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { getHotspots, getActiveHotspotPeriod } from '../../services/apiService';
-import { getAll, subscribe, MissedOpportunity, seedMockData } from '../../services/opportunityService';
+import { getAll, markAllViewed, subscribe, MissedOpportunity, seedMockData } from '../../services/opportunityService';
 import { HotspotsResponse, HotspotZone } from '../../types';
 import MissedOpportunityFeed from '../MissedOpportunityFeed';
 import { cn } from '../../lib/utils';
@@ -28,6 +28,11 @@ export default function MissedOpportunities() {
 
   useEffect(() => {
     return subscribe(() => setOpportunities(getAll()));
+  }, []);
+
+  // Opening the page marks everything as seen — clears the notification badge
+  useEffect(() => {
+    markAllViewed();
   }, []);
 
   useEffect(() => {

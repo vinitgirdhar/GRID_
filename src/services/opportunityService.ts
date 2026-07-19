@@ -59,6 +59,24 @@ export function getAll(): MissedOpportunity[] {
   );
 }
 
+// ─── Seen tracking ────────────────────────────────────────────────────────────
+// The notification badge counts only opportunities resolved AFTER the last time
+// the driver opened the Missed Opportunities page — viewing the page clears it.
+const VIEWED_KEY = 'grid_missed_opportunities_viewed_at';
+
+export function getUnseenCount(): number {
+  const viewedAt = localStorage.getItem(VIEWED_KEY);
+  const cutoff = viewedAt ? new Date(viewedAt).getTime() : 0;
+  return load().filter(
+    (o) => o.resolved && new Date(o.resolved_at ?? o.skipped_at).getTime() > cutoff,
+  ).length;
+}
+
+export function markAllViewed(): void {
+  localStorage.setItem(VIEWED_KEY, new Date().toISOString());
+  notify();
+}
+
 /** Called when the driver clicks Decline on a ride card. */
 export function recordSkip(ride: RideRequest, zone: HotspotZone): void {
   const items = load();

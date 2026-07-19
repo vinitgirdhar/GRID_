@@ -67,6 +67,9 @@ function AutoFitView({
   points: Array<[number, number]>;
 }) {
   const map = useMap();
+  // Refit only when the actual point set changes — not on every parent render —
+  // so a manual pan/zoom isn't snapped back by unrelated updates.
+  const signature = points.map((p) => `${p[0].toFixed(4)},${p[1].toFixed(4)}`).join('|');
 
   useEffect(() => {
     if (!enabled || points.length === 0) {
@@ -82,7 +85,8 @@ function AutoFitView({
       padding: [32, 32],
       maxZoom: 14,
     });
-  }, [enabled, map, points]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, map, signature]);
 
   return null;
 }

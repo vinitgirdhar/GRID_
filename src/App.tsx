@@ -27,7 +27,7 @@ import { OfflineProvider, useOffline } from './OfflineContext';
 import { cn } from './lib/utils';
 import { Driver, Page, UserRole } from './types';
 import {
-  getAll,
+  getUnseenCount,
   startBackgroundScanner,
   subscribe,
 } from './services/opportunityService';
@@ -127,7 +127,7 @@ function AppShell() {
   // Start opportunity scanner + subscribe to count changes when driver is logged in
   useEffect(() => {
     if (userRole !== 'driver') return;
-    const update = () => setMissedCount(getAll().filter((o) => o.resolved).length);
+    const update = () => setMissedCount(getUnseenCount());
     update();
     const stopScanner = startBackgroundScanner();
     const unsub = subscribe(update);

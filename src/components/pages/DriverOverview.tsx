@@ -429,7 +429,8 @@ export default function DriverOverview({
             theme={theme}
             height="450px"
             simplified={true}
-            zoom={15}
+            zoom={13}
+            autoFit={true}
             showYouAreHere={true}
             youAreHerePosition={VIRTUAL_DRIVER_LOCATION}
             driverPins={driverPins}
