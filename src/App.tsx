@@ -1,4 +1,4 @@
-import { Suspense, lazy, startTransition, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, startTransition, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity,
   BarChart3,
@@ -20,8 +20,8 @@ import {
   Wifi,
 } from 'lucide-react';
 import OfflineBanner from './components/OfflineBanner';
-const DrowsinessMonitor = lazy(() => import('./components/DrowsinessMonitor'));
-const DriverLogin = lazy(() => import('./components/DriverLogin'));
+import DrowsinessMonitor from './components/DrowsinessMonitor';
+import DriverLogin from './components/DriverLogin';
 import LandingPage from './components/LandingPage';
 import { OfflineProvider, useOffline } from './OfflineContext';
 import { cn } from './lib/utils';
@@ -37,20 +37,20 @@ import {
   updateDriverStatus,
 } from './services/apiService';
 
-const LiveDrowsinessCamera = lazy(() => import('./components/LiveDrowsinessCamera'));
-const SafetyZen = lazy(() => import('./components/SafetyZen'));
-const VoicePilot = lazy(() => import('./components/VoicePilot'));
-const DataInsights = lazy(() => import('./components/pages/DataInsights'));
-const DemandPrediction = lazy(() => import('./components/pages/DemandPrediction'));
-const DriverOverview = lazy(() => import('./components/pages/DriverOverview'));
-const DriverPerformance = lazy(() => import('./components/pages/DriverPerformance'));
-const Drivers = lazy(() => import('./components/pages/Drivers'));
-const GoForRide = lazy(() => import('./components/pages/GoForRide'));
-const MissedOpportunities = lazy(() => import('./components/pages/MissedOpportunities'));
-const ModelPerformance = lazy(() => import('./components/pages/ModelPerformance'));
-const Overview = lazy(() => import('./components/pages/Overview'));
-const Profile = lazy(() => import('./components/pages/Profile'));
-const WeatherInsights = lazy(() => import('./components/pages/WeatherInsights'));
+import LiveDrowsinessCamera from './components/LiveDrowsinessCamera';
+import SafetyZen from './components/SafetyZen';
+import VoicePilot from './components/VoicePilot';
+import DataInsights from './components/pages/DataInsights';
+import DemandPrediction from './components/pages/DemandPrediction';
+import DriverOverview from './components/pages/DriverOverview';
+import DriverPerformance from './components/pages/DriverPerformance';
+import Drivers from './components/pages/Drivers';
+import GoForRide from './components/pages/GoForRide';
+import MissedOpportunities from './components/pages/MissedOpportunities';
+import ModelPerformance from './components/pages/ModelPerformance';
+import Overview from './components/pages/Overview';
+import Profile from './components/pages/Profile';
+import WeatherInsights from './components/pages/WeatherInsights';
 
 function postDriverStatus(driverId: string, status: 'online' | 'offline') {
   updateDriverStatus(driverId, status).catch(() => {});
