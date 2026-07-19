@@ -20,18 +20,18 @@ const DRIVER_START: [number, number] = [40.7580, -73.9855];
 
 // Known high-traffic landmarks — used as fallback hotspots when ML has no zone data for that area
 const FALLBACK_HOTSPOTS: MapHotspot[] = [
-  { id: 'fb-jfk',        position: [40.6413, -73.7781], label: 'JFK Airport',         intensity: 'high',   demand: 142 },
-  { id: 'fb-lga',        position: [40.7769, -73.8740], label: 'LaGuardia Airport',   intensity: 'high',   demand: 118 },
-  { id: 'fb-penn',       position: [40.7506, -73.9971], label: 'Penn Station',         intensity: 'high',   demand: 203 },
-  { id: 'fb-timessq',    position: [40.7580, -73.9855], label: 'Times Square',         intensity: 'high',   demand: 280 },
-  { id: 'fb-grandct',    position: [40.7527, -73.9772], label: 'Grand Central',        intensity: 'high',   demand: 195 },
-  { id: 'fb-wtc',        position: [40.7127, -74.0134], label: 'World Trade Center',   intensity: 'medium', demand: 97  },
-  { id: 'fb-brooklyn',   position: [40.6829, -73.9752], label: 'Downtown Brooklyn',    intensity: 'medium', demand: 88  },
-  { id: 'fb-astoria',    position: [40.7721, -73.9302], label: 'Astoria / Queens',     intensity: 'medium', demand: 74  },
-  { id: 'fb-bronx',      position: [40.8448, -73.8648], label: 'South Bronx',          intensity: 'low',    demand: 45  },
-  { id: 'fb-statenisle', position: [40.5795, -74.1502], label: 'St. George / SI',      intensity: 'low',    demand: 31  },
-  { id: 'fb-hoboken',    position: [40.7440, -74.0324], label: 'Hoboken Terminal',     intensity: 'medium', demand: 66  },
-  { id: 'fb-columbia',   position: [40.8075, -73.9626], label: 'Columbia / Harlem',    intensity: 'medium', demand: 59  },
+  { id: 'fb-jfk', position: [40.6413, -73.7781], label: 'JFK Airport', intensity: 'high', demand: 142 },
+  { id: 'fb-lga', position: [40.7769, -73.8740], label: 'LaGuardia Airport', intensity: 'high', demand: 118 },
+  { id: 'fb-penn', position: [40.7506, -73.9971], label: 'Penn Station', intensity: 'high', demand: 203 },
+  { id: 'fb-timessq', position: [40.7580, -73.9855], label: 'Times Square', intensity: 'high', demand: 280 },
+  { id: 'fb-grandct', position: [40.7527, -73.9772], label: 'Grand Central', intensity: 'high', demand: 195 },
+  { id: 'fb-wtc', position: [40.7127, -74.0134], label: 'World Trade Center', intensity: 'medium', demand: 97 },
+  { id: 'fb-brooklyn', position: [40.6829, -73.9752], label: 'Downtown Brooklyn', intensity: 'medium', demand: 88 },
+  { id: 'fb-astoria', position: [40.7721, -73.9302], label: 'Astoria / Queens', intensity: 'medium', demand: 74 },
+  { id: 'fb-bronx', position: [40.8448, -73.8648], label: 'South Bronx', intensity: 'low', demand: 45 },
+  { id: 'fb-statenisle', position: [40.5795, -74.1502], label: 'St. George / SI', intensity: 'low', demand: 31 },
+  { id: 'fb-hoboken', position: [40.7440, -74.0324], label: 'Hoboken Terminal', intensity: 'medium', demand: 66 },
+  { id: 'fb-columbia', position: [40.8075, -73.9626], label: 'Columbia / Harlem', intensity: 'medium', demand: 59 },
 ];
 
 function buildHotspots(zones: HotspotZone[]): MapHotspot[] {
@@ -156,13 +156,13 @@ export default function GoForRide({ copilotZoneId }: { copilotZoneId?: string | 
   const rideRequests = useMemo(() => buildRideRequests(activeZones), [activeZones]);
 
   useEffect(() => {
-     if (copilotZoneId && hotspots && !destination) {
-        const targetZone = activeZones.find(z => z.zone_id === copilotZoneId);
-        if (targetZone) {
-          setDestination(targetZone.borough);
-          setDestinationActive(true);
-        }
-     }
+    if (copilotZoneId && hotspots && !destination) {
+      const targetZone = activeZones.find(z => z.zone_id === copilotZoneId);
+      if (targetZone) {
+        setDestination(targetZone.borough);
+        setDestinationActive(true);
+      }
+    }
   }, [copilotZoneId, hotspots, activeZones, destination]);
 
   const searchTerm = useMemo(() => resolveSearch(destination), [destination]);
@@ -229,7 +229,7 @@ export default function GoForRide({ copilotZoneId }: { copilotZoneId?: string | 
       {/* Page header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-light tracking-tight text-[#facc15]" style={{fontFamily:'Outfit,sans-serif',letterSpacing:'-0.03em'}}>Go For Ride</h1>
+          <h1 className="text-3xl font-light tracking-tight text-[#facc15]" style={{ fontFamily: 'Outfit,sans-serif', letterSpacing: '-0.03em' }}>Go For Ride</h1>
           <p className="text-sm text-[var(--text-secondary)] mt-0.5">
             {destinationActive
               ? 'Showing rides along your route. Browse freely — no penalties for skipping.'

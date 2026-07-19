@@ -24,6 +24,13 @@ export interface MapHotspot {
   demand?: number;
 }
 
+export interface MapDriverPin {
+  id: string;
+  position: [number, number];
+  name: string;
+  targetLabel: string;
+}
+
 interface MapComponentProps {
   zones?: ZoneDemand[];
   theme: Theme;
@@ -32,6 +39,7 @@ interface MapComponentProps {
   route?: MapRoute;
   ridePins?: MapRidePin[];
   hotspots?: MapHotspot[];
+  driverPins?: MapDriverPin[];
   offlineMode?: boolean;
   noBorderRadius?: boolean;
   zoom?: number;
@@ -102,6 +110,21 @@ const YOU_ARE_HERE_ICON = L.divIcon({
   popupAnchor: [0, -40],
 });
 
+const OTHER_DRIVER_ICON = L.divIcon({
+  className: '',
+  html: `
+    <div style="
+      width:26px;height:26px;border-radius:50%;
+      background:#0ea5e9;border:2px solid #fff;
+      display:flex;align-items:center;justify-content:center;
+      font-size:13px;line-height:1;
+      box-shadow:0 0 0 3px rgba(14,165,233,0.3),0 2px 6px rgba(0,0,0,0.3);
+    ">🚕</div>`,
+  iconSize: [26, 26],
+  iconAnchor: [13, 13],
+  popupAnchor: [0, -14],
+});
+
 function MapComponent({
   zones = [],
   theme,
@@ -110,6 +133,7 @@ function MapComponent({
   route,
   ridePins = [],
   hotspots = [],
+  driverPins = [],
   offlineMode = false,
   noBorderRadius = false,
   zoom,
@@ -129,6 +153,7 @@ function MapComponent({
   // Zoom 14 shows clear street names; fall back to 11 for the zone heatmap view
   const zoomLevel = zoom ?? (route ? 14 : 11);
 
+  // Priority colors: red = high priority, yellow = moderate, green = low
   const getDemandColor = (level: string) => {
     switch (level) {
       case 'High':
@@ -136,7 +161,7 @@ function MapComponent({
       case 'Medium':
         return '#F59E0B';
       case 'Low':
-        return '#3B82F6';
+        return '#22C55E';
       default:
         return '#94A3B8';
     }
@@ -152,6 +177,7 @@ function MapComponent({
     ...(showYouAreHere && youAreHerePosition ? [youAreHerePosition] : []),
     ...hotspots.map((spot) => spot.position),
     ...ridePins.map((pin) => pin.position),
+    ...driverPins.map((pin) => pin.position),
     ...zones.map((zone) => [zone.lat, zone.lng] as [number, number]),
   ];
 
@@ -213,7 +239,7 @@ function MapComponent({
         )}
 
         {hotspots.map((spot) => {
-          const color = spot.intensity === 'high' ? '#ef4444' : spot.intensity === 'medium' ? '#f59e0b' : '#3b82f6';
+          const color = spot.intensity === 'high' ? '#ef4444' : spot.intensity === 'medium' ? '#f59e0b' : '#22c55e';
           const radius = spot.intensity === 'high' ? 44 : spot.intensity === 'medium' ? 34 : 26;
           return (
             <CircleMarker
@@ -239,6 +265,17 @@ function MapComponent({
             </CircleMarker>
           );
         })}
+
+        {driverPins.map((pin) => (
+          <Marker key={`driver-${pin.id}`} position={pin.position} icon={OTHER_DRIVER_ICON}>
+            <Popup>
+              <div className="p-1 min-w-[130px]">
+                <h3 className="font-bold text-sm border-b pb-1 mb-1">{pin.name}</h3>
+                <p className="text-xs text-gray-600">Heading to <span className="font-semibold">{pin.targetLabel}</span></p>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
 
         {ridePins.map((pin) => (
           <CircleMarker
@@ -281,6 +318,12 @@ function MapComponent({
                     <span className="text-gray-500">Predicted Demand:</span>
                     <span className="font-bold">{zone.demand.toLocaleString()}</span>
                   </div>
+                  {zone.driversHeading != null && zone.driversHeading > 0 && (
+                    <div className="flex justify-between gap-4">
+                      <span className="text-gray-500">Drivers heading:</span>
+                      <span className="font-bold text-sky-600">{zone.driversHeading} 🚕</span>
+                    </div>
+                  )}
                   <div className="flex justify-between gap-4">
                     <span className="text-gray-500">Event Intensity:</span>
                     <span className={`font-bold ${zone.eventIntensity === 'High' ? 'text-red-500' : ''}`}>
@@ -329,6 +372,7 @@ function areMapPropsEqual(prev: MapComponentProps, next: MapComponentProps) {
     prev.route === next.route &&
     prev.ridePins === next.ridePins &&
     prev.hotspots === next.hotspots &&
+    prev.driverPins === next.driverPins &&
     prev.zones === next.zones &&
     prev.youAreHerePosition === next.youAreHerePosition
   );

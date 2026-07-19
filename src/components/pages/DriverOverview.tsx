@@ -18,9 +18,11 @@ import {
 } from 'lucide-react';
 
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
-import { getActiveHotspotPeriod, getForecast, getHotspots, getTransit, getWeather, postDriverSession } from '../../services/apiService';
+import { getActiveHotspotPeriod, getDrivers, getForecast, getHotspots, getTransit, getWeather, postDriverSession } from '../../services/apiService';
 import { useApiData } from '../../hooks/useApiData';
-import { ForecastResponse, HotspotsResponse, Theme, TransitResponse, WeatherResponse, ZoneDemand } from '../../types';
+import { useLiveStream } from '../../hooks/useLiveStream';
+import { Driver, ForecastResponse, HotspotsResponse, Theme, TransitResponse, WeatherResponse, ZoneDemand } from '../../types';
+import type { MapDriverPin } from '../MapComponent';
 import { cn } from '../../lib/utils';
 
 const MapComponent = lazy(() => import('../MapComponent'));
@@ -42,27 +44,33 @@ function getEventFactor(level?: string) {
   return 1.0;
 }
 
-export default function DriverOverview({ 
+export default function DriverOverview({
   currentHour,
   isLive,
   setIsLive
-}: { 
+}: {
   currentHour?: number;
   isLive?: boolean;
   setIsLive?: (val: boolean) => void;
 }) {
   const activeHour = currentHour ?? new Date().getHours();
-  const { data: forecast, error: forecastError } = useApiData('forecast', getForecast, { 
-    ttl: 60000 
+  const { data: forecast, error: forecastError } = useApiData('forecast', getForecast, {
+    ttl: 60000
   });
-  
-  const { data: hotspots, error: hotspotsError } = useApiData('hotspots', getHotspots, { 
-    ttl: 60000 
+
+  const { data: hotspots, error: hotspotsError } = useApiData('hotspots', getHotspots, {
+    ttl: 60000
   });
 
   const [theme, setTheme] = useState<Theme>('dark');
   const [expandedCard, setExpandedCard] = useState<'demand' | 'weather' | 'event' | 'transit' | null>(null);
   const [ecoMode, setEcoMode] = useState(false);
+
+  // Live fleet: other drivers currently on the road (initial fetch + SSE updates)
+  const { data: initialDrivers } = useApiData<Driver[]>('fleet-drivers', getDrivers, { ttl: 60000 });
+  const [liveDrivers, setLiveDrivers] = useState<Driver[] | null>(null);
+  useLiveStream({ onDrivers: (d) => setLiveDrivers(d) });
+  const fleetDrivers = liveDrivers ?? initialDrivers ?? [];
   const [showAdvanced, setShowAdvanced] = useState(false);
   // Virtual driver location: Midtown Manhattan, NYC (fixed — no real GPS)
   const VIRTUAL_DRIVER_LOCATION: [number, number] = [40.7549, -73.9840];
@@ -111,13 +119,13 @@ export default function DriverOverview({
     return transit.zones.find(z => z.zone_id === primaryZoneId) ?? transit.zones[0] ?? null;
   }, [transit, primaryZoneId]);
 
-  const isLocalHost = typeof window !== 'undefined' && 
+  const isLocalHost = typeof window !== 'undefined' &&
     (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
   const error = (forecastError || hotspotsError || weatherError)
-    ? (isLocalHost 
-        ? 'Unable to load data from the backend API. Ensure FastAPI is running on port 8000.' 
-        : 'Unable to connect to the live intelligence feed. Showing simulated demand data.')
+    ? (isLocalHost
+      ? 'Unable to load data from the backend API. Ensure FastAPI is running on port 8000.'
+      : 'Unable to connect to the live intelligence feed. Showing simulated demand data.')
     : null;
 
   // Dynamic forecast slicing: find the entry matching the simulated hour and show the next 4 hours
@@ -173,17 +181,51 @@ export default function DriverOverview({
     },
   ];
 
+  // How many drivers are heading to each zone right now
+  const headingCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const d of fleetDrivers) {
+      if (d.status === 'driving' && d.target_zone) {
+        counts[d.target_zone] = (counts[d.target_zone] ?? 0) + 1;
+      }
+    }
+    return counts;
+  }, [fleetDrivers]);
+
+  // Other drivers on the road → map pins
+  const driverPins: MapDriverPin[] = useMemo(() =>
+    fleetDrivers
+      .filter((d) => d.status === 'driving' && d.lat != null && d.lng != null)
+      .map((d) => ({
+        id: d.id,
+        position: [d.lat as number, d.lng as number] as [number, number],
+        name: d.name,
+        targetLabel: d.target_zone ? `Zone ${d.target_zone}` : 'a pickup',
+      })),
+  [fleetDrivers]);
+
+  // Crowding demotes zone priority: 3+ drivers → Low (green), 1–2 → one level down
+  const demoteLevel = (level: ZoneDemand['demandLevel'], count: number): ZoneDemand['demandLevel'] => {
+    if (count >= 3) return 'Low';
+    if (count >= 1) return level === 'High' ? 'Medium' : 'Low';
+    return level;
+  };
+
   const mapZones: ZoneDemand[] = useMemo(() => {
-    const zones = activePeriod?.zones.map((zone) => ({
-      id: zone.zone_id,
-      name: zone.zone_name,
-      lat: zone.lat,
-      lng: zone.lng,
-      demand: zone.predicted_demand,
-      demandLevel: zone.demand_level,
-      eventIntensity: zone.event_intensity,
-      weatherCondition: zone.weather_condition,
-    })) ?? [];
+    const zones = activePeriod?.zones.map((zone) => {
+      const heading = headingCounts[zone.zone_id] ?? 0;
+      return {
+        id: zone.zone_id,
+        name: zone.zone_name,
+        lat: zone.lat,
+        lng: zone.lng,
+        demand: zone.predicted_demand,
+        demandLevel: demoteLevel(zone.demand_level, heading),
+        eventIntensity: zone.event_intensity,
+        weatherCondition: zone.weather_condition,
+        driversHeading: heading,
+      };
+    }) ?? [];
 
     if (!ecoMode || zones.length === 0) return zones;
 
@@ -197,7 +239,8 @@ export default function DriverOverview({
     });
     withDistance.sort((a, b) => b.efficiency - a.efficiency);
     return withDistance.map(w => w.zone);
-  }, [activePeriod, ecoMode]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activePeriod, ecoMode, headingCounts]);
 
   const ecoStats = useMemo(() => {
     if (!ecoMode || mapZones.length === 0) return null;
@@ -232,7 +275,7 @@ export default function DriverOverview({
     <div className="space-y-6">
       <div className="flex flex-wrap gap-2 items-end justify-between">
         <div className="min-w-0">
-          <h1 className="text-2xl sm:text-3xl font-heading font-light tracking-tight text-[var(--primary)]" style={{letterSpacing:'-0.03em'}}>Intelligence</h1>
+          <h1 className="text-2xl sm:text-3xl font-heading font-light tracking-tight text-[var(--primary)]" style={{ letterSpacing: '-0.03em' }}>Intelligence</h1>
           <p className="text-[var(--text-secondary)] mt-1 text-sm">Urban demand & awareness &middot; <span className="text-[var(--primary)] font-medium">{timeLabel}</span></p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -369,8 +412,12 @@ export default function DriverOverview({
               <span className="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-widest">Moderate</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-primary shrink-0"></div>
+              <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: '#22c55e' }}></div>
               <span className="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-widest">Low</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: '#0ea5e9' }}></div>
+              <span className="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-widest">Other Drivers</span>
             </div>
           </div>
         </div>
@@ -384,6 +431,7 @@ export default function DriverOverview({
             zoom={15}
             showYouAreHere={true}
             youAreHerePosition={VIRTUAL_DRIVER_LOCATION}
+            driverPins={driverPins}
           />
         </Suspense>
       </div>
@@ -676,11 +724,11 @@ export default function DriverOverview({
 
       {/* Dynamic Details Modal */}
       {expandedCard && (
-        <div 
+        <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/80 animate-in fade-in duration-200"
           onClick={() => setExpandedCard(null)}
         >
-          <div 
+          <div
             className="w-full max-w-4xl max-h-[90vh] bg-[#0a0a1e] rounded-[24px] shadow-2xl flex flex-col overflow-hidden border border-[rgba(250,204,21,0.15)] animate-in zoom-in-95 duration-200"
             onClick={e => e.stopPropagation()}
           >
@@ -732,14 +780,14 @@ export default function DriverOverview({
                   </>
                 )}
               </div>
-              <button 
+              <button
                 onClick={() => setExpandedCard(null)}
                 className="p-2 bg-white/5 hover:bg-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded-full transition-colors"
               >
                 <X size={24} />
               </button>
             </div>
-            
+
             {/* Modal Content body */}
             <div className="p-6 overflow-y-auto flex-1 space-y-8 hide-scrollbar">
               {expandedCard === 'demand' && (
@@ -758,7 +806,7 @@ export default function DriverOverview({
                       <p className="text-xl font-heading font-light text-[var(--text-primary)]">+{(weatherLift + eventLift + horizonLift).toFixed(1)} rides</p>
                     </div>
                   </div>
-                  
+
                   <div className="space-y-4">
                     <h3 className="text-lg font-heading font-medium text-[var(--text-primary)] border-b border-[rgba(250,204,21,0.1)] pb-2">Extended 4-Hour Trend Detail</h3>
                     <div className="h-[250px] w-full">
@@ -818,13 +866,13 @@ export default function DriverOverview({
                       <p className="text-xl font-heading font-light text-[var(--text-primary)] mt-1">{weatherFactor.toFixed(2)}x</p>
                     </div>
                   </div>
-                  
+
                   <div className="p-6 rounded-2xl bg-sky-500/5 border border-sky-500/15">
                     <h3 className="text-lg font-heading font-medium text-sky-400 mb-2">Weather Strategy Guidance</h3>
                     <p className="text-[var(--text-secondary)] leading-relaxed font-normal">
-                      Current conditions ({weather?.condition ?? primaryZone?.weather_condition ?? 'Unknown'}) are providing a 
-                      {(weatherLift > 0 ? ' positive ' : ' neutral ')} influence on baseline demand calculations. As weather intensity 
-                      grows, fewer competitive vehicles typically remain on network—generating supply choke points near transit hubs. Keep 
+                      Current conditions ({weather?.condition ?? primaryZone?.weather_condition ?? 'Unknown'}) are providing a
+                      {(weatherLift > 0 ? ' positive ' : ' neutral ')} influence on baseline demand calculations. As weather intensity
+                      grows, fewer competitive vehicles typically remain on network—generating supply choke points near transit hubs. Keep
                       your navigation bound to interior high-traffic zones rather than long-route residential runs during adverse conditions.
                     </p>
                   </div>
@@ -874,9 +922,9 @@ export default function DriverOverview({
                         const pct = Math.round((zone.expected_trips_per_hour / maxTrips) * 100);
                         const rankBadge =
                           idx === 0 ? 'bg-yellow-400 text-yellow-900' :
-                          idx === 1 ? 'bg-slate-300 text-slate-700' :
-                          idx === 2 ? 'bg-amber-500/80 text-amber-900' :
-                          'bg-white/5 text-[var(--text-muted)]';
+                            idx === 1 ? 'bg-slate-300 text-slate-700' :
+                              idx === 2 ? 'bg-amber-500/80 text-amber-900' :
+                                'bg-white/5 text-[var(--text-muted)]';
                         return (
                           <div key={zone.zone_id} className="flex items-center gap-3 px-4 py-3 rounded-xl bg-[var(--surface)] border border-[var(--border)]">
                             <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-medium shrink-0 ${rankBadge}`}>
@@ -971,19 +1019,19 @@ export default function DriverOverview({
                   <div className="p-6 rounded-2xl bg-emerald-500/5 border border-emerald-500/15">
                     <h3 className="text-lg font-heading font-medium text-emerald-400 mb-2">Transit Strategy Guidance</h3>
                     <p className="text-[var(--text-secondary)] leading-relaxed font-normal">
-                      Focus on subway exit clusters during rush hours — passengers leaving subway stations are high-intent riders. 
-                      Bus stop pickups tend to be dispersed but consistent throughout the day. Position near the busiest stops 
-                      in {nearestTransitZone?.borough ?? 'your zone'} where {nearestTransitZone?.total_trips ?? 'many'} trips are 
+                      Focus on subway exit clusters during rush hours — passengers leaving subway stations are high-intent riders.
+                      Bus stop pickups tend to be dispersed but consistent throughout the day. Position near the busiest stops
+                      in {nearestTransitZone?.borough ?? 'your zone'} where {nearestTransitZone?.total_trips ?? 'many'} trips are
                       running today.
                     </p>
                   </div>
                 </>
               )}
             </div>
-            
+
             {/* Modal footer */}
             <div className="p-4 bg-white/5/50 border-t border-[var(--border)] flex justify-end">
-              <button 
+              <button
                 className="px-6 py-2 bg-[var(--text-primary)] hover:bg-[var(--text-secondary)] text-[var(--surface)] font-medium rounded-full transition-all duration-300 shadow-md"
                 onClick={() => setExpandedCard(null)}
               >

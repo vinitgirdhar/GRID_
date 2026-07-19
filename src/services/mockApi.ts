@@ -369,56 +369,46 @@ function buildForecastResponse() {
 }
 
 function buildMetricsResponse() {
+  // Mirrors the real trained-model metadata (grid_ml/models/*_metadata.json)
   const modelVariants: ModelVariantMetric[] = [
     {
-      key: 'baseline',
-      label: 'Baseline Model',
-      model_type: 'xgboost',
-      training_date: '2026-03-25',
-      test_rmse: 14.82,
-      test_r2: 0.9241,
-      train_rmse: 12.95,
-      train_r2: 0.9415,
-      feature_count: 24,
-    },
-    {
-      key: 'events',
-      label: 'Event-Enriched Model',
-      model_type: 'xgboost',
-      training_date: '2026-03-26',
-      test_rmse: 11.43,
-      test_r2: 0.9528,
-      train_rmse: 9.84,
-      train_r2: 0.9689,
-      feature_count: 31,
-    },
-    {
-      key: 'hybrid',
-      label: 'Hybrid Demand Model',
-      model_type: 'xgboost',
-      training_date: '2026-03-28',
-      test_rmse: 9.74,
-      test_r2: 0.9714,
-      train_rmse: 8.91,
-      train_r2: 0.9798,
-      feature_count: 38,
+      key: 'lightgbm',
+      label: 'Production Model',
+      model_type: 'LightGBM',
+      training_date: '2026-04-09',
+      test_rmse: 9.33,
+      test_r2: 0.9822,
+      test_mae: 3.74,
+      test_mape: 20.58,
+      train_rmse: 6.79,
+      train_r2: 0.9888,
+      val_rmse: 8.79,
+      val_r2: 0.9857,
+      val_mae: 3.58,
+      train_mae: 2.84,
+      train_size: 528009,
+      val_size: 48620,
+      test_size: 111906,
+      feature_count: 17,
     },
   ];
 
+  // Top real feature importances from lightgbm_metadata.json (normalized)
   const featureImportance: FeatureImportancePoint[] = [
-    { name: 'pickup_hour', value: 0.281 },
-    { name: 'rain_intensity', value: 0.194 },
-    { name: 'event_density', value: 0.158 },
-    { name: 'driver_supply', value: 0.132 },
-    { name: 'zone_cluster', value: 0.114 },
-    { name: 'weekday_index', value: 0.078 },
-    { name: 'temperature_feels_like', value: 0.043 },
+    { name: 'demand_rolling_4h_mean', value: 1.0 },
+    { name: 'demand_lag_1h', value: 0.196 },
+    { name: 'demand_rolling_24h_mean', value: 0.11 },
+    { name: 'demand_lag_2h', value: 0.102 },
+    { name: 'demand_lag_24h', value: 0.071 },
+    { name: 'demand_rolling_7d_mean', value: 0.07 },
+    { name: 'pickup_hour', value: 0.068 },
+    { name: 'hour_sin', value: 0.061 },
   ];
 
   return {
     generated_at: nowIso(),
-    current_model_key: 'hybrid',
-    current_model_label: 'Hybrid Demand Model',
+    current_model_key: 'lightgbm',
+    current_model_label: 'Production Model',
     model_variants: modelVariants,
     feature_importance: featureImportance,
   } satisfies MetricsResponse;
@@ -675,72 +665,30 @@ export async function mockAskCopilot(query: string) {
 }
 
 export async function mockGetValidationMetrics(): Promise<ValidationMetricsResponse> {
-  const now = Date.now();
-  const bucketMs = 20 * 60 * 1000; // 20-minute buckets
-  const totalBuckets = 24; // 8 hours
-
-  // Build 24 ordered time labels
-  const labels: string[] = [];
-  for (let i = totalBuckets - 1; i >= 0; i--) {
-    const d = new Date(now - i * bucketMs);
-    labels.push(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`);
-  }
-
-  // Realistic mock demand curve — peaks mid-session
-  const predicted_vs_actual: ValidationPointData[] = labels.map((period, i) => {
-    const t = i / totalBuckets;
-    const base = 60 + 120 * Math.sin(t * Math.PI); // arc shape 60→180→60
-    const noise = (Math.random() - 0.5) * 20;
-    const predicted = Math.round(base + noise);
-    const actual = Math.round(predicted * (0.8 + Math.random() * 0.4));
-    return { period, predicted, actual };
-  });
-
-  const prediction_breakdown: PredictionBreakdown[] = [
-    { level: 'High', total: 16, hits: 11, hit_rate: 68.8 },
-    { level: 'Medium', total: 18, hits: 13, hit_rate: 72.2 },
-    { level: 'Low', total: 14, hits: 9, hit_rate: 64.3 },
-  ];
-
-  const driver_impact: DriverImpactPoint[] = labels
-    .filter((_, i) => i % 3 === 0) // every 3rd bucket for readability
-    .map((period, i) => {
-      const t = i / 8;
-      return {
-        period,
-        success_rate: Math.round(55 + 25 * Math.sin(t * Math.PI) + (Math.random() - 0.5) * 10),
-        avg_pickup_min: Math.round((8 - 4 * Math.sin(t * Math.PI) + (Math.random() - 0.5) * 2) * 10) / 10,
-      };
-    });
-
+  // Mirrors the backend's real fixed test-set metrics (LightGBM, 111,906 held-out
+  // NYC taxi samples). The model is a static artifact — no simulation, no retraining.
   const model_state: ModelLearningState = {
-    current_rmse: 8.91,
-    current_r2: 0.9748,
-    generation: 3,
-    rmse_floor: 6.80,
-    r2_ceiling: 0.991,
-    next_retrain_in: 7,
+    current_rmse: 9.33,
+    current_r2: 0.9822,
+    generation: 0,
+    rmse_floor: 9.33,
+    r2_ceiling: 0.9822,
+    next_retrain_in: 0,
   };
-
-  const retrain_log: RetrainEvent[] = [
-    { timestamp: new Date(Date.now() - 7200000).toISOString(), generation: 1, rmse_before: 9.74, rmse_after: 9.31, r2_before: 0.9714, r2_after: 0.9731, improvement_pct: 4.41, logs_used: 10 },
-    { timestamp: new Date(Date.now() - 4800000).toISOString(), generation: 2, rmse_before: 9.31, rmse_after: 9.02, r2_before: 0.9731, r2_after: 0.9742, improvement_pct: 3.11, logs_used: 20 },
-    { timestamp: new Date(Date.now() - 2400000).toISOString(), generation: 3, rmse_before: 9.02, rmse_after: 8.91, r2_before: 0.9742, r2_after: 0.9748, improvement_pct: 1.22, logs_used: 30 },
-  ];
 
   return {
     generated_at: new Date().toISOString(),
-    total_predictions: 48,
-    validated_predictions: 48,
-    prediction_accuracy_pct: 71.4,
-    hit_rate_pct: 68.8,
-    driver_success_rate_pct: 68.8,
-    avg_pickup_time_min: 6.2,
-    predicted_vs_actual,
-    prediction_breakdown,
-    driver_impact,
+    total_predictions: 111906,
+    validated_predictions: 111906,
+    prediction_accuracy_pct: 79.4,
+    hit_rate_pct: 0,
+    driver_success_rate_pct: 0,
+    avg_pickup_time_min: 0,
+    predicted_vs_actual: [],
+    prediction_breakdown: [],
+    driver_impact: [],
     model_state,
-    retrain_log,
+    retrain_log: [],
   };
 }
 

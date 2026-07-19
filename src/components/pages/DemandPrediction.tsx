@@ -228,7 +228,7 @@ export default function DemandPrediction() {
     return () => {
       cancelled = true;
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const selectedZone = topZones.find((zone) => zone.zone_id === selectedZoneId);

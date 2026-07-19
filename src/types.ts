@@ -37,6 +37,10 @@ export interface Driver {
   rating: number;
   trips: number;
   earnings: number;
+  // Live positioning: where the driver currently is / is heading (null = not driving)
+  target_zone?: string | null;
+  lat?: number | null;
+  lng?: number | null;
 }
 
 export interface KPI {
@@ -95,6 +99,8 @@ export interface ZoneDemand {
   demandLevel: DemandLevel;
   eventIntensity: 'High' | 'Medium' | 'Low';
   weatherCondition: string;
+  /** Other drivers currently heading to this zone (lowers its priority) */
+  driversHeading?: number;
 }
 
 export interface PredictionState {
@@ -113,6 +119,15 @@ export interface ModelVariantMetric {
   training_date?: string | null;
   test_rmse: number;
   test_r2: number;
+  test_mae?: number | null;
+  test_mape?: number | null;
+  val_rmse?: number | null;
+  val_r2?: number | null;
+  val_mae?: number | null;
+  train_mae?: number | null;
+  train_size?: number | null;
+  val_size?: number | null;
+  test_size?: number | null;
   train_rmse?: number | null;
   train_r2?: number | null;
   feature_count: number;

@@ -15,8 +15,17 @@ class ModelVariantMetric(BaseModel):
     training_date: str | None = None
     test_rmse: float
     test_r2: float
+    test_mae: float | None = None
+    test_mape: float | None = None
     train_rmse: float | None = None
     train_r2: float | None = None
+    val_rmse: float | None = None
+    val_r2: float | None = None
+    val_mae: float | None = None
+    train_mae: float | None = None
+    train_size: int | None = None
+    val_size: int | None = None
+    test_size: int | None = None
     feature_count: int
 
 
@@ -185,6 +194,10 @@ class DriverProfile(BaseModel):
     rating: float
     trips: int
     earnings: int
+    # Live positioning: where the driver currently is / is heading (None = not driving)
+    target_zone: str | None = None
+    lat: float | None = None
+    lng: float | None = None
 
 
 class DriverLoginRequest(BaseModel):
@@ -202,6 +215,7 @@ class DriverRegisterRequest(BaseModel):
 
 class DriverStatusUpdate(BaseModel):
     status: str
+    target_zone: str | None = None
 
 
 # ==============================================================================

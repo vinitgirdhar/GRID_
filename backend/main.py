@@ -1,13 +1,12 @@
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta
+from datetime import datetime
 from math import hypot
 from pathlib import Path
-from threading import Lock, Thread
+from threading import Lock
 from typing import Any, Dict, List
 import hashlib
 import json
 import re
-import time
 from pydantic import BaseModel
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
@@ -214,6 +213,9 @@ def _build_driver_record(
         "rating": rating,
         "trips": trips,
         "earnings": earnings,
+        "target_zone": None,
+        "lat": None,
+        "lng": None,
     }
 
 
@@ -234,6 +236,40 @@ ZONE_CATALOG: dict[str, dict[str, float | str]] = {
 }
 
 DEFAULT_ZONE_ID = "132"
+
+
+def _zone_offset_position(zone_id: str, seed_index: int) -> tuple[float, float]:
+    """Deterministic position near a zone center — offset by driver index so
+    markers spread out instead of stacking. ~±1km. No randomness: stable across
+    refreshes and restarts."""
+    zone = ZONE_CATALOG.get(zone_id, ZONE_CATALOG[DEFAULT_ZONE_ID])
+    d_lat = (((seed_index * 37) % 100) - 50) / 5000.0
+    d_lng = (((seed_index * 53) % 100) - 50) / 5000.0
+    return float(zone["lat"]) + d_lat, float(zone["lng"]) + d_lng
+
+
+def _assign_demo_fleet_positions() -> None:
+    """Put a fixed subset of the seed fleet on the road, heading to hotspot zones.
+
+    ponytail: deterministic index-based assignment — replace with real GPS/status
+    feeds when actual driver clients report positions."""
+    # Zone 132 gets 3 drivers on purpose — demonstrates the crowding demotion (red → green)
+    demo_targets = ["132", "132", "132", "186", "138", "230"]
+    driving_ids = ["2", "5", "8", "11", "14", "17"]
+    for slot, driver_id in enumerate(driving_ids):
+        driver = DRIVERS.get(driver_id)
+        if not driver:
+            continue
+        zone_id = demo_targets[slot % len(demo_targets)]
+        lat, lng = _zone_offset_position(zone_id, int(driver_id))
+        driver["status"] = "driving"
+        driver["target_zone"] = zone_id
+        driver["lat"] = lat
+        driver["lng"] = lng
+
+
+_assign_demo_fleet_positions()
+
 RECOMMENDED_ZONE_PATTERN = re.compile(r"\s*\d+\.\s+Zone\s+(\d+)\s+-\s+Expected\s+([\d.]+)\s+trips/hour")
 AVOID_ZONE_PATTERN = re.compile(r"\s*Zone\s+(\d+)\s+-\s+Expected\s+([\d.]+)\s+trips/hour")
 
@@ -448,8 +484,17 @@ def _build_metrics_response(metadata_map: dict[str, dict], booster: lgb.Booster)
                 training_date=meta.get("training_date", datetime.utcnow().isoformat()),
                 test_rmse=float(meta.get("test_metrics", {}).get("rmse", 0.0)),
                 test_r2=float(meta.get("test_metrics", {}).get("r2", 0.0)),
+                test_mae=float(meta.get("test_metrics", {}).get("mae", 0.0)),
+                test_mape=float(meta.get("test_metrics", {}).get("mape", 0.0)),
                 train_rmse=float(meta.get("train_metrics", {}).get("rmse", 0.0)),
                 train_r2=float(meta.get("train_metrics", {}).get("r2", 0.0)),
+                val_rmse=float(meta.get("val_metrics", {}).get("rmse", 0.0)),
+                val_r2=float(meta.get("val_metrics", {}).get("r2", 0.0)),
+                val_mae=float(meta.get("val_metrics", {}).get("mae", 0.0)),
+                train_mae=float(meta.get("train_metrics", {}).get("mae", 0.0)),
+                train_size=int(meta.get("train_size", 0)),
+                val_size=int(meta.get("val_size", 0)),
+                test_size=int(meta.get("test_size", 0)),
                 feature_count=meta.get("n_features", 0),
             )
         )
@@ -587,6 +632,9 @@ def _account_to_driver_dict(acc: "DriverAccount") -> Dict[str, Any]:
         "borough": acc.borough or "Manhattan",
         "rating": acc.rating,
         "trips": acc.trips,
+        "target_zone": None,
+        "lat": None,
+        "lng": None,
         "earnings": acc.earnings,
     }
 
@@ -671,7 +719,6 @@ app.add_middleware(
 # ==============================================================================
 
 import asyncio
-import queue as _queue_module
 
 # Each connected SSE client gets its own asyncio.Queue registered here.
 # The broadcaster thread puts JSON strings into every queue.
@@ -785,7 +832,7 @@ async def sse_stream(request: Request) -> StreamingResponse:
     # Send initial snapshot immediately so the new client is in sync
     with DRIVERS_LOCK:
         drivers_snapshot = [
-            {k: v for k, v in d.items() if k != "password"}
+            {k: v for k, v in d.items() if k not in ("password", "password_hash", "_is_registered")}
             for d in DRIVERS.values()
         ]
     with STATE_LOCK:
@@ -1499,337 +1546,60 @@ def list_drivers() -> list[DriverProfile]:
 def update_driver_status(driver_id: str, payload: DriverStatusUpdate) -> dict:
     if payload.status not in ("online", "driving", "offline"):
         raise HTTPException(status_code=400, detail="status must be 'online', 'driving', or 'offline'.")
+    if payload.target_zone is not None and payload.target_zone not in ZONE_CATALOG:
+        raise HTTPException(status_code=400, detail=f"Unknown zone {payload.target_zone}.")
     with DRIVERS_LOCK:
         if driver_id not in DRIVERS:
             raise HTTPException(status_code=404, detail=f"Driver {driver_id} not found.")
-        DRIVERS[driver_id]["status"] = payload.status
+        driver = DRIVERS[driver_id]
+        driver["status"] = payload.status
+        if payload.status == "offline":
+            driver["target_zone"] = None
+            driver["lat"] = None
+            driver["lng"] = None
+        elif payload.target_zone is not None:
+            seed = int(driver_id) if driver_id.isdigit() else sum(ord(c) for c in driver_id) % 20
+            lat, lng = _zone_offset_position(payload.target_zone, seed)
+            driver["target_zone"] = payload.target_zone
+            driver["lat"] = lat
+            driver["lng"] = lng
     _broadcast_drivers()
     return {"ok": True}
 
 
 # ==============================================================================
-# PREDICTION VALIDATION — IN-MEMORY STORES + LEARNING SIMULATION
+# MODEL VALIDATION METRICS — REAL TEST-SET RESULTS (fixed artifact, no simulation)
 # ==============================================================================
 
-import math
-import random
-import uuid
-from collections import defaultdict
-
-_PREDICTION_STORE: dict[str, dict] = {}   # prediction_id -> record
-_EVENT_LOG: list[dict] = []               # driver events in order
-_VALIDATION_STORE: dict[str, dict] = {}   # prediction_id -> validation record
+_EVENT_LOG: list[dict] = []               # driver events (audit log only)
 _VALIDATION_LOCK = Lock()
 
 
-def _init_model_state() -> dict:
-    """Read real RMSE/R² from the saved metadata so the baseline is accurate."""
+def _load_real_model_metrics() -> dict:
+    """Real test-set metrics of the winning model, read from training metadata.
+
+    Computed once on the held-out NYC taxi test set (111,906 real samples) during
+    training. Fixed and honest — the model is a static artifact, not retrained live.
+    """
+    fallback = {"accuracy_pct": 79.4, "rmse": 9.33, "r2": 0.9822,
+                "mae": 3.74, "mape": 20.58, "test_size": 111906}
     try:
-        meta = _load_json(settings.models_dir / "model_metadata_improved.json")
-        base_rmse = float(meta["test_rmse"])
-        base_r2   = float(meta["test_r2"])
-    except Exception:
-        base_rmse, base_r2 = 13.58, 0.9617
-
-    return {
-        "rmse": base_rmse,
-        "r2":   base_r2,
-        "generation": 0,
-        "retrain_log": [],
-        "validations_since_retrain": 0,
-        "retrain_every": 10,
-        # Physically realistic ceilings for NYC demand prediction
-        "rmse_floor": round(base_rmse * 0.50, 2),   # 50% RMSE reduction is excellent
-        "r2_ceiling": min(0.995, round(base_r2 + 0.025, 4)),
-    }
-
-
-_MODEL_STATE: dict = _init_model_state()
-
-_STARTUP_TIME = datetime.utcnow()
-
-
-def _noise(spread: float) -> float:
-    return (random.random() - 0.5) * 2 * spread
-
-
-def _current_error_spread() -> float:
-    """How noisy actual demand is relative to predicted — shrinks as model improves."""
-    # Generation 0 = ±40%, generation 10+ = ±18% (realistic for demand forecasting)
-    gen = _MODEL_STATE["generation"]
-    return max(0.18, 0.40 - gen * 0.020)
-
-
-def _make_prediction_record(zone_id: str, level: str, pred_demand: float, created_at: datetime) -> tuple[str, dict]:
-    pid = str(uuid.uuid4())
-    return pid, {
-        "prediction_id": pid,
-        "zone_id": zone_id,
-        "prediction_time": created_at,
-        "predicted_demand": round(pred_demand, 1),
-        "prediction_type": level,
-        "suggested_action": f"Head to zone {zone_id}",
-        "created_at": created_at,
-    }
-
-
-def _make_validation_record(pid: str, pred_demand: float) -> dict:
-    spread = _current_error_spread()
-    actual = pred_demand * (1 + _noise(spread))
-    # Hit rate improves with model generation
-    gen = _MODEL_STATE["generation"]
-    hit_threshold = max(0.20, 0.40 - gen * 0.018)   # 40% miss → 20% miss at gen 10+
-    got_ride = 1 if random.random() > hit_threshold else 0
-    # Pickup time shortens as driver routing improves
-    avg_pickup = max(3.0, 12.0 - gen * 0.8)
-    pickup_min = avg_pickup + _noise(3.0) if got_ride else None
-    source = random.choice(["feedback", "movement", "simulation"])
-    return {
-        "prediction_id": pid,
-        "actual_demand": round(actual, 1),
-        "driver_got_ride": got_ride,
-        "pickup_time_minutes": round(max(1.5, pickup_min), 1) if pickup_min else None,
-        "validation_source": source,
-    }
-
-
-def _build_feature_row(zone_id: str, pred_demand: float, ts: datetime) -> dict:
-    """Build one training row matching the 17 model features exactly."""
-    zone = ZONE_CATALOG.get(zone_id, ZONE_CATALOG[DEFAULT_ZONE_ID])
-    hour = ts.hour
-    dow = ts.weekday()
-    return {
-        "hour": hour,
-        "day_of_week": dow,
-        "day_of_month": ts.day,
-        "month": ts.month,
-        "is_weekend": int(dow >= 5),
-        "is_morning_rush": int(7 <= hour <= 9),
-        "is_evening_rush": int(17 <= hour <= 19),
-        "is_night": int(hour >= 22 or hour <= 4),
-        "is_business_hours": int(9 <= hour <= 17),
-        "demand_lag_1h": round(pred_demand * random.uniform(0.88, 1.12), 1),
-        "demand_lag_24h": round(pred_demand * random.uniform(0.82, 1.18), 1),
-        "demand_lag_168h": round(pred_demand * random.uniform(0.78, 1.22), 1),
-        "demand_rolling_mean_3h": round(pred_demand * random.uniform(0.90, 1.10), 1),
-        "demand_rolling_max_6h": round(pred_demand * random.uniform(1.05, 1.25), 1),
-        "demand_rolling_std_6h": round(pred_demand * random.uniform(0.05, 0.20), 2),
-        "avg_distance": float(zone.get("avg_distance", 3.8)),
-        "avg_fare": float(zone.get("avg_fare", 18.5)),
-    }
-
-
-def _run_real_retrain() -> None:
-    """
-    Perform a LightGBM incremental retrain using accumulated validation data.
-    Runs in the background thread without holding _VALIDATION_LOCK during training.
-    """
-    # Snapshot data without holding lock during slow training
-    with _VALIDATION_LOCK:
-        pred_snapshot = dict(_PREDICTION_STORE)
-        val_snapshot = dict(_VALIDATION_STORE)
-        gen = _MODEL_STATE["generation"]
-        rmse_before = _MODEL_STATE["rmse"]
-        r2_before = _MODEL_STATE["r2"]
-
-    # Build training rows from validated predictions
-    feature_names = getattr(app.state, "feature_names", None)
-    booster = getattr(app.state, "booster", None)
-    if not feature_names or booster is None:
-        return  # backend not fully initialised yet
-
-    feature_rows, rows_y = [], []
-    for pid, val in val_snapshot.items():
-        pred = pred_snapshot.get(pid)
-        if pred is None or val.get("actual_demand") is None:
-            continue
-        row = _build_feature_row(pred["zone_id"], pred["predicted_demand"], pred["created_at"])
-        feature_rows.append(row)
-        rows_y.append(float(val["actual_demand"]))
-
-    if len(feature_rows) < 5:
-        return  # not enough data to bother
-
-    X = pd.DataFrame(feature_rows).reindex(columns=feature_names, fill_value=0.0)
-    y = pd.Series(rows_y, dtype="float64")
-
-    # 80/20 split for eval
-    split = max(1, int(len(X) * 0.8))
-    if split >= len(X):
-        split = len(X) - 1
-    if split < 1:
-        return
-    X_train, X_val = X.iloc[:split], X.iloc[split:]
-    y_train, y_val = y.iloc[:split], y.iloc[split:]
-
-    train_set = lgb.Dataset(X_train, label=y_train, feature_name=feature_names, free_raw_data=False)
-    val_set = lgb.Dataset(X_val, label=y_val, feature_name=feature_names, free_raw_data=False)
-
-    # Incremental: continue from current booster weights, add 30 more trees.
-    evals_result: dict[str, dict[str, list[float]]] = {}
-    new_booster = lgb.train(
-        params={
-            "objective": "regression",
-            "metric": "rmse",
-            "learning_rate": max(0.005, 0.05 * math.exp(-gen * 0.15)),
-            "num_leaves": 63,
-            "feature_fraction": 0.8,
-            "bagging_fraction": 0.8,
-            "bagging_freq": 1,
-            "min_data_in_leaf": 20,
-            "verbosity": -1,
-        },
-        train_set=train_set,
-        num_boost_round=30,
-        init_model=booster,
-        valid_sets=[train_set, val_set],
-        valid_names=["train", "val"],
-        callbacks=[lgb.record_evaluation(evals_result)],
-    )
-
-    # Extract real RMSE from eval
-    new_rmse_raw = evals_result["val"]["rmse"][-1]
-    val_predictions = pd.Series(new_booster.predict(X_val), index=y_val.index)
-    new_r2_raw = float(
-        1
-        - (
-            float(((y_val - val_predictions) ** 2).sum())
-            / max(float(((y_val - y_val.mean()) ** 2).sum()), 1e-9)
-        )
-    )
-
-    new_rmse = round(float(new_rmse_raw), 4)
-    new_r2   = round(float(new_r2_raw), 4)
-
-    # Only accept the new booster if it actually improved (or is within noise)
-    if new_rmse > rmse_before * 1.05:
-        # Regression — discard and keep old booster
-        return
-
-    # Hot-swap booster in app state (thread-safe: GIL protects object assignment)
-    app.state.booster = new_booster
-
-    improvement_pct = round((rmse_before - new_rmse) / max(rmse_before, 1e-9) * 100, 2)
-    logs_used = len(feature_rows)
-
-    with _VALIDATION_LOCK:
-        _MODEL_STATE["rmse"] = new_rmse
-        _MODEL_STATE["r2"]   = new_r2
-        _MODEL_STATE["generation"] = gen + 1
-        retrain_entry = {
-            "timestamp": datetime.utcnow().isoformat(),
-            "generation": gen + 1,
-            "rmse_before": round(rmse_before, 4),
-            "rmse_after":  new_rmse,
-            "r2_before":   round(r2_before, 4),
-            "r2_after":    new_r2,
-            "improvement_pct": improvement_pct,
-            "logs_used":   logs_used,
+        meta = _load_json(settings.models_dir / "lightgbm_metadata.json")
+        test = meta.get("test_metrics", {})
+        mape = float(test["mape"])
+        return {
+            "accuracy_pct": round(max(0.0, 100.0 - mape), 1),
+            "rmse": round(float(test["rmse"]), 2),
+            "r2": round(float(test["r2"]), 4),
+            "mae": round(float(test["mae"]), 2),
+            "mape": round(mape, 2),
+            "test_size": int(meta.get("test_size", fallback["test_size"])),
         }
-        _MODEL_STATE["retrain_log"].append(retrain_entry)
-
-    _sse_broadcast("retrain", retrain_entry)
-
-
-def _maybe_retrain() -> None:
-    """Called inside _VALIDATION_LOCK. Kicks off a real retrain in a separate thread."""
-    _MODEL_STATE["validations_since_retrain"] += 1
-    if _MODEL_STATE["validations_since_retrain"] < _MODEL_STATE["retrain_every"]:
-        return
-    _MODEL_STATE["validations_since_retrain"] = 0
-    # Run the actual LightGBM retrain off the lock in a daemon thread
-    Thread(target=_run_real_retrain, daemon=True).start()
+    except Exception:
+        return fallback
 
 
-def _seed_validation_demo() -> None:
-    """Pre-populate 48 historical records over the last 8 hours + simulate early retrain history."""
-    levels = ["high", "medium", "low"]
-    zone_ids = list(ZONE_CATALOG.keys())[:6]
-    now = datetime.utcnow()
-
-    # Simulate 3 historical retrains so the log isn't empty on first load
-    base_rmse = _MODEL_STATE["rmse"]
-    base_r2   = _MODEL_STATE["r2"]
-    cur_rmse, cur_r2 = base_rmse, base_r2
-    for g in range(3):
-        fake_ts = (now - timedelta(hours=8 - g * 2.5)).isoformat()
-        drop = random.uniform(0.20, 0.50) * math.exp(-g * 0.22)
-        gain = random.uniform(0.0008, 0.0020) * math.exp(-g * 0.22)
-        new_rmse = round(max(_MODEL_STATE["rmse_floor"], cur_rmse - drop), 4)
-        new_r2   = round(min(_MODEL_STATE["r2_ceiling"],  cur_r2   + gain), 4)
-        _MODEL_STATE["retrain_log"].append({
-            "timestamp": fake_ts,
-            "generation": g + 1,
-            "rmse_before": round(cur_rmse, 4),
-            "rmse_after":  new_rmse,
-            "r2_before":   round(cur_r2, 4),
-            "r2_after":    new_r2,
-            "improvement_pct": round((cur_rmse - new_rmse) / cur_rmse * 100, 2),
-            "logs_used": (g + 1) * 10,
-        })
-        cur_rmse, cur_r2 = new_rmse, new_r2
-    # Advance state to reflect those 3 historical retrains
-    _MODEL_STATE["generation"] = 3
-    _MODEL_STATE["rmse"] = cur_rmse
-    _MODEL_STATE["r2"]   = cur_r2
-
-    for i in range(48):
-        minutes_ago = (48 - i) * 10
-        created_at = now - timedelta(minutes=minutes_ago)
-        level = levels[i % 3]
-        zone_id = zone_ids[i % len(zone_ids)]
-        hour = created_at.hour
-        base = 160 if hour in (7, 8, 9, 17, 18, 19) else 90
-        pred_demand = (
-            base + random.uniform(-25, 25) if level == "high"
-            else random.uniform(40, 80) if level == "medium"
-            else random.uniform(10, 40)
-        )
-        pid, pred_record = _make_prediction_record(zone_id, level, pred_demand, created_at)
-        val_record = _make_validation_record(pid, pred_demand)
-        _PREDICTION_STORE[pid] = pred_record
-        _VALIDATION_STORE[pid] = val_record
-
-
-_seed_validation_demo()
-
-
-def _live_prediction_loop() -> None:
-    """Background thread: add a new prediction+validation every 30 seconds, trigger retrains."""
-    levels = ["high", "medium", "low"]
-    zone_ids = list(ZONE_CATALOG.keys())[:6]
-
-    while True:
-        time.sleep(30)
-        try:
-            now = datetime.utcnow()
-            level = random.choice(levels)
-            zone_id = random.choice(zone_ids)
-            hour = now.hour
-            base = 160 if hour in (7, 8, 9, 17, 18, 19) else 90
-            pred_demand = (
-                base + random.uniform(-25, 25) if level == "high"
-                else random.uniform(50, 120) if level == "medium"
-                else random.uniform(10, 50)
-            )
-            pid, pred_record = _make_prediction_record(zone_id, level, pred_demand, now)
-            val_record = _make_validation_record(pid, pred_demand)
-
-            with _VALIDATION_LOCK:
-                _PREDICTION_STORE[pid] = pred_record
-                _VALIDATION_STORE[pid] = val_record
-                _maybe_retrain()
-            _sse_broadcast("prediction", {
-                "zone_id": zone_id,
-                "level": level,
-                "predicted_demand": round(pred_demand, 1),
-                "ts": now.isoformat(),
-            })
-        except Exception:
-            pass
-
-
-Thread(target=_live_prediction_loop, daemon=True).start()
+_REAL_MODEL_METRICS = _load_real_model_metrics()
 
 
 # ==============================================================================
@@ -1838,7 +1608,7 @@ Thread(target=_live_prediction_loop, daemon=True).start()
 
 @app.post(f"{settings.api_prefix}/events", status_code=201)
 def record_driver_event(payload: DriverEventCreate) -> dict:
-    """Ingest a driver event (movement, feedback, etc.) tied to a prediction."""
+    """Ingest a driver event (movement, feedback, etc.) for audit logging."""
     event = {
         "driver_id": payload.driver_id,
         "prediction_id": payload.prediction_id,
@@ -1848,215 +1618,40 @@ def record_driver_event(payload: DriverEventCreate) -> dict:
     }
     with _VALIDATION_LOCK:
         _EVENT_LOG.append(event)
-        # Resolve validation from explicit feedback immediately
-        pid = payload.prediction_id
-        if payload.event_type in ("feedback_yes", "feedback_no") and pid not in _VALIDATION_STORE:
-            got_ride = 1 if payload.event_type == "feedback_yes" else 0
-            pred = _PREDICTION_STORE.get(pid, {})
-            predicted = pred.get("predicted_demand", 0)
-            # Realistic variance: even positive feedback can have significant deviation
-            if got_ride:
-                actual = predicted * random.uniform(0.82, 1.20)
-            else:
-                actual = predicted * random.uniform(0.3, 0.70)
-            _VALIDATION_STORE[pid] = {
-                "prediction_id": pid,
-                "actual_demand": round(actual, 1),
-                "driver_got_ride": got_ride,
-                "pickup_time_minutes": round(random.uniform(2, 10), 1) if got_ride else None,
-                "validation_source": "feedback",
-            }
-        elif payload.event_type == "moved_to_zone" and pid not in _VALIDATION_STORE:
-            pred = _PREDICTION_STORE.get(pid, {})
-            got_ride = 1 if random.random() > 0.3 else 0
-            predicted = pred.get("predicted_demand", 0)
-            # Realistic variance: movement-based validation has broader noise
-            actual = predicted * random.uniform(0.78, 1.22)
-            _VALIDATION_STORE[pid] = {
-                "prediction_id": pid,
-                "actual_demand": round(actual, 1),
-                "driver_got_ride": got_ride,
-                "pickup_time_minutes": round(random.uniform(3, 12), 1) if got_ride else None,
-                "validation_source": "movement",
-            }
     return {"ok": True}
 
 
 @app.get(f"{settings.api_prefix}/validation-metrics", response_model=ValidationMetricsResponse)
 def get_validation_metrics() -> ValidationMetricsResponse:
-    """Return live KPIs and graph datasets for the admin panel."""
-    from .schemas import (
-        DriverImpactPoint,
-        ModelLearningState,
-        PredictionBreakdown,
-        RetrainEvent,
-        ValidationPointData,
+    """Return the trained model's real, fixed performance metrics.
+
+    Sourced from the winning model's held-out test set (real NYC taxi data).
+    The model is a fixed artifact — no live simulation, no continuous retraining.
+    """
+    from .schemas import ModelLearningState
+
+    m = _REAL_MODEL_METRICS
+    model_state = ModelLearningState(
+        current_rmse=m["rmse"],
+        current_r2=m["r2"],
+        generation=0,
+        rmse_floor=m["rmse"],
+        r2_ceiling=m["r2"],
+        next_retrain_in=0,
     )
-
-    with _VALIDATION_LOCK:
-        all_preds = list(_PREDICTION_STORE.values())
-        all_validations = list(_VALIDATION_STORE.values())
-
-    total_predictions = len(all_preds)
-    validated = len(all_validations)
-
-    if validated == 0:
-        return ValidationMetricsResponse(
-            generated_at=datetime.utcnow(),
-            total_predictions=total_predictions,
-            validated_predictions=0,
-            prediction_accuracy_pct=0.0,
-            hit_rate_pct=0.0,
-            driver_success_rate_pct=0.0,
-            avg_pickup_time_min=0.0,
-            predicted_vs_actual=[],
-            prediction_breakdown=[],
-            driver_impact=[],
-        )
-
-    # Build a map for quick lookup
-    pred_map = {p["prediction_id"]: p for p in all_preds}
-
-    # Prediction accuracy: |predicted - actual| / predicted <= 5% tolerance (strict)
-    accurate = sum(
-        1 for v in all_validations
-        if v["actual_demand"] is not None
-        and pred_map.get(v["prediction_id"])
-        and abs(pred_map[v["prediction_id"]]["predicted_demand"] - v["actual_demand"])
-           / max(pred_map[v["prediction_id"]]["predicted_demand"], 1) <= 0.05
-    )
-    prediction_accuracy_pct = round((accurate / validated) * 100, 1)
-    # Cap at realistic range for demand forecasting models
-    prediction_accuracy_pct = min(prediction_accuracy_pct, 83.0)
-
-    # Hit rate: driver acted on prediction and got a ride
-    rides = [v for v in all_validations if v["driver_got_ride"] == 1]
-    hit_rate_pct = round((len(rides) / validated) * 100, 1)
-
-    # Driver success rate: same as hit rate here (rides / total validated)
-    driver_success_rate_pct = hit_rate_pct
-
-    # Avg pickup time
-    pickup_times = [v["pickup_time_minutes"] for v in rides if v["pickup_time_minutes"] is not None]
-    avg_pickup_time_min = round(sum(pickup_times) / len(pickup_times), 1) if pickup_times else 0.0
-
-    # Predicted vs Actual — 20-minute buckets over the last 8 hours, newest last
-    now = datetime.utcnow()
-    window_hours = 8
-    bucket_minutes = 20
-    total_buckets = (window_hours * 60) // bucket_minutes  # 24 buckets
-
-    # Build bucket slots
-    bucket_keys: list[str] = []
-    bucket_data: dict[str, list] = {}
-    for b in range(total_buckets):
-        slot_start = now - timedelta(minutes=(total_buckets - b) * bucket_minutes)
-        label = slot_start.strftime("%H:%M")
-        bucket_keys.append(label)
-        bucket_data[label] = []
-
-    for v in all_validations:
-        pred = pred_map.get(v["prediction_id"])
-        if not pred or v["actual_demand"] is None:
-            continue
-        created = pred.get("created_at")
-        if not isinstance(created, datetime):
-            continue
-        age_minutes = (now - created).total_seconds() / 60
-        if age_minutes < 0 or age_minutes > window_hours * 60:
-            continue
-        bucket_index = min(int(age_minutes // bucket_minutes), total_buckets - 1)
-        # Reverse: oldest is bucket_index=total_buckets-1, newest=0
-        slot_label = bucket_keys[total_buckets - 1 - bucket_index]
-        bucket_data[slot_label].append((pred["predicted_demand"], v["actual_demand"]))
-
-    # Only emit buckets that have data, keep chronological order
-    predicted_vs_actual = [
-        ValidationPointData(
-            period=label,
-            predicted=round(sum(p for p, _ in bucket_data[label]) / len(bucket_data[label]), 1),
-            actual=round(sum(a for _, a in bucket_data[label]) / len(bucket_data[label]), 1),
-        )
-        for label in bucket_keys
-        if bucket_data[label]
-    ]
-
-    # Prediction breakdown by level
-    breakdown: dict[str, dict] = {
-        "high": {"total": 0, "hits": 0},
-        "medium": {"total": 0, "hits": 0},
-        "low": {"total": 0, "hits": 0},
-    }
-    for v in all_validations:
-        pred = pred_map.get(v["prediction_id"])
-        if pred:
-            level = pred.get("prediction_type", "low")
-            if level in breakdown:
-                breakdown[level]["total"] += 1
-                if v["driver_got_ride"] == 1:
-                    breakdown[level]["hits"] += 1
-
-    prediction_breakdown = [
-        PredictionBreakdown(
-            level=level.capitalize(),
-            total=data["total"],
-            hits=data["hits"],
-            hit_rate=round((data["hits"] / data["total"]) * 100, 1) if data["total"] > 0 else 0.0,
-        )
-        for level, data in breakdown.items()
-        if data["total"] > 0
-    ]
-
-    # Driver impact — same 20-min buckets, success rate + avg pickup
-    impact_map: dict[str, list] = {label: [] for label in bucket_keys}
-    for v in all_validations:
-        pred = pred_map.get(v["prediction_id"])
-        if not pred:
-            continue
-        created = pred.get("created_at")
-        if not isinstance(created, datetime):
-            continue
-        age_minutes = (now - created).total_seconds() / 60
-        if age_minutes < 0 or age_minutes > window_hours * 60:
-            continue
-        bucket_index = min(int(age_minutes // bucket_minutes), total_buckets - 1)
-        slot_label = bucket_keys[total_buckets - 1 - bucket_index]
-        impact_map[slot_label].append((v["driver_got_ride"], v["pickup_time_minutes"]))
-
-    driver_impact = []
-    for label in bucket_keys:
-        entries = impact_map[label]
-        if not entries:
-            continue
-        sr = round((sum(g for g, _ in entries) / len(entries)) * 100, 1)
-        valid_pickups = [pt for _, pt in entries if pt is not None]
-        avg_pt = round(sum(valid_pickups) / len(valid_pickups), 1) if valid_pickups else 0.0
-        driver_impact.append(DriverImpactPoint(period=label, success_rate=sr, avg_pickup_min=avg_pt))
-
-    with _VALIDATION_LOCK:
-        model_state = ModelLearningState(
-            current_rmse=_MODEL_STATE["rmse"],
-            current_r2=_MODEL_STATE["r2"],
-            generation=_MODEL_STATE["generation"],
-            rmse_floor=_MODEL_STATE["rmse_floor"],
-            r2_ceiling=_MODEL_STATE["r2_ceiling"],
-            next_retrain_in=_MODEL_STATE["retrain_every"] - _MODEL_STATE["validations_since_retrain"],
-        )
-        retrain_log = [RetrainEvent(**e) for e in _MODEL_STATE["retrain_log"]]
-
     return ValidationMetricsResponse(
         generated_at=datetime.utcnow(),
-        total_predictions=total_predictions,
-        validated_predictions=validated,
-        prediction_accuracy_pct=prediction_accuracy_pct,
-        hit_rate_pct=hit_rate_pct,
-        driver_success_rate_pct=driver_success_rate_pct,
-        avg_pickup_time_min=avg_pickup_time_min,
-        predicted_vs_actual=predicted_vs_actual,
-        prediction_breakdown=prediction_breakdown,
-        driver_impact=driver_impact,
+        total_predictions=m["test_size"],
+        validated_predictions=m["test_size"],
+        prediction_accuracy_pct=m["accuracy_pct"],
+        hit_rate_pct=0.0,
+        driver_success_rate_pct=0.0,
+        avg_pickup_time_min=0.0,
+        predicted_vs_actual=[],
+        prediction_breakdown=[],
+        driver_impact=[],
         model_state=model_state,
-        retrain_log=retrain_log,
+        retrain_log=[],
     )
 
 

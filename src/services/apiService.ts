@@ -48,6 +48,28 @@ class ApiRequestError extends Error {
   }
 }
 
+// Surface the backend's error detail (FastAPI returns { detail: string | ValidationError[] })
+// instead of a raw "API request failed with status 401" so users see a clear message.
+async function extractErrorMessage(response: Response): Promise<string> {
+  try {
+    const body = await response.json() as { detail?: unknown };
+    const detail = body?.detail;
+    if (typeof detail === 'string' && detail.trim()) {
+      return detail;
+    }
+    if (Array.isArray(detail) && detail.length > 0) {
+      const joined = detail
+        .map((item) => (item && typeof item === 'object' ? (item as { msg?: string }).msg : null))
+        .filter(Boolean)
+        .join('; ');
+      if (joined) return joined;
+    }
+  } catch {
+    // Response body was not JSON — fall through to a generic message.
+  }
+  return `API request failed with status ${response.status}`;
+}
+
 function isBrowserOnline() {
   return typeof navigator === 'undefined' ? true : navigator.onLine;
 }
@@ -137,7 +159,8 @@ async function fetchJson<T>(
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      throw new ApiRequestError(response.status, `API request failed with status ${response.status}`);
+      const message = await extractErrorMessage(response);
+      throw new ApiRequestError(response.status, message);
     }
 
     const data = await response.json() as T;
@@ -366,12 +389,16 @@ export async function getDrivers(): Promise<Driver[]> {
   return fetchJson<Driver[]>('/drivers', undefined, () => mockListDrivers());
 }
 
-export async function updateDriverStatus(driverId: string, status: 'online' | 'offline') {
+export async function updateDriverStatus(
+  driverId: string,
+  status: 'online' | 'offline' | 'driving',
+  targetZone?: string,
+) {
   return fetchJson<Driver | null>(
     `/drivers/${driverId}/status`,
     {
       method: 'POST',
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({ status, target_zone: targetZone ?? null }),
     },
     () => mockUpdateDriverStatus(driverId, status),
   );
