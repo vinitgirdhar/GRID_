@@ -120,7 +120,14 @@ function resolveSearch(raw: string): string {
   return s;
 }
 
-export default function GoForRide({ copilotZoneId }: { copilotZoneId?: string | null }) {
+interface GoForRideProps {
+  copilotZoneId?: string | null;
+  /** Called once the copilot zone has been applied, so the parent clears it —
+      otherwise it re-locks the destination after every Clear and page revisit. */
+  onCopilotZoneConsumed?: () => void;
+}
+
+export default function GoForRide({ copilotZoneId, onCopilotZoneConsumed }: GoForRideProps) {
   const { isOnline } = useOffline();
   const [destination, setDestination] = useState('');
   const [destinationActive, setDestinationActive] = useState(false);
@@ -161,9 +168,10 @@ export default function GoForRide({ copilotZoneId }: { copilotZoneId?: string | 
       if (targetZone) {
         setDestination(targetZone.borough);
         setDestinationActive(true);
+        onCopilotZoneConsumed?.();
       }
     }
-  }, [copilotZoneId, hotspots, activeZones, destination]);
+  }, [copilotZoneId, hotspots, activeZones, destination, onCopilotZoneConsumed]);
 
   const searchTerm = useMemo(() => resolveSearch(destination), [destination]);
 

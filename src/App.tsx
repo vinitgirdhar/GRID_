@@ -307,7 +307,7 @@ function AppShell() {
       case 'overview':
         return <DriverOverview currentHour={currentHour} isLive={isLive} setIsLive={setIsLive} />;
       case 'go-for-ride':
-        return <GoForRide copilotZoneId={copilotDest} />;
+        return <GoForRide copilotZoneId={copilotDest} onCopilotZoneConsumed={() => setCopilotDest(null)} />;
       case 'profile':
         return (
           <Profile

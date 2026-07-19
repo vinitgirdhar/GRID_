@@ -14,6 +14,7 @@ import {
     Shield,
 } from 'lucide-react';
 import { initUnicornStudioBackground } from '../lib/unicornStudio';
+import TechInfoModal, { TechInfoKey } from './TechInfoModal';
 
 // --- CUSTOM COMPONENTS ---
 
@@ -83,6 +84,7 @@ interface LandingPageProps {
 }
 
 export default function LandingPage({ onBeginAsDriver, onAdminAccess }: LandingPageProps) {
+    const [infoKey, setInfoKey] = useState<TechInfoKey | null>(null);
 
     useEffect(() => {
         // Defer heavy Unicorn Studio WebGL background until after first paint
@@ -399,24 +401,21 @@ export default function LandingPage({ onBeginAsDriver, onAdminAccess }: LandingP
                         <div className="lp-footer-col">
                             <h4>Product</h4>
                             <a href="#">Driver App</a>
-                            <button type="button" className="lp-footer-admin-access" onClick={onAdminAccess}>
-                                <Shield size={14} />
-                                Access Admin Panel
-                            </button>
+                            <button type="button" className="lp-footer-link" onClick={onAdminAccess}>Admin Panel</button>
                             <a href="#">GRID Copilot</a>
                         </div>
                         <div className="lp-footer-col">
                             <h4>Technology</h4>
-                            <a href="#">XGBoost Model</a>
-                            <a href="#">LightGBM</a>
-                            <a href="#">Gemini API</a>
+                            <button type="button" className="lp-footer-link" onClick={() => setInfoKey('xgboost')}>XGBoost Model</button>
+                            <button type="button" className="lp-footer-link" onClick={() => setInfoKey('lightgbm')}>LightGBM</button>
+                            <button type="button" className="lp-footer-link" onClick={() => setInfoKey('gemini')}>Gemini API</button>
                         </div>
                         <div className="lp-footer-col">
                             <h4>Data Sets</h4>
-                            <a href="#">NYC Taxi Data</a>
-                            <a href="#">NYC Transit Data</a>
-                            <a href="#">Weather API</a>
-                            <a href="#">NYC Event Data</a>
+                            <button type="button" className="lp-footer-link" onClick={() => setInfoKey('taxi')}>NYC Taxi Data</button>
+                            <button type="button" className="lp-footer-link" onClick={() => setInfoKey('transit')}>NYC Transit Data</button>
+                            <button type="button" className="lp-footer-link" onClick={() => setInfoKey('weather')}>Weather API</button>
+                            <button type="button" className="lp-footer-link" onClick={() => setInfoKey('events')}>NYC Event Data</button>
                         </div>
                     </div>
                     <div className="lp-footer-bottom">
@@ -432,6 +431,7 @@ export default function LandingPage({ onBeginAsDriver, onAdminAccess }: LandingP
                     </div>
                 </div>
             </footer>
+            {infoKey && <TechInfoModal infoKey={infoKey} onClose={() => setInfoKey(null)} />}
         </div>
     );
 }
@@ -695,9 +695,9 @@ const LandingCSS = () => (
     .lp-footer-col h4 { font-size:0.76rem; font-weight:600; margin-bottom:16px; letter-spacing:0.03em; text-transform:uppercase; color:var(--lp-text); }
     .lp-footer-col a { display:block; font-size:0.78rem; color:var(--lp-text-muted); font-weight:300; padding:4px 0; transition:color 0.2s; }
     .lp-footer-col a:hover { color:var(--lp-text); }
-    .lp-footer-admin-access { display:inline-flex; align-items:center; gap:8px; font-size:0.78rem; color:var(--lp-accent2); font-weight:500; margin:6px 0; padding:6px 10px; border-radius:8px; border:1px solid rgba(250,204,21,0.25); background:rgba(250,204,21,0.08); transition:all 0.2s; }
-    .lp-footer-admin-access:hover { color:var(--lp-text); border-color:rgba(250,204,21,0.45); background:rgba(250,204,21,0.16); }
-    .lp-footer-admin-access:focus-visible { outline:2px solid rgba(250,204,21,0.75); outline-offset:2px; }
+    .lp-footer-link { display:block; font-size:0.78rem; color:var(--lp-text-muted); font-weight:300; padding:4px 0; transition:color 0.2s; background:none; border:none; cursor:pointer; text-align:left; font-family:inherit; width:100%; }
+    .lp-footer-link:hover { color:var(--lp-text); }
+    .lp-footer-link:focus-visible { outline:2px solid rgba(250,204,21,0.75); outline-offset:2px; border-radius:4px; }
     .lp-footer-bottom { display:flex; justify-content:space-between; align-items:center; padding-top:24px; border-top:1px solid var(--lp-border); font-size:0.72rem; color:var(--lp-text-dim); font-weight:300; }
     .lp-footer-bottom-links { display:flex; align-items:center; gap:24px; }
     .lp-footer-bottom-links a:hover { color:var(--lp-text-muted); }
