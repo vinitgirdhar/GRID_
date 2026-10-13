@@ -40,3 +40,31 @@ DEPLOYMENT_RAILWAY.md
 # External tests
 testsprite_tests/
 
+
+# PowerShell cache written into repo dir
+Microsoft/
+
+# Stale local copy of old login screen (replaced by DriverLogin.tsx, removed in 25ed3fb)
+src/components/Login.tsx
+
+# Old v1 ML pipeline: removed in 2c4d778 (still in git history), kept locally only
+grid_ml/models/xgboost_demand_model*.json
+grid_ml/models/model_metadata_improved.json
+grid_ml/models/*_with_events.*
+grid_ml/notebooks/01_data_exploration.ipynb
+grid_ml/notebooks/02_data_preparation.ipynb
+grid_ml/notebooks/03_model_training.ipynb
+grid_ml/notebooks/04_predictions_and_hotspots.ipynb
+grid_ml/notebooks/05_retrain_with_more_data.ipynb
+grid_ml/notebooks/06_event_data_integration.ipynb
+grid_ml/notebooks/Untitled.ipynb
+grid_ml/outputs/figures/24hour_demand_forecast.png
+grid_ml/outputs/figures/event_vs_nonevent_performance.png
+grid_ml/outputs/figures/feature_importance_with_events.png
+grid_ml/outputs/figures/improved_feature_importance.png
+grid_ml/outputs/figures/improved_predictions_vs_actual.png
+grid_ml/outputs/figures/morning_vs_evening_hotspots.png
+grid_ml/outputs/figures/predictions_vs_actual.png
+grid_ml/outputs/figures/residual_analysis.png
+grid_ml/outputs/figures/results_dashboard.png
+grid_ml/outputs/figures/zone_hour_heatmap.png
