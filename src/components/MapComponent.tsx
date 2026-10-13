@@ -171,10 +171,19 @@ function MapComponent({
     }
   };
 
-  const tileUrl =
-    theme === 'dark'
-      ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-      : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+  const cartoKey = (import.meta.env.VITE_CARTO_API_KEY as string | undefined)?.trim();
+
+  const tileUrl = cartoKey
+    ? (theme === 'dark'
+        ? `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=${cartoKey}`
+        : `https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?key=${cartoKey}`)
+    : (theme === 'dark'
+        ? 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}'
+        : 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}');
+
+  const tileAttribution = cartoKey
+    ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+    : 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ';
 
   const autoFitPoints: Array<[number, number]> = [
     ...(route ? [route.start, route.end] : []),
@@ -188,7 +197,7 @@ function MapComponent({
   return (
     <div
       style={{ height, width: '100%', borderRadius: noBorderRadius ? '0' : '12px', overflow: 'hidden' }}
-      className="border border-[var(--border)] relative z-0 bg-[linear-gradient(180deg,rgba(241,245,249,0.92),rgba(226,232,240,0.92))]"
+      className={`border border-[var(--border)] relative z-0 ${theme === 'dark' ? 'bg-[#1a1e24]' : 'bg-[linear-gradient(180deg,rgba(241,245,249,0.92),rgba(226,232,240,0.92))]'}`}
     >
       <MapContainer
         key={`${center[0]}-${center[1]}-${offlineMode ? 'offline' : 'online'}`}
@@ -199,8 +208,9 @@ function MapComponent({
       >
         {!offlineMode && (
           <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
+            attribution={tileAttribution}
             url={tileUrl}
+            maxZoom={18}
           />
         )}
         <ThemeLayer theme={theme} />

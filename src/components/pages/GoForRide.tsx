@@ -305,7 +305,7 @@ export default function GoForRide({ copilotZoneId, onCopilotZoneConsumed }: GoFo
                 value={destination}
                 onChange={(e) => setDestination((e.target as HTMLInputElement).value)}
                 disabled={destinationActive}
-                onKeyDown={(e) => { if ((e as KeyboardEvent).key === 'Enter' && destination.trim()) handleActivate(); }}
+                onKeyDown={(e) => { if (e.key === 'Enter' && destination.trim()) handleActivate(); }}
                 className="w-full bg-white/5 border border-[rgba(250,204,21,0.1)] rounded-xl py-2.5 pl-9 pr-4 text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--primary)]/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               />
             </div>
