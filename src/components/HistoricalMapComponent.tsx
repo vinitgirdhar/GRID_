@@ -19,16 +19,27 @@ export default function HistoricalMapComponent({ data, theme, height = "500px" }
     return '#3B82F6'; // Blue
   };
 
-  const tileUrl = theme === 'dark' 
-    ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-    : "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png";
+  const cartoKey = (import.meta.env.VITE_CARTO_API_KEY as string | undefined)?.trim();
+
+  const tileUrl = cartoKey
+    ? (theme === 'dark'
+        ? `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=${cartoKey}`
+        : `https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?key=${cartoKey}`)
+    : (theme === 'dark'
+        ? 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}'
+        : 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}');
+
+  const tileAttribution = cartoKey
+    ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+    : 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ';
 
   return (
-    <div style={{ height, width: '100%', borderRadius: '12px', overflow: 'hidden' }} className="border border-[var(--border)]">
+    <div style={{ height, width: '100%', borderRadius: '12px', overflow: 'hidden' }} className={`border border-[var(--border)] ${theme === 'dark' ? 'bg-[#1a1e24]' : 'bg-[#f8fafc]'}`}>
       <MapContainer center={center} zoom={11} style={{ height: '100%', width: '100%' }}>
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+          attribution={tileAttribution}
           url={tileUrl}
+          maxZoom={18}
         />
         {data.map((item) => (
           <CircleMarker 
